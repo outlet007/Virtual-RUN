@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-paper text-ink antialiased;
+    font-feature-settings: "ss01";
+  }
+  /* ตัวเลขระยะทาง/BIB/เวลา ใช้ tabular figures ให้เรียงสวย */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  /* Signature: แถบความคืบหน้าแบบ "ลู่วิ่ง" */
+  .track-lane {
+    @apply relative h-3 w-full overflow-hidden rounded-full bg-lane;
+    background-image: repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 22px,
+      rgba(255, 255, 255, 0.6) 22px,
+      rgba(255, 255, 255, 0.6) 24px
+    );
+  }
+  .track-lane__fill {
+    @apply absolute inset-y-0 left-0 rounded-full bg-primary transition-[width] duration-700;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

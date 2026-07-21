@@ -1,0 +1,60 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+
+const POLICY_VERSION = "2026-01";
+
+export async function signUp(formData: FormData) {
+  const name = String(formData.get("name") ?? "");
+  const email = String(formData.get("email") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const acceptPrivacy = formData.get("privacy") === "on";
+  const acceptMarketing = formData.get("marketing") === "on";
+
+  if (!acceptPrivacy) {
+    redirect("/signup?error=" + encodeURIComponent("ต้องยอมรับนโยบายความเป็นส่วนตัว"));
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { name } },
+  });
+
+  if (error) {
+    redirect("/signup?error=" + encodeURIComponent(error.message));
+  }
+
+  // บันทึกความยินยอม PDPA (ต้องมี session — dev: ปิด email confirmation ใน Supabase Auth)
+  if (data.user) {
+    const consents = [
+      { user_id: data.user.id, policy_version: POLICY_VERSION, type: "privacy" },
+      { user_id: data.user.id, policy_version: POLICY_VERSION, type: "terms" },
+    ];
+    if (acceptMarketing) {
+      consents.push({
+        user_id: data.user.id,
+        policy_version: POLICY_VERSION,
+        type: "marketing",
+      });
+    }
+    await supabase.from("consents").insert(consents);
+  }
+
+  redirect("/dashboard");
+}
+
+export async function logIn(formData: FormData) {
+  const email = String(formData.get("email") ?? "");
+  const password = String(formData.get("password") ?? "");
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    redirect("/login?error=" + encodeURIComponent(error.message));
+  }
+  redirect("/dashboard");
+}
