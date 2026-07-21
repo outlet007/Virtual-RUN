@@ -3,15 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-
-// Rule engine เวอร์ชันเริ่มต้น (Phase 1) — ตรวจ pace คร่าวๆ
-// pace ที่มนุษย์ทำได้ ~ 2:30/km (150s) ถึง ~ 15:00/km (900s สำหรับเดิน)
-function basicRuleCheck(distanceKm: number, durationSec: number | null) {
-  if (!durationSec || durationSec <= 0) return "flagged"; // ไม่มีเวลา → ให้ admin ดู
-  const pace = durationSec / distanceKm; // วินาที/กม.
-  if (pace < 150 || pace > 1200) return "flagged";
-  return "approved";
-}
+import { basicRuleCheck } from "@/lib/rules";
 
 export async function createSubmission(formData: FormData) {
   const supabase = await createClient();

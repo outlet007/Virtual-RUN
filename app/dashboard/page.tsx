@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { Card, Badge, LinkButton, TrackProgress } from "@/components/ui";
+import { Card, Badge, LinkButton, Button, Select } from "@/components/ui";
+import { TrackProgress } from "@/components/ui";
 import { formatKm } from "@/lib/utils";
+import { disconnectStrava, assignPendingActivity } from "@/lib/actions/strava";
 
 export const dynamic = "force-dynamic";
 
@@ -23,13 +25,27 @@ type Sub = {
   activity_type: string;
   activity_date: string;
 };
+type PendingActivity = {
+  id: string;
+  activity_type: string;
+  distance_km: number;
+  duration_sec: number | null;
+  activity_date: string;
+};
 
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ welcome?: string; submitted?: string; pending?: string }>;
+  searchParams: Promise<{
+    welcome?: string;
+    submitted?: string;
+    pending?: string;
+    strava?: string;
+    assigned?: string;
+    error?: string;
+  }>;
 }) {
-  const { welcome, submitted } = await searchParams;
+  const { welcome, submitted, strava, assigned, error } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -50,8 +66,22 @@ export default async function DashboardPage({
     .eq("user_id", user.id)
     .order("activity_date", { ascending: false });
 
+  const { data: stravaConnection } = await supabase
+    .from("strava_connections")
+    .select("strava_athlete_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const { data: pendingActivitiesRaw } = await supabase
+    .from("strava_pending_activities")
+    .select("id, activity_type, distance_km, duration_sec, activity_date")
+    .eq("user_id", user.id)
+    .order("activity_date", { ascending: false });
+
   const regs = (regsRaw ?? []) as unknown as Reg[];
   const subs = (subsRaw ?? []) as Sub[];
+  const pendingActivities = (pendingActivitiesRaw ?? []) as PendingActivity[];
+  const confirmedRegs = regs.filter((r) => r.status === "confirmed");
 
   // รวมระยะที่อนุมัติแล้ว ต่อ registration
   const approvedByReg = new Map<string, number>();
@@ -82,6 +112,84 @@ export default async function DashboardPage({
             ? "✅ บันทึกผลสำเร็จ — ระยะถูกเพิ่มเข้ายอดสะสมแล้ว"
             : "📝 บันทึกผลแล้ว — รอผู้จัดงานตรวจสอบ"}
         </div>
+      )}
+      {strava === "connected" && (
+        <div className="rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
+          🔗 เชื่อมต่อ Strava สำเร็จ — กิจกรรมใหม่จะถูกดึงเข้าระบบอัตโนมัติ
+        </div>
+      )}
+      {strava === "disconnected" && (
+        <div className="rounded-xl bg-lane px-4 py-3 text-sm text-ink/60">
+          ตัดการเชื่อมต่อ Strava แล้ว
+        </div>
+      )}
+      {assigned && (
+        <div className="rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
+          ✅ จับคู่กิจกรรมกับใบสมัครแล้ว
+        </div>
+      )}
+      {error && (
+        <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      )}
+
+      {/* Strava */}
+      <Card className="flex items-center justify-between">
+        <div>
+          <p className="font-display font-bold">Strava</p>
+          <p className="text-sm text-ink/50">
+            {stravaConnection
+              ? "เชื่อมต่ออยู่ — กิจกรรมวิ่ง/เดินใหม่จะถูกดึงเข้าระบบอัตโนมัติ"
+              : "เชื่อมต่อ Strava เพื่อให้ระบบดึงผลวิ่งให้อัตโนมัติ ไม่ต้องอัปโหลดเอง"}
+          </p>
+        </div>
+        {stravaConnection ? (
+          <form action={disconnectStrava}>
+            <Button variant="ghost" type="submit">
+              ตัดการเชื่อมต่อ
+            </Button>
+          </form>
+        ) : (
+          <LinkButton href="/api/strava/connect">เชื่อมต่อ Strava</LinkButton>
+        )}
+      </Card>
+
+      {/* กิจกรรมจาก Strava ที่ต้องเลือกใบสมัครเอง */}
+      {pendingActivities.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="font-display text-xl font-bold">
+            กิจกรรมจาก Strava ที่ต้องเลือกใบสมัคร
+          </h2>
+          <p className="text-sm text-ink/50">
+            ระบบจับคู่อัตโนมัติไม่ได้ (ไม่มี หรือมีมากกว่า 1 ใบสมัครที่ตรงช่วงวันงาน) เลือกเองได้เลย
+          </p>
+          <div className="space-y-3">
+            {pendingActivities.map((p) => (
+              <Card key={p.id} className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">{p.activity_type === "walk" ? "🚶" : "🏃"}</span>
+                  <span className="font-mono text-sm tnum">
+                    {formatKm(Number(p.distance_km))} km
+                  </span>
+                  <span className="text-xs text-ink/40">
+                    {new Date(p.activity_date).toLocaleDateString("th-TH")}
+                  </span>
+                </div>
+                <form action={assignPendingActivity} className="flex items-center gap-2">
+                  <input type="hidden" name="pending_id" value={p.id} />
+                  <Select name="registration_id" required className="w-56">
+                    <option value="">เลือกใบสมัคร...</option>
+                    {confirmedRegs.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.events?.title} — {r.packages?.name}
+                      </option>
+                    ))}
+                  </Select>
+                  <Button type="submit">เลือก</Button>
+                </form>
+              </Card>
+            ))}
+          </div>
+        </section>
       )}
 
       {/* สรุปยอดรวม */}
