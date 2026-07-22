@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { genBib } from "@/lib/utils";
+import { awardForApprovedSubmission } from "@/lib/gamification";
 
 function err(path: string, message: string): never {
   redirect(`${path}?error=${encodeURIComponent(message)}`);
@@ -168,8 +169,22 @@ export async function reviewSubmission(formData: FormData) {
     err("/admin/submissions", "คำขอไม่ถูกต้อง");
   }
 
-  const { error } = await db.from("submissions").update({ status }).eq("id", id);
+  const { data: submission, error } = await db
+    .from("submissions")
+    .update({ status })
+    .eq("id", id)
+    .select("registration_id, user_id, distance_km")
+    .single();
   if (error) err("/admin/submissions", error.message);
+
+  if (status === "approved" && submission) {
+    await awardForApprovedSubmission(
+      submission.registration_id,
+      submission.user_id,
+      Number(submission.distance_km),
+      id,
+    );
+  }
 
   revalidatePath("/admin/submissions");
   revalidatePath("/dashboard");
@@ -303,4 +318,125 @@ export async function rejectPayment(formData: FormData) {
 
   revalidatePath("/admin/payments");
   redirect("/admin/payments?rejected=1");
+}
+
+// ---------- Medals ----------
+
+export async function createMedal(formData: FormData) {
+  await requireAdmin();
+  const db = createAdminClient();
+
+  const eventId = String(formData.get("event_id") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const tier = String(formData.get("tier") ?? "bronze");
+  const targetKm = Number(formData.get("target_km") ?? 0);
+  const bonusPoints = Number(formData.get("bonus_points") ?? 0);
+  const imageUrl = String(formData.get("image_url") ?? "").trim();
+
+  if (!eventId || !name || targetKm <= 0) {
+    err(`/admin/events/${eventId}`, "กรอกชื่อเหรียญและระยะเป้าหมายให้ถูกต้อง");
+  }
+
+  const { error } = await db.from("medals").insert({
+    event_id: eventId,
+    name,
+    tier,
+    unlock_rule: { type: "distance", target_km: targetKm },
+    bonus_points: bonusPoints,
+    image_url: imageUrl || null,
+  });
+  if (error) err(`/admin/events/${eventId}`, error.message);
+
+  revalidatePath(`/admin/events/${eventId}`);
+  redirect(`/admin/events/${eventId}?medal_added=1`);
+}
+
+export async function updateMedal(formData: FormData) {
+  await requireAdmin();
+  const db = createAdminClient();
+
+  const id = String(formData.get("id") ?? "");
+  const eventId = String(formData.get("event_id") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const tier = String(formData.get("tier") ?? "bronze");
+  const targetKm = Number(formData.get("target_km") ?? 0);
+  const bonusPoints = Number(formData.get("bonus_points") ?? 0);
+  const imageUrl = String(formData.get("image_url") ?? "").trim();
+
+  if (!id || !eventId || !name || targetKm <= 0) {
+    err(`/admin/events/${eventId}`, "กรอกชื่อเหรียญและระยะเป้าหมายให้ถูกต้อง");
+  }
+
+  const { error } = await db
+    .from("medals")
+    .update({
+      name,
+      tier,
+      unlock_rule: { type: "distance", target_km: targetKm },
+      bonus_points: bonusPoints,
+      image_url: imageUrl || null,
+    })
+    .eq("id", id);
+  if (error) err(`/admin/events/${eventId}`, error.message);
+
+  revalidatePath(`/admin/events/${eventId}`);
+  redirect(`/admin/events/${eventId}?medal_saved=1`);
+}
+
+// ---------- Rewards ----------
+
+export async function createReward(formData: FormData) {
+  await requireAdmin();
+  const db = createAdminClient();
+
+  const name = String(formData.get("name") ?? "").trim();
+  const costPoints = Number(formData.get("cost_points") ?? 0);
+  const stock = Number(formData.get("stock") ?? 0);
+
+  if (!name || costPoints <= 0) {
+    err("/admin/rewards", "กรอกชื่อรางวัลและแต้มให้ถูกต้อง");
+  }
+
+  const { error } = await db.from("rewards").insert({ name, cost_points: costPoints, stock });
+  if (error) err("/admin/rewards", error.message);
+
+  revalidatePath("/admin/rewards");
+  redirect("/admin/rewards?reward_added=1");
+}
+
+export async function updateReward(formData: FormData) {
+  await requireAdmin();
+  const db = createAdminClient();
+
+  const id = String(formData.get("id") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const costPoints = Number(formData.get("cost_points") ?? 0);
+  const stock = Number(formData.get("stock") ?? 0);
+
+  if (!id || !name || costPoints <= 0) {
+    err("/admin/rewards", "กรอกชื่อรางวัลและแต้มให้ถูกต้อง");
+  }
+
+  const { error } = await db
+    .from("rewards")
+    .update({ name, cost_points: costPoints, stock })
+    .eq("id", id);
+  if (error) err("/admin/rewards", error.message);
+
+  revalidatePath("/admin/rewards");
+  redirect("/admin/rewards?reward_saved=1");
+}
+
+export async function fulfillRedemption(formData: FormData) {
+  await requireAdmin();
+  const db = createAdminClient();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) err("/admin/rewards", "ไม่พบรายการแลกรางวัล");
+
+  const { error } = await db.from("redemptions").update({ status: "fulfilled" }).eq("id", id);
+  if (error) err("/admin/rewards", error.message);
+
+  revalidatePath("/admin/rewards");
+  redirect("/admin/rewards?fulfilled=1");
 }

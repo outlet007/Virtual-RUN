@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { basicRuleCheck } from "@/lib/rules";
 import { refreshAccessToken, type StravaActivity } from "@/lib/strava/api";
+import { awardForApprovedSubmission } from "@/lib/gamification";
 
 type StravaConnection = {
   id: string;
@@ -73,19 +74,32 @@ export async function syncActivityForUser(userId: string, activity: StravaActivi
   });
 
   if (matches.length === 1) {
-    const { error } = await db.from("submissions").insert({
-      registration_id: matches[0].id,
-      user_id: userId,
-      source: "strava",
-      activity_type: activityType,
-      distance_km: distanceKm,
-      duration_sec: durationSec,
-      activity_date: activityDate.toISOString(),
-      strava_activity_id: String(activity.id),
-      status: basicRuleCheck(distanceKm, durationSec),
-    });
-    // unique constraint บน strava_activity_id กัน webhook redelivery ซ้ำ — ชนแล้วเฉยไว้ ไม่ถือเป็น error
-    if (error && error.code !== "23505") throw error;
+    const status = basicRuleCheck(distanceKm, durationSec);
+    const { data: submission, error } = await db
+      .from("submissions")
+      .insert({
+        registration_id: matches[0].id,
+        user_id: userId,
+        source: "strava",
+        activity_type: activityType,
+        distance_km: distanceKm,
+        duration_sec: durationSec,
+        activity_date: activityDate.toISOString(),
+        strava_activity_id: String(activity.id),
+        status,
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      // unique constraint บน strava_activity_id กัน webhook redelivery ซ้ำ — ชนแล้วเฉยไว้ (award ไปแล้วตอน insert ครั้งแรก)
+      if (error.code !== "23505") throw error;
+      return;
+    }
+
+    if (status === "approved") {
+      await awardForApprovedSubmission(matches[0].id, userId, distanceKm, submission.id);
+    }
     return;
   }
 

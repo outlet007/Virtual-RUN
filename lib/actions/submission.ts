@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { basicRuleCheck } from "@/lib/rules";
+import { awardForApprovedSubmission } from "@/lib/gamification";
 
 export async function createSubmission(formData: FormData) {
   const supabase = await createClient();
@@ -48,20 +49,28 @@ export async function createSubmission(formData: FormData) {
   const durationSec = durationMin > 0 ? Math.round(durationMin * 60) : null;
   const status = basicRuleCheck(distanceKm, durationSec);
 
-  const { error } = await supabase.from("submissions").insert({
-    registration_id: registrationId,
-    user_id: user.id,
-    source: "upload",
-    activity_type: activityType,
-    distance_km: distanceKm,
-    duration_sec: durationSec,
-    activity_date: new Date(activityDate).toISOString(),
-    evidence_url: evidencePath,
-    status,
-  });
+  const { data: submission, error } = await supabase
+    .from("submissions")
+    .insert({
+      registration_id: registrationId,
+      user_id: user.id,
+      source: "upload",
+      activity_type: activityType,
+      distance_km: distanceKm,
+      duration_sec: durationSec,
+      activity_date: new Date(activityDate).toISOString(),
+      evidence_url: evidencePath,
+      status,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     redirect("/dashboard/submit?error=" + encodeURIComponent(error.message));
+  }
+
+  if (status === "approved") {
+    await awardForApprovedSubmission(registrationId, user.id, distanceKm, submission!.id);
   }
 
   revalidatePath("/dashboard");

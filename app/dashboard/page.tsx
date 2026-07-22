@@ -33,6 +33,17 @@ type PendingActivity = {
   duration_sec: number | null;
   activity_date: string;
 };
+type EarnedMedal = {
+  id: string;
+  medals: { name: string; tier: string; image_url: string | null } | null;
+};
+
+const tierLabel: Record<string, string> = {
+  bronze: "บรอนซ์",
+  silver: "เงิน",
+  gold: "ทอง",
+  legendary: "ตำนาน",
+};
 
 export default async function DashboardPage({
   searchParams,
@@ -79,9 +90,19 @@ export default async function DashboardPage({
     .eq("user_id", user.id)
     .order("activity_date", { ascending: false });
 
+  const { data: ledger } = await supabase.from("points_ledger").select("delta");
+  const points = (ledger ?? []).reduce((sum, l) => sum + l.delta, 0);
+
+  const { data: earnedMedalsRaw } = await supabase
+    .from("user_medals")
+    .select("id, medals(name, tier, image_url)")
+    .eq("user_id", user.id)
+    .order("unlocked_at", { ascending: false });
+
   const regs = (regsRaw ?? []) as unknown as Reg[];
   const subs = (subsRaw ?? []) as Sub[];
   const pendingActivities = (pendingActivitiesRaw ?? []) as PendingActivity[];
+  const earnedMedals = (earnedMedalsRaw ?? []) as unknown as EarnedMedal[];
   const confirmedRegs = regs.filter((r) => r.status === "confirmed");
 
   // รวมระยะที่อนุมัติแล้ว ต่อ registration
@@ -194,7 +215,7 @@ export default async function DashboardPage({
       )}
 
       {/* สรุปยอดรวม */}
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-ink text-paper">
           <p className="text-xs uppercase tracking-wider text-paper/50">
             ระยะสะสมรวม
@@ -218,7 +239,37 @@ export default async function DashboardPage({
             {pendingCount}
           </p>
         </Card>
+        <Link href="/rewards">
+          <Card className="hover:border-primary/40">
+            <p className="text-xs uppercase tracking-wider text-ink/40">
+              แต้มสะสม
+            </p>
+            <p className="mt-1 font-mono text-4xl font-bold text-primary-dark tnum">
+              {points}
+            </p>
+          </Card>
+        </Link>
       </section>
+
+      {/* เหรียญที่ปลดล็อกแล้ว */}
+      {earnedMedals.length > 0 && (
+        <section>
+          <h2 className="mb-3 font-display text-xl font-bold">เหรียญที่ได้รับ</h2>
+          <div className="flex flex-wrap gap-3">
+            {earnedMedals.map((em) => (
+              <Card key={em.id} className="flex items-center gap-3 py-3">
+                <span className="text-2xl">🏅</span>
+                <div>
+                  <p className="font-semibold">{em.medals?.name}</p>
+                  <Badge className="bg-medal-soft text-medal">
+                    {tierLabel[em.medals?.tier ?? ""] ?? em.medals?.tier}
+                  </Badge>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="flex items-center justify-between">
         <h2 className="font-display text-xl font-bold">งานของฉัน</h2>

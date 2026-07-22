@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, Button, Input, Label, Textarea, Select, Badge } from "@/components/ui";
-import { updateEvent, createPackage, updatePackage } from "@/lib/actions/admin";
+import { updateEvent, createPackage, updatePackage, createMedal, updateMedal } from "@/lib/actions/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -15,12 +15,36 @@ type PackageRow = {
   has_physical_medal: boolean;
 };
 
+type MedalRow = {
+  id: string;
+  name: string;
+  tier: string;
+  bonus_points: number;
+  image_url: string | null;
+  unlock_rule: { target_km?: number } | null;
+};
+
+const tierLabel: Record<string, string> = {
+  bronze: "บรอนซ์",
+  silver: "เงิน",
+  gold: "ทอง",
+  legendary: "ตำนาน",
+};
+
 export default async function EditEventPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string; saved?: string; created?: string; package_added?: string; package_saved?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    saved?: string;
+    created?: string;
+    package_added?: string;
+    package_saved?: string;
+    medal_added?: string;
+    medal_saved?: string;
+  }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -29,13 +53,14 @@ export default async function EditEventPage({
   const { data: event } = await db
     .from("events")
     .select(
-      "id, title, description, cover_image, pricing, start_date, end_date, status, packages(id, name, target_distance_km, price, activity_types, has_physical_medal)",
+      "id, title, description, cover_image, pricing, start_date, end_date, status, packages(id, name, target_distance_km, price, activity_types, has_physical_medal), medals(id, name, tier, bonus_points, image_url, unlock_rule)",
     )
     .eq("id", id)
     .single();
 
   if (!event) notFound();
   const packages = (event.packages ?? []) as PackageRow[];
+  const medals = (event.medals ?? []) as MedalRow[];
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
@@ -211,6 +236,106 @@ export default async function EditEventPage({
               </label>
             </div>
             <Button type="submit">เพิ่มแพ็กเกจ</Button>
+          </Card>
+        </form>
+      </div>
+
+      <div>
+        <h3 className="font-display text-lg font-bold">เหรียญดิจิทัล</h3>
+        <p className="mt-1 text-sm text-ink/50">
+          ปลดล็อกอัตโนมัติเมื่อระยะสะสมที่อนุมัติแล้วของใบสมัครถึงเป้าที่ตั้งไว้ (ตั้งได้หลายเหรียญต่องาน)
+        </p>
+        {sp.medal_added && <p className="mt-1 text-sm text-primary-dark">เพิ่มเหรียญแล้ว</p>}
+        {sp.medal_saved && <p className="mt-1 text-sm text-primary-dark">บันทึกเหรียญแล้ว</p>}
+
+        <div className="mt-3 space-y-3">
+          {medals.map((m) => (
+            <form key={m.id} action={updateMedal}>
+              <input type="hidden" name="id" value={m.id} />
+              <input type="hidden" name="event_id" value={event.id} />
+              <Card className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="font-display font-bold">{m.name}</span>
+                  <Badge className="bg-medal-soft text-medal">{tierLabel[m.tier] ?? m.tier}</Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>ชื่อเหรียญ</Label>
+                    <Input name="name" defaultValue={m.name} required />
+                  </div>
+                  <div>
+                    <Label>ระดับ</Label>
+                    <Select name="tier" defaultValue={m.tier}>
+                      <option value="bronze">บรอนซ์</option>
+                      <option value="silver">เงิน</option>
+                      <option value="gold">ทอง</option>
+                      <option value="legendary">ตำนาน</option>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>ระยะสะสมที่ต้องถึง (km)</Label>
+                    <Input
+                      name="target_km"
+                      type="number"
+                      min="0.1"
+                      step="0.1"
+                      defaultValue={m.unlock_rule?.target_km ?? 0}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label>แต้มโบนัส</Label>
+                    <Input name="bonus_points" type="number" min="0" defaultValue={m.bonus_points} />
+                  </div>
+                </div>
+                <div>
+                  <Label>ลิงก์รูปเหรียญ</Label>
+                  <Input name="image_url" type="url" defaultValue={m.image_url ?? ""} />
+                </div>
+                <Button variant="ghost" type="submit">
+                  บันทึกเหรียญนี้
+                </Button>
+              </Card>
+            </form>
+          ))}
+        </div>
+
+        <form action={createMedal} className="mt-4">
+          <input type="hidden" name="event_id" value={event.id} />
+          <Card className="space-y-3">
+            <p className="text-sm font-semibold">+ เพิ่มเหรียญใหม่</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>ชื่อเหรียญ</Label>
+                <Input name="name" required />
+              </div>
+              <div>
+                <Label>ระดับ</Label>
+                <Select name="tier" defaultValue="bronze">
+                  <option value="bronze">บรอนซ์</option>
+                  <option value="silver">เงิน</option>
+                  <option value="gold">ทอง</option>
+                  <option value="legendary">ตำนาน</option>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>ระยะสะสมที่ต้องถึง (km)</Label>
+                <Input name="target_km" type="number" min="0.1" step="0.1" required />
+              </div>
+              <div>
+                <Label>แต้มโบนัส</Label>
+                <Input name="bonus_points" type="number" min="0" defaultValue={0} />
+              </div>
+            </div>
+            <div>
+              <Label>ลิงก์รูปเหรียญ</Label>
+              <Input name="image_url" type="url" placeholder="https://..." />
+            </div>
+            <Button type="submit">เพิ่มเหรียญ</Button>
           </Card>
         </form>
       </div>

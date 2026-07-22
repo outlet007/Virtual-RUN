@@ -1,19 +1,14 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Inter, Space_Mono } from "next/font/google";
+import { Noto_Sans_Thai } from "next/font/google";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import "./globals.css";
 
-const display = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-display",
-  weight: ["500", "600", "700"],
-});
-const sans = Inter({ subsets: ["latin"], variable: "--font-sans" });
-const mono = Space_Mono({
-  subsets: ["latin"],
-  variable: "--font-mono",
-  weight: ["400", "700"],
+// Noto Sans Thai เป็น font เดียวของทั้งระบบ (แทน Space Grotesk/Inter/Space Mono เดิม)
+const notoSansThai = Noto_Sans_Thai({
+  subsets: ["thai", "latin"],
+  variable: "--font-sans",
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -43,7 +38,7 @@ export default async function RootLayout({
 
   return (
     <html lang="th">
-      <body className={`${display.variable} ${sans.variable} ${mono.variable} font-sans`}>
+      <body className={`${notoSansThai.variable} font-sans`}>
         <header className="sticky top-0 z-20 border-b border-lane bg-paper/85 backdrop-blur">
           <nav className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4">
             <Link href="/" className="flex items-center gap-2">

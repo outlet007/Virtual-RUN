@@ -7,6 +7,7 @@ const tabs = [
   { href: "/admin/submissions", label: "ตรวจผลวิ่ง" },
   { href: "/admin/payments", label: "การชำระเงิน" },
   { href: "/admin/shipments", label: "จัดส่งเหรียญ" },
+  { href: "/admin/rewards", label: "รางวัล" },
   { href: "/admin/admins", label: "ผู้ดูแลระบบ" },
 ];
 

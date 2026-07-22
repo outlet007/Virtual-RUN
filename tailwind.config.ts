@@ -19,9 +19,10 @@ const config: Config = {
         lane: "#E7E5DF", // track lane lines
       },
       fontFamily: {
-        display: ["var(--font-display)", "system-ui", "sans-serif"],
+        // font เดียวทั้งระบบ — Noto Sans Thai (ดู app/layout.tsx)
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
-        mono: ["var(--font-mono)", "ui-monospace", "monospace"],
+        display: ["var(--font-sans)", "system-ui", "sans-serif"],
+        mono: ["var(--font-sans)", "system-ui", "sans-serif"],
       },
       borderRadius: {
         xl: "14px",
