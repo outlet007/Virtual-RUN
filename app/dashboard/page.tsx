@@ -5,6 +5,7 @@ import { Card, Badge, LinkButton, Button, Select } from "@/components/ui";
 import { TrackProgress } from "@/components/ui";
 import { formatKm } from "@/lib/utils";
 import { disconnectStrava, assignPendingActivity } from "@/lib/actions/strava";
+import { disconnectLine } from "@/lib/actions/line";
 
 export const dynamic = "force-dynamic";
 
@@ -53,16 +54,26 @@ export default async function DashboardPage({
     submitted?: string;
     pending?: string;
     strava?: string;
+    line?: string;
     assigned?: string;
     error?: string;
   }>;
 }) {
-  const { welcome, submitted, strava, assigned, error } = await searchParams;
+  const { welcome, submitted, strava, line, assigned, error } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  // user social login ครั้งแรกยังไม่เคยยอมรับ PDPA (ข้ามฟอร์มสมัครสมาชิกที่มี checkbox มา)
+  const { data: privacyConsent } = await supabase
+    .from("consents")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("type", "privacy")
+    .maybeSingle();
+  if (!privacyConsent) redirect("/consent");
 
   const { data: regsRaw } = await supabase
     .from("registrations")
@@ -83,6 +94,13 @@ export default async function DashboardPage({
     .select("strava_athlete_id")
     .eq("user_id", user.id)
     .maybeSingle();
+
+  const { data: profile } = await supabase
+    .from("users")
+    .select("line_user_id")
+    .eq("id", user.id)
+    .single();
+  const lineConnected = Boolean(profile?.line_user_id);
 
   const { data: pendingActivitiesRaw } = await supabase
     .from("strava_pending_activities")
@@ -145,6 +163,16 @@ export default async function DashboardPage({
           ตัดการเชื่อมต่อ Strava แล้ว
         </div>
       )}
+      {line === "connected" && (
+        <div className="rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
+          🔗 เชื่อมต่อ LINE สำเร็จ — รับการแจ้งเตือนผ่าน LINE ได้แล้ว
+        </div>
+      )}
+      {line === "disconnected" && (
+        <div className="rounded-xl bg-lane px-4 py-3 text-sm text-ink/60">
+          ตัดการเชื่อมต่อ LINE แล้ว
+        </div>
+      )}
       {assigned && (
         <div className="rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
           ✅ จับคู่กิจกรรมกับใบสมัครแล้ว
@@ -172,6 +200,27 @@ export default async function DashboardPage({
           </form>
         ) : (
           <LinkButton href="/api/strava/connect">เชื่อมต่อ Strava</LinkButton>
+        )}
+      </Card>
+
+      {/* LINE */}
+      <Card className="flex items-center justify-between">
+        <div>
+          <p className="font-display font-bold">LINE</p>
+          <p className="text-sm text-ink/50">
+            {lineConnected
+              ? "เชื่อมต่ออยู่ — รับการแจ้งเตือนผ่าน LINE ได้"
+              : "เชื่อมต่อ LINE เพื่อรับการแจ้งเตือนแทน/เพิ่มเติมจากอีเมล"}
+          </p>
+        </div>
+        {lineConnected ? (
+          <form action={disconnectLine}>
+            <Button variant="ghost" type="submit">
+              ตัดการเชื่อมต่อ
+            </Button>
+          </form>
+        ) : (
+          <LinkButton href="/api/line/connect">เชื่อมต่อ LINE</LinkButton>
         )}
       </Card>
 

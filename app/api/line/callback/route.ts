@@ -1,0 +1,58 @@
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { createClient } from "@/lib/supabase/server";
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const code = url.searchParams.get("code");
+  const state = url.searchParams.get("state");
+  const error = url.searchParams.get("error");
+
+  const cookieStore = await cookies();
+  const expectedState = cookieStore.get("line_oauth_state")?.value;
+
+  if (error || !code || !state || state !== expectedState) {
+    return NextResponse.redirect(
+      new URL(`/dashboard?error=${encodeURIComponent("เชื่อมต่อ LINE ไม่สำเร็จ")}`, request.url),
+    );
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.redirect(new URL("/login", request.url));
+
+  const redirectUri = new URL("/api/line/callback", request.url).toString();
+
+  const tokenRes = await fetch("https://api.line.me/oauth2/v2.1/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: redirectUri,
+      client_id: process.env.LINE_LOGIN_CHANNEL_ID ?? "",
+      client_secret: process.env.LINE_LOGIN_CHANNEL_SECRET ?? "",
+    }),
+  });
+
+  if (!tokenRes.ok) {
+    return NextResponse.redirect(
+      new URL(`/dashboard?error=${encodeURIComponent("เชื่อมต่อ LINE ไม่สำเร็จ")}`, request.url),
+    );
+  }
+
+  const { access_token } = (await tokenRes.json()) as { access_token: string };
+
+  const profileRes = await fetch("https://api.line.me/v2/profile", {
+    headers: { Authorization: `Bearer ${access_token}` },
+  });
+  const profile = (await profileRes.json()) as { userId: string };
+
+  await supabase.from("users").update({ line_user_id: profile.userId }).eq("id", user.id);
+
+  const response = NextResponse.redirect(new URL("/dashboard?line=connected", request.url));
+  response.cookies.delete("line_oauth_state");
+  return response;
+}

@@ -1,9 +1,11 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notifyUser } from "@/lib/notifications";
 
 const POINTS_PER_KM = 1;
 
 type MedalRow = {
   id: string;
+  name: string;
   bonus_points: number;
   unlock_rule: { type?: string; target_km?: number } | null;
 };
@@ -45,7 +47,7 @@ export async function awardForApprovedSubmission(
 
   const { data: medalsRaw } = await db
     .from("medals")
-    .select("id, bonus_points, unlock_rule")
+    .select("id, name, bonus_points, unlock_rule")
     .eq("event_id", reg.event_id);
   const medals = (medalsRaw ?? []) as MedalRow[];
 
@@ -77,5 +79,10 @@ export async function awardForApprovedSubmission(
         ref_id: medal.id,
       });
     }
+
+    await notifyUser(userId, "medal_unlocked", {
+      subject: "ปลดล็อกเหรียญใหม่แล้ว!",
+      text: `ยินดีด้วย! คุณปลดล็อกเหรียญ "${medal.name}" แล้ว${medal.bonus_points > 0 ? ` พร้อมแต้มโบนัส ${medal.bonus_points} แต้ม` : ""}`,
+    });
   }
 }

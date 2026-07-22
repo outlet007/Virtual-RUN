@@ -46,6 +46,27 @@ export async function signUp(formData: FormData) {
   redirect("/dashboard");
 }
 
+// สำหรับ user ที่ social login ครั้งแรก (ข้ามฟอร์มสมัครสมาชิกปกติที่มี checkbox PDPA มา)
+export async function acceptConsent(formData: FormData) {
+  const accepted = formData.get("accept") === "on";
+  if (!accepted) {
+    redirect("/consent?error=" + encodeURIComponent("ต้องยอมรับการยินยอมเปิดเผยข้อมูลก่อน"));
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  await supabase.from("consents").insert([
+    { user_id: user.id, policy_version: POLICY_VERSION, type: "privacy" },
+    { user_id: user.id, policy_version: POLICY_VERSION, type: "terms" },
+  ]);
+
+  redirect("/dashboard");
+}
+
 export async function logIn(formData: FormData) {
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Card, Button, Input, Label } from "@/components/ui";
+import { Card, Button, Input, Label, LinkButton } from "@/components/ui";
 import { signUp } from "@/lib/actions/auth";
 
 export default async function SignupPage({
@@ -57,6 +57,21 @@ export default async function SignupPage({
           <Button className="w-full" type="submit">
             สมัครสมาชิก
           </Button>
+
+          <div className="flex items-center gap-3 text-xs text-ink/40">
+            <div className="h-px flex-1 bg-lane" />
+            หรือ
+            <div className="h-px flex-1 bg-lane" />
+          </div>
+
+          <div className="space-y-2">
+            <LinkButton href="/auth/google" variant="ghost" className="w-full">
+              สมัครสมาชิกด้วย Google
+            </LinkButton>
+            <LinkButton href="/auth/facebook" variant="ghost" className="w-full">
+              สมัครสมาชิกด้วย Facebook
+            </LinkButton>
+          </div>
         </Card>
       </form>
 

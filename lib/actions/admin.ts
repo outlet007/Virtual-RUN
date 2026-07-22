@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/auth/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { genBib } from "@/lib/utils";
 import { awardForApprovedSubmission } from "@/lib/gamification";
+import { notifyUser } from "@/lib/notifications";
 
 function err(path: string, message: string): never {
   redirect(`${path}?error=${encodeURIComponent(message)}`);
@@ -186,6 +187,16 @@ export async function reviewSubmission(formData: FormData) {
     );
   }
 
+  if (submission) {
+    await notifyUser(submission.user_id, "submission_reviewed", {
+      subject: status === "approved" ? "ผลวิ่งของคุณได้รับการอนุมัติแล้ว" : "ผลวิ่งของคุณถูกปฏิเสธ",
+      text:
+        status === "approved"
+          ? `ระยะ ${submission.distance_km} km ได้รับการอนุมัติแล้ว เพิ่มเข้ายอดสะสมของคุณเรียบร้อย`
+          : `ผลวิ่งระยะ ${submission.distance_km} km ที่ส่งมาถูกปฏิเสธ ติดต่อผู้จัดงานถ้าคิดว่าเป็นความผิดพลาด`,
+    });
+  }
+
   revalidatePath("/admin/submissions");
   revalidatePath("/dashboard");
   redirect(`/admin/submissions?reviewed=${status}`);
@@ -216,6 +227,22 @@ export async function upsertShipment(formData: FormData) {
   );
 
   if (error) err("/admin/shipments", error.message);
+
+  if (status === "shipped") {
+    const { data: reg } = await db
+      .from("registrations")
+      .select("user_id")
+      .eq("id", registration_id)
+      .single();
+    if (reg) {
+      await notifyUser(reg.user_id, "shipment_shipped", {
+        subject: "เหรียญของคุณถูกจัดส่งแล้ว",
+        text: tracking_no
+          ? `เหรียญของคุณถูกจัดส่งแล้วผ่าน ${carrier || "ผู้ให้บริการขนส่ง"} เลขพัสดุ ${tracking_no}`
+          : "เหรียญของคุณถูกจัดส่งแล้ว",
+      });
+    }
+  }
 
   revalidatePath("/admin/shipments");
   redirect("/admin/shipments?saved=1");
@@ -286,11 +313,20 @@ export async function confirmPayment(formData: FormData) {
     .eq("id", paymentId);
   if (payError) err("/admin/payments", payError.message);
 
-  const { error: regError } = await db
+  const { data: reg, error: regError } = await db
     .from("registrations")
     .update({ status: "confirmed", bib_number: genBib() })
-    .eq("id", registrationId);
+    .eq("id", registrationId)
+    .select("user_id, bib_number")
+    .single();
   if (regError) err("/admin/payments", regError.message);
+
+  if (reg) {
+    await notifyUser(reg.user_id, "payment_confirmed", {
+      subject: "ยืนยันการชำระเงินสำเร็จ",
+      text: `ชำระเงินสำเร็จแล้ว หมายเลข BIB ของคุณคือ ${reg.bib_number}`,
+    });
+  }
 
   revalidatePath("/admin/payments");
   redirect("/admin/payments?confirmed=1");
@@ -434,8 +470,22 @@ export async function fulfillRedemption(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) err("/admin/rewards", "ไม่พบรายการแลกรางวัล");
 
-  const { error } = await db.from("redemptions").update({ status: "fulfilled" }).eq("id", id);
+  const { data: redemption, error } = await db
+    .from("redemptions")
+    .update({ status: "fulfilled" })
+    .eq("id", id)
+    .select("user_id, rewards(name)")
+    .single();
   if (error) err("/admin/rewards", error.message);
+
+  if (redemption) {
+    const reward = redemption.rewards as unknown as { name: string } | { name: string }[] | null;
+    const rewardName = Array.isArray(reward) ? reward[0]?.name : reward?.name;
+    await notifyUser(redemption.user_id, "redemption_fulfilled", {
+      subject: "รางวัลของคุณพร้อมส่งมอบแล้ว",
+      text: `รางวัล "${rewardName ?? ""}" ที่คุณแลกไว้พร้อมส่งมอบ/รับได้แล้ว`,
+    });
+  }
 
   revalidatePath("/admin/rewards");
   redirect("/admin/rewards?fulfilled=1");
