@@ -65,6 +65,19 @@ export default async function AdminSubmissionsPage({
   const { data } = await query;
   const subs = (data ?? []) as unknown as SubRow[];
 
+  // evidence_url เก็บเป็น storage path (bucket private) ต้อง gen signed URL ให้ admin เปิดดูได้
+  const evidenceLinks = new Map<string, string>();
+  await Promise.all(
+    subs
+      .filter((s) => s.evidence_url)
+      .map(async (s) => {
+        const { data: signed } = await db.storage
+          .from("run-evidence")
+          .createSignedUrl(s.evidence_url!, 600);
+        if (signed) evidenceLinks.set(s.id, signed.signedUrl);
+      }),
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -114,9 +127,9 @@ export default async function AdminSubmissionsPage({
                       {new Date(s.activity_date).toLocaleDateString("th-TH")}
                     </span>
                   </p>
-                  {s.evidence_url && (
+                  {evidenceLinks.has(s.id) && (
                     <a
-                      href={s.evidence_url}
+                      href={evidenceLinks.get(s.id)}
                       target="_blank"
                       rel="noreferrer"
                       className="mt-1 inline-block text-sm text-primary-dark underline"

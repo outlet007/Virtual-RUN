@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Badge, LinkButton, Button, Select } from "@/components/ui";
@@ -249,21 +250,23 @@ export default async function DashboardPage({
                         BIB {r.bib_number}
                       </p>
                     )}
-                    <Badge
-                      className={
-                        finished
-                          ? "bg-primary-soft text-primary-dark"
-                          : r.status === "pending"
-                            ? "bg-medal-soft text-medal"
+                    {r.status === "pending" ? (
+                      <Link href={`/dashboard/pay/${r.id}`}>
+                        <Badge className="bg-medal-soft text-medal hover:underline">
+                          รอชำระเงิน →
+                        </Badge>
+                      </Link>
+                    ) : (
+                      <Badge
+                        className={
+                          finished
+                            ? "bg-primary-soft text-primary-dark"
                             : "bg-lane text-ink/60"
-                      }
-                    >
-                      {finished
-                        ? "🏁 ครบเป้า"
-                        : r.status === "pending"
-                          ? "รอชำระเงิน"
-                          : "กำลังสะสม"}
-                    </Badge>
+                        }
+                      >
+                        {finished ? "🏁 ครบเป้า" : "กำลังสะสม"}
+                      </Badge>
+                    )}
                   </div>
                 </div>
                 <div>

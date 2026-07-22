@@ -112,14 +112,15 @@ export default async function SubmitPage({
             </div>
 
             <div>
-              <Label>ลิงก์รูปหลักฐาน (จาก Strava/Garmin ฯลฯ)</Label>
-              <Input
-                name="evidence_url"
-                type="url"
-                placeholder="https://..."
+              <Label>อัปโหลดรูปหลักฐาน (screenshot จากแอปวิ่ง)</Label>
+              <input
+                name="evidence_file"
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/heic"
+                className="block w-full text-sm text-ink/70 file:mr-3 file:rounded-lg file:border-0 file:bg-lane file:px-3 file:py-2 file:text-sm file:font-medium hover:file:bg-lane/70"
               />
               <p className="mt-1 text-xs text-ink/40">
-                ระบบจะตรวจ pace อัตโนมัติ ถ้าผิดปกติจะส่งให้ผู้จัดตรวจก่อน
+                ไม่บังคับ แต่แนบไว้จะช่วยให้ผู้จัดตรวจสอบได้ง่ายขึ้น — ระบบตรวจ pace อัตโนมัติ ถ้าผิดปกติจะส่งให้ผู้จัดตรวจก่อน
               </p>
             </div>
 

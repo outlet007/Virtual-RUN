@@ -17,13 +17,28 @@ export async function createSubmission(formData: FormData) {
   const distanceKm = Number(formData.get("distance_km") ?? 0);
   const durationMin = Number(formData.get("duration_min") ?? 0);
   const activityDate = String(formData.get("activity_date") ?? "");
-  const evidenceUrl = String(formData.get("evidence_url") ?? "");
+  const evidenceFile = formData.get("evidence_file");
 
   if (!registrationId || distanceKm <= 0 || !activityDate) {
     redirect(
       "/dashboard/submit?error=" +
         encodeURIComponent("กรอกระยะและวันที่ให้ครบ"),
     );
+  }
+
+  // อัปโหลดรูปหลักฐาน (ถ้ามี) เข้า storage ก่อน — เก็บแค่ path ในตาราง (bucket เป็น private)
+  let evidencePath: string | null = null;
+  if (evidenceFile instanceof File && evidenceFile.size > 0) {
+    const ext = evidenceFile.type.split("/")[1] ?? "jpg";
+    const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from("run-evidence")
+      .upload(path, evidenceFile, { contentType: evidenceFile.type });
+
+    if (uploadError) {
+      redirect("/dashboard/submit?error=" + encodeURIComponent(uploadError.message));
+    }
+    evidencePath = path;
   }
 
   const durationSec = durationMin > 0 ? Math.round(durationMin * 60) : null;
@@ -37,7 +52,7 @@ export async function createSubmission(formData: FormData) {
     distance_km: distanceKm,
     duration_sec: durationSec,
     activity_date: new Date(activityDate).toISOString(),
-    evidence_url: evidenceUrl || null,
+    evidence_url: evidencePath,
     status,
   });
 

@@ -19,3 +19,7 @@ export function formatBaht(amount: number) {
     minimumFractionDigits: 0,
   });
 }
+
+export function genBib() {
+  return "VR" + Math.floor(100000 + Math.random() * 900000).toString();
+}

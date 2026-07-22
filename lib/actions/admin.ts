@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { genBib } from "@/lib/utils";
 
 function err(path: string, message: string): never {
   redirect(`${path}?error=${encodeURIComponent(message)}`);
@@ -252,4 +253,54 @@ export async function demoteAdmin(formData: FormData) {
 
   revalidatePath("/admin/admins");
   redirect("/admin/admins?demoted=1");
+}
+
+// ---------- Payments ----------
+
+export async function confirmPayment(formData: FormData) {
+  await requireAdmin();
+  const db = createAdminClient();
+
+  const paymentId = String(formData.get("payment_id") ?? "");
+  const registrationId = String(formData.get("registration_id") ?? "");
+  if (!paymentId || !registrationId) err("/admin/payments", "ไม่พบรายการชำระเงิน");
+
+  const { error: payError } = await db
+    .from("payments")
+    .update({ status: "paid", paid_at: new Date().toISOString() })
+    .eq("id", paymentId);
+  if (payError) err("/admin/payments", payError.message);
+
+  const { error: regError } = await db
+    .from("registrations")
+    .update({ status: "confirmed", bib_number: genBib() })
+    .eq("id", registrationId);
+  if (regError) err("/admin/payments", regError.message);
+
+  revalidatePath("/admin/payments");
+  redirect("/admin/payments?confirmed=1");
+}
+
+export async function rejectPayment(formData: FormData) {
+  await requireAdmin();
+  const db = createAdminClient();
+
+  const paymentId = String(formData.get("payment_id") ?? "");
+  const registrationId = String(formData.get("registration_id") ?? "");
+  if (!paymentId || !registrationId) err("/admin/payments", "ไม่พบรายการชำระเงิน");
+
+  const { error: payError } = await db
+    .from("payments")
+    .update({ status: "failed" })
+    .eq("id", paymentId);
+  if (payError) err("/admin/payments", payError.message);
+
+  const { error: regError } = await db
+    .from("registrations")
+    .update({ status: "cancelled" })
+    .eq("id", registrationId);
+  if (regError) err("/admin/payments", regError.message);
+
+  revalidatePath("/admin/payments");
+  redirect("/admin/payments?rejected=1");
 }

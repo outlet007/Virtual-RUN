@@ -7,13 +7,17 @@ export const dynamic = "force-dynamic";
 export default async function AdminOverviewPage() {
   const db = createAdminClient();
 
-  const [{ count: openEvents }, { count: pendingSubs }, { data: medalRegs }] =
+  const [{ count: openEvents }, { count: pendingSubs }, { count: pendingPayments }, { data: medalRegs }] =
     await Promise.all([
       db.from("events").select("id", { count: "exact", head: true }).eq("status", "open"),
       db
         .from("submissions")
         .select("id", { count: "exact", head: true })
         .in("status", ["pending", "flagged"]),
+      db
+        .from("payments")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending"),
       db
         .from("registrations")
         .select("id, shipments(status), packages!inner(has_physical_medal)")
@@ -30,11 +34,12 @@ export default async function AdminOverviewPage() {
   const stats = [
     { label: "งานที่เปิดรับสมัคร", value: openEvents ?? 0, href: "/admin/events" },
     { label: "ผลวิ่งรอตรวจ", value: pendingSubs ?? 0, href: "/admin/submissions" },
+    { label: "การชำระเงินรอตรวจสอบ", value: pendingPayments ?? 0, href: "/admin/payments" },
     { label: "ใบสมัครรอจัดส่งเหรียญ", value: pendingShipments, href: "/admin/shipments" },
   ];
 
   return (
-    <section className="grid gap-4 sm:grid-cols-3">
+    <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {stats.map((s) => (
         <Link key={s.href} href={s.href}>
           <Card className="hover:border-primary/40">

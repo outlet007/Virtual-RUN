@@ -3,10 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-
-function genBib() {
-  return "VR" + Math.floor(100000 + Math.random() * 900000).toString();
-}
+import { genBib } from "@/lib/utils";
 
 export async function registerForEvent(formData: FormData) {
   const packageId = String(formData.get("package_id") ?? "");
@@ -68,8 +65,16 @@ export async function registerForEvent(formData: FormData) {
 
   if (isFree) {
     redirect("/dashboard?welcome=1");
-  } else {
-    // Phase 4: ไปหน้าชำระเงิน PromptPay
-    redirect(`/dashboard?pending=${reg!.id}`);
   }
+
+  // งานเสียเงิน → สร้างรายการชำระเงินรอ admin ยืนยัน (gen QR เอง ไม่มี payment gateway)
+  await supabase.from("payments").insert({
+    registration_id: reg!.id,
+    amount: pkg.price,
+    method: "promptpay",
+    status: "pending",
+    charge_ref: `VR-${reg!.id.slice(0, 8)}`,
+  });
+
+  redirect(`/dashboard/pay/${reg!.id}`);
 }
