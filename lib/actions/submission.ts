@@ -26,20 +26,24 @@ export async function createSubmission(formData: FormData) {
     );
   }
 
-  // อัปโหลดรูปหลักฐาน (ถ้ามี) เข้า storage ก่อน — เก็บแค่ path ในตาราง (bucket เป็น private)
-  let evidencePath: string | null = null;
-  if (evidenceFile instanceof File && evidenceFile.size > 0) {
-    const ext = evidenceFile.type.split("/")[1] ?? "jpg";
-    const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
-    const { error: uploadError } = await supabase.storage
-      .from("run-evidence")
-      .upload(path, evidenceFile, { contentType: evidenceFile.type });
-
-    if (uploadError) {
-      redirect("/dashboard/submit?error=" + encodeURIComponent(uploadError.message));
-    }
-    evidencePath = path;
+  if (!(evidenceFile instanceof File) || evidenceFile.size === 0) {
+    redirect(
+      "/dashboard/submit?error=" +
+        encodeURIComponent("ต้องแนบรูปหลักฐานก่อนบันทึกผล"),
+    );
   }
+
+  // อัปโหลดรูปหลักฐานเข้า storage — เก็บแค่ path ในตาราง (bucket เป็น private)
+  const ext = evidenceFile.type.split("/")[1] ?? "jpg";
+  const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+  const { error: uploadError } = await supabase.storage
+    .from("run-evidence")
+    .upload(path, evidenceFile, { contentType: evidenceFile.type });
+
+  if (uploadError) {
+    redirect("/dashboard/submit?error=" + encodeURIComponent(uploadError.message));
+  }
+  const evidencePath = path;
 
   const durationSec = durationMin > 0 ? Math.round(durationMin * 60) : null;
   const status = basicRuleCheck(distanceKm, durationSec);
