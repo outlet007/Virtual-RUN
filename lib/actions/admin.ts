@@ -12,6 +12,24 @@ function err(path: string, message: string): never {
   redirect(`${path}?error=${encodeURIComponent(message)}`);
 }
 
+// อัปโหลดรูปปกงาน/รูปเหรียญเข้า bucket สาธารณะ "event-images" แล้วคืน public URL
+// (ต่างจาก run-evidence ที่ private — รูปพวกนี้ต้องโชว์ในหน้าเว็บสาธารณะได้)
+async function uploadEventImage(
+  db: ReturnType<typeof createAdminClient>,
+  file: FormDataEntryValue | null,
+  folder: string,
+): Promise<string | null> {
+  if (!(file instanceof File) || file.size === 0) return null;
+  const ext = file.type.split("/")[1] ?? "jpg";
+  const path = `${folder}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await db.storage
+    .from("event-images")
+    .upload(path, file, { contentType: file.type });
+  if (error) throw new Error(error.message);
+  const { data } = db.storage.from("event-images").getPublicUrl(path);
+  return data.publicUrl;
+}
+
 // ---------- Events ----------
 
 export async function createEvent(formData: FormData) {
@@ -20,7 +38,6 @@ export async function createEvent(formData: FormData) {
 
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
-  const cover_image = String(formData.get("cover_image") ?? "").trim();
   const pricing = String(formData.get("pricing") ?? "free");
   const start_date = String(formData.get("start_date") ?? "");
   const end_date = String(formData.get("end_date") ?? "");
@@ -30,12 +47,19 @@ export async function createEvent(formData: FormData) {
     err("/admin/events/new", "กรอกชื่องานและวันที่ให้ครบ");
   }
 
+  let cover_image: string | null = null;
+  try {
+    cover_image = await uploadEventImage(db, formData.get("cover_image_file"), "covers");
+  } catch (e) {
+    err("/admin/events/new", (e as Error).message);
+  }
+
   const { data, error } = await db
     .from("events")
     .insert({
       title,
       description: description || null,
-      cover_image: cover_image || null,
+      cover_image,
       pricing,
       start_date,
       end_date,
@@ -58,7 +82,6 @@ export async function updateEvent(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
-  const cover_image = String(formData.get("cover_image") ?? "").trim();
   const pricing = String(formData.get("pricing") ?? "free");
   const start_date = String(formData.get("start_date") ?? "");
   const end_date = String(formData.get("end_date") ?? "");
@@ -68,12 +91,21 @@ export async function updateEvent(formData: FormData) {
     err(`/admin/events/${id}`, "กรอกชื่องานและวันที่ให้ครบ");
   }
 
+  // ถ้าไม่ได้เลือกไฟล์ใหม่ ใช้รูปเดิมต่อ (ส่งมาจาก hidden field ในฟอร์ม)
+  let cover_image = String(formData.get("existing_cover_image") ?? "").trim() || null;
+  try {
+    const uploaded = await uploadEventImage(db, formData.get("cover_image_file"), "covers");
+    if (uploaded) cover_image = uploaded;
+  } catch (e) {
+    err(`/admin/events/${id}`, (e as Error).message);
+  }
+
   const { error } = await db
     .from("events")
     .update({
       title,
       description: description || null,
-      cover_image: cover_image || null,
+      cover_image,
       pricing,
       start_date,
       end_date,
@@ -367,10 +399,16 @@ export async function createMedal(formData: FormData) {
   const tier = String(formData.get("tier") ?? "bronze");
   const targetKm = Number(formData.get("target_km") ?? 0);
   const bonusPoints = Number(formData.get("bonus_points") ?? 0);
-  const imageUrl = String(formData.get("image_url") ?? "").trim();
 
   if (!eventId || !name || targetKm <= 0) {
     err(`/admin/events/${eventId}`, "กรอกชื่อเหรียญและระยะเป้าหมายให้ถูกต้อง");
+  }
+
+  let imageUrl: string | null = null;
+  try {
+    imageUrl = await uploadEventImage(db, formData.get("image_url_file"), "medals");
+  } catch (e) {
+    err(`/admin/events/${eventId}`, (e as Error).message);
   }
 
   const { error } = await db.from("medals").insert({
@@ -379,7 +417,7 @@ export async function createMedal(formData: FormData) {
     tier,
     unlock_rule: { type: "distance", target_km: targetKm },
     bonus_points: bonusPoints,
-    image_url: imageUrl || null,
+    image_url: imageUrl,
   });
   if (error) err(`/admin/events/${eventId}`, error.message);
 
@@ -397,10 +435,17 @@ export async function updateMedal(formData: FormData) {
   const tier = String(formData.get("tier") ?? "bronze");
   const targetKm = Number(formData.get("target_km") ?? 0);
   const bonusPoints = Number(formData.get("bonus_points") ?? 0);
-  const imageUrl = String(formData.get("image_url") ?? "").trim();
 
   if (!id || !eventId || !name || targetKm <= 0) {
     err(`/admin/events/${eventId}`, "กรอกชื่อเหรียญและระยะเป้าหมายให้ถูกต้อง");
+  }
+
+  let imageUrl = String(formData.get("existing_image_url") ?? "").trim() || null;
+  try {
+    const uploaded = await uploadEventImage(db, formData.get("image_url_file"), "medals");
+    if (uploaded) imageUrl = uploaded;
+  } catch (e) {
+    err(`/admin/events/${eventId}`, (e as Error).message);
   }
 
   const { error } = await db
@@ -410,7 +455,7 @@ export async function updateMedal(formData: FormData) {
       tier,
       unlock_rule: { type: "distance", target_km: targetKm },
       bonus_points: bonusPoints,
-      image_url: imageUrl || null,
+      image_url: imageUrl,
     })
     .eq("id", id);
   if (error) err(`/admin/events/${eventId}`, error.message);

@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Card, Button, Input, Label, Textarea, Select, Badge } from "@/components/ui";
-import { updateEvent, createPackage, updatePackage, createMedal, updateMedal } from "@/lib/actions/admin";
+import { Card, Button, Input, Label, Select, Badge, ImageUploadField, Tabs } from "@/components/ui";
+import { EditEventModal } from "@/components/admin/edit-event-modal";
+import { createPackage, updatePackage, createMedal, updateMedal } from "@/lib/actions/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,19 @@ const tierLabel: Record<string, string> = {
   legendary: "ตำนาน",
 };
 
-export default async function EditEventPage({
+const statusLabel: Record<string, string> = {
+  draft: "ร่าง",
+  open: "เปิดรับสมัคร",
+  closed: "ปิดรับสมัคร",
+};
+const statusClass: Record<string, string> = {
+  draft: "bg-lane text-ink/60",
+  open: "bg-primary-soft text-primary-dark",
+  closed: "bg-medal-soft text-medal",
+};
+const pricingLabel: Record<string, string> = { free: "ฟรี", paid: "มีค่าสมัคร" };
+
+export default async function EventDashboardPage({
   params,
   searchParams,
 }: {
@@ -62,12 +75,49 @@ export default async function EditEventPage({
   const packages = (event.packages ?? []) as PackageRow[];
   const medals = (event.medals ?? []) as MedalRow[];
 
+  const [{ data: regs }, { data: subs }, { data: paidPayments }, { count: medalsUnlocked }] =
+    await Promise.all([
+      db.from("registrations").select("id, status").eq("event_id", id),
+      db
+        .from("submissions")
+        .select("id, status, registrations!inner(event_id)")
+        .eq("registrations.event_id", id),
+      db
+        .from("payments")
+        .select("amount, registrations!inner(event_id)")
+        .eq("status", "paid")
+        .eq("registrations.event_id", id),
+      db
+        .from("user_medals")
+        .select("id, medals!inner(event_id)", { count: "exact", head: true })
+        .eq("medals.event_id", id),
+    ]);
+
+  const regList = regs ?? [];
+  const subList = subs ?? [];
+  const confirmedCount = regList.filter((r) => r.status === "confirmed").length;
+  const pendingRegCount = regList.filter((r) => r.status === "pending").length;
+  const cancelledCount = regList.filter((r) => r.status === "cancelled").length;
+  const approvedSubs = subList.filter((s) => s.status === "approved").length;
+  const pendingSubs = subList.filter((s) => s.status === "pending" || s.status === "flagged").length;
+  const revenue = (paidPayments ?? []).reduce((sum, p) => sum + Number(p.amount), 0);
+
+  const dashboardStats = [
+    { label: "ผู้สมัครทั้งหมด", value: regList.length },
+    { label: "ยืนยันแล้ว", value: confirmedCount },
+    { label: "รอดำเนินการ", value: pendingRegCount },
+    { label: "ยกเลิก", value: cancelledCount },
+    { label: "ผลวิ่งอนุมัติแล้ว", value: approvedSubs },
+    { label: "ผลวิ่งรอตรวจ", value: pendingSubs },
+    { label: "ยอดชำระเงินสะสม (บาท)", value: revenue.toLocaleString(undefined, { maximumFractionDigits: 2 }) },
+    { label: "เหรียญที่ปลดล็อกแล้ว", value: medalsUnlocked ?? 0 },
+  ];
+
   return (
-    <div className="mx-auto max-w-lg space-y-6">
+    <div className="space-y-6">
       <Link href="/admin/events" className="text-sm text-ink/50 hover:text-ink">
         ← งานทั้งหมด
       </Link>
-      <h2 className="font-display text-xl font-bold">แก้ไขงาน</h2>
 
       {sp.error && (
         <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{sp.error}</div>
@@ -78,57 +128,69 @@ export default async function EditEventPage({
         </div>
       )}
 
-      <form action={updateEvent}>
-        <input type="hidden" name="id" value={event.id} />
-        <Card className="space-y-4">
-          <div>
-            <Label>ชื่องาน</Label>
-            <Input name="title" defaultValue={event.title} required />
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="font-display text-xl font-bold">{event.title}</h2>
+            <Badge className={statusClass[event.status]}>{statusLabel[event.status]}</Badge>
           </div>
-          <div>
-            <Label>รายละเอียด</Label>
-            <Textarea name="description" rows={4} defaultValue={event.description ?? ""} />
-          </div>
-          <div>
-            <Label>ลิงก์รูปปก</Label>
-            <Input name="cover_image" type="url" defaultValue={event.cover_image ?? ""} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>ประเภทค่าสมัคร</Label>
-              <Select name="pricing" defaultValue={event.pricing}>
-                <option value="free">ฟรี</option>
-                <option value="paid">มีค่าสมัคร</option>
-              </Select>
-            </div>
-            <div>
-              <Label>สถานะ</Label>
-              <Select name="status" defaultValue={event.status}>
-                <option value="draft">ร่าง</option>
-                <option value="open">เปิดรับสมัคร</option>
-                <option value="closed">ปิดรับสมัคร</option>
-              </Select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>วันที่เริ่ม</Label>
-              <Input name="start_date" type="date" defaultValue={event.start_date} required />
-            </div>
-            <div>
-              <Label>วันที่สิ้นสุด</Label>
-              <Input name="end_date" type="date" defaultValue={event.end_date} required />
-            </div>
-          </div>
-          <Button className="w-full" type="submit">
-            บันทึกงาน
-          </Button>
-        </Card>
-      </form>
+          <p className="mt-1 font-mono text-xs text-ink/45 tnum">
+            {event.start_date} → {event.end_date} · {pricingLabel[event.pricing]}
+          </p>
+        </div>
+        <EditEventModal
+          event={{
+            id: event.id,
+            title: event.title,
+            description: event.description,
+            cover_image: event.cover_image,
+            pricing: event.pricing,
+            status: event.status,
+            start_date: event.start_date,
+            end_date: event.end_date,
+          }}
+        />
+      </div>
 
-      <div>
-        <h3 className="font-display text-lg font-bold">แพ็กเกจ</h3>
-        {sp.package_added && (
+      <Tabs
+        tabs={[
+          {
+            label: "ภาพรวม",
+            content: (
+              <div className="space-y-6">
+                <Card className="space-y-3">
+                  {event.cover_image && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={event.cover_image}
+                      alt=""
+                      className="h-40 w-full rounded-xl border border-lane object-cover"
+                    />
+                  )}
+                  {event.description && (
+                    <p className="text-sm text-ink/70">{event.description}</p>
+                  )}
+                </Card>
+
+                <div>
+                  <h3 className="mb-3 font-display text-lg font-bold">สถิติงานนี้</h3>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    {dashboardStats.map((s) => (
+                      <Card key={s.label}>
+                        <p className="text-xs uppercase tracking-wider text-ink/40">{s.label}</p>
+                        <p className="mt-1 font-mono text-2xl font-bold tnum">{s.value}</p>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ),
+          },
+          {
+            label: `แพ็กเกจ (${packages.length})`,
+            content: (
+              <div>
+                {sp.package_added && (
           <p className="mt-1 text-sm text-primary-dark">เพิ่มแพ็กเกจแล้ว</p>
         )}
         {sp.package_saved && (
@@ -238,21 +300,25 @@ export default async function EditEventPage({
             <Button type="submit">เพิ่มแพ็กเกจ</Button>
           </Card>
         </form>
-      </div>
-
-      <div>
-        <h3 className="font-display text-lg font-bold">เหรียญดิจิทัล</h3>
-        <p className="mt-1 text-sm text-ink/50">
-          ปลดล็อกอัตโนมัติเมื่อระยะสะสมที่อนุมัติแล้วของใบสมัครถึงเป้าที่ตั้งไว้ (ตั้งได้หลายเหรียญต่องาน)
-        </p>
-        {sp.medal_added && <p className="mt-1 text-sm text-primary-dark">เพิ่มเหรียญแล้ว</p>}
-        {sp.medal_saved && <p className="mt-1 text-sm text-primary-dark">บันทึกเหรียญแล้ว</p>}
+              </div>
+            ),
+          },
+          {
+            label: `เหรียญดิจิทัล (${medals.length})`,
+            content: (
+              <div>
+                <p className="mb-3 text-sm text-ink/50">
+                  ปลดล็อกอัตโนมัติเมื่อระยะสะสมที่อนุมัติแล้วของใบสมัครถึงเป้าที่ตั้งไว้ (ตั้งได้หลายเหรียญต่องาน)
+                </p>
+                {sp.medal_added && <p className="mt-1 text-sm text-primary-dark">เพิ่มเหรียญแล้ว</p>}
+                {sp.medal_saved && <p className="mt-1 text-sm text-primary-dark">บันทึกเหรียญแล้ว</p>}
 
         <div className="mt-3 space-y-3">
           {medals.map((m) => (
             <form key={m.id} action={updateMedal}>
               <input type="hidden" name="id" value={m.id} />
               <input type="hidden" name="event_id" value={event.id} />
+              <input type="hidden" name="existing_image_url" value={m.image_url ?? ""} />
               <Card className="space-y-3">
                 <div className="flex items-center gap-2">
                   <span className="font-display font-bold">{m.name}</span>
@@ -290,10 +356,11 @@ export default async function EditEventPage({
                     <Input name="bonus_points" type="number" min="0" defaultValue={m.bonus_points} />
                   </div>
                 </div>
-                <div>
-                  <Label>ลิงก์รูปเหรียญ</Label>
-                  <Input name="image_url" type="url" defaultValue={m.image_url ?? ""} />
-                </div>
+                <ImageUploadField
+                  name="image_url_file"
+                  label="รูปเหรียญ"
+                  defaultImageUrl={m.image_url}
+                />
                 <Button variant="ghost" type="submit">
                   บันทึกเหรียญนี้
                 </Button>
@@ -331,14 +398,15 @@ export default async function EditEventPage({
                 <Input name="bonus_points" type="number" min="0" defaultValue={0} />
               </div>
             </div>
-            <div>
-              <Label>ลิงก์รูปเหรียญ</Label>
-              <Input name="image_url" type="url" placeholder="https://..." />
-            </div>
+            <ImageUploadField name="image_url_file" label="รูปเหรียญ" />
             <Button type="submit">เพิ่มเหรียญ</Button>
           </Card>
         </form>
-      </div>
+              </div>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

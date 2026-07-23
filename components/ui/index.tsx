@@ -2,6 +2,9 @@ import * as React from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
+export { ImageUploadField } from "./image-upload-field";
+export { Tabs } from "./tabs";
+
 export function Button({
   className,
   variant = "primary",

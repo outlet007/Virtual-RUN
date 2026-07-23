@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Card, Button, Input, Label, Textarea, Select } from "@/components/ui";
+import { Card, Button, Input, Label, Textarea, Select, ImageUploadField } from "@/components/ui";
 import { createEvent } from "@/lib/actions/admin";
 
 export const dynamic = "force-dynamic";
@@ -32,10 +32,7 @@ export default async function NewEventPage({
             <Label>รายละเอียด</Label>
             <Textarea name="description" rows={4} />
           </div>
-          <div>
-            <Label>ลิงก์รูปปก</Label>
-            <Input name="cover_image" type="url" placeholder="https://..." />
-          </div>
+          <ImageUploadField name="cover_image_file" label="รูปปกงาน" />
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>ประเภทค่าสมัคร</Label>

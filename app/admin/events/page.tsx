@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Card, Badge, LinkButton } from "@/components/ui";
+import { Card, Badge, LinkButton, Input, Select } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
+
+const PAGE_SIZE = 9;
 
 const statusLabel: Record<string, string> = {
   draft: "ร่าง",
@@ -15,45 +17,205 @@ const statusClass: Record<string, string> = {
   closed: "bg-medal-soft text-medal",
 };
 
-export default async function AdminEventsPage() {
-  const db = createAdminClient();
-  const { data: events } = await db
-    .from("events")
-    .select("id, title, status, pricing, start_date, end_date, packages(id)")
-    .order("start_date", { ascending: false });
+function formatDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
 
+export default async function AdminEventsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; q?: string; status?: string }>;
+}) {
+  const sp = await searchParams;
+  const db = createAdminClient();
+  const page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
+  const q = (sp.q ?? "").trim();
+  const statusFilter = sp.status ?? "";
+  const offset = (page - 1) * PAGE_SIZE;
+
+  const [{ count: totalEventsCount }, { count: totalRegistrationsCount }, { count: totalConfirmedCount }] =
+    await Promise.all([
+      db.from("events").select("id", { count: "exact", head: true }),
+      db.from("registrations").select("id", { count: "exact", head: true }),
+      db
+        .from("registrations")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "confirmed"),
+    ]);
+
+  let query = db
+    .from("events")
+    .select(
+      "id, title, description, cover_image, status, start_date, end_date, registrations(id, status)",
+      { count: "exact" },
+    )
+    .order("start_date", { ascending: false })
+    .range(offset, offset + PAGE_SIZE - 1);
+
+  if (q) query = query.ilike("title", `%${q}%`);
+  if (statusFilter) query = query.eq("status", statusFilter);
+
+  const { data: events, count: filteredCount } = await query;
   const list = events ?? [];
+  const totalPages = Math.max(1, Math.ceil((filteredCount ?? 0) / PAGE_SIZE));
+
+  const buildPageHref = (p: number) => {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (statusFilter) params.set("status", statusFilter);
+    params.set("page", String(p));
+    return `/admin/events?${params.toString()}`;
+  };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-xl font-bold">งานทั้งหมด</h2>
         <LinkButton href="/admin/events/new">+ สร้างงาน</LinkButton>
       </div>
 
+      <div className="grid grid-cols-3 gap-3">
+        <Card>
+          <p className="text-xs uppercase tracking-wider text-ink/40">งานทั้งหมด</p>
+          <p className="mt-1 font-mono text-2xl font-bold tnum">{totalEventsCount ?? 0}</p>
+        </Card>
+        <Card>
+          <p className="text-xs uppercase tracking-wider text-ink/40">ผู้สมัครทั้งหมด</p>
+          <p className="mt-1 font-mono text-2xl font-bold tnum">{totalRegistrationsCount ?? 0}</p>
+        </Card>
+        <Card>
+          <p className="text-xs uppercase tracking-wider text-ink/40">ยืนยันแล้ว</p>
+          <p className="mt-1 font-mono text-2xl font-bold tnum">{totalConfirmedCount ?? 0}</p>
+        </Card>
+      </div>
+
+      <Card>
+        <form method="get" className="flex flex-col gap-4 lg:flex-row lg:items-end">
+          <div className="flex-1">
+            <label className="mb-1.5 block text-sm font-medium text-ink/70">ค้นหา</label>
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink/40">
+                🔍
+              </span>
+              <Input
+                name="q"
+                defaultValue={q}
+                placeholder="ชื่องาน..."
+                className="pl-9"
+              />
+            </div>
+          </div>
+          <div className="w-full lg:w-48">
+            <label className="mb-1.5 block text-sm font-medium text-ink/70">สถานะ</label>
+            <Select name="status" defaultValue={statusFilter}>
+              <option value="">ทั้งหมด</option>
+              <option value="draft">ร่าง</option>
+              <option value="open">เปิดรับสมัคร</option>
+              <option value="closed">ปิดรับสมัคร</option>
+            </Select>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="submit"
+              className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-semibold text-white transition hover:bg-primary-dark"
+            >
+              กรอง
+            </button>
+            {(q || statusFilter) && (
+              <Link href="/admin/events" className="text-sm font-medium text-ink/50 hover:text-ink">
+                ล้าง
+              </Link>
+            )}
+          </div>
+        </form>
+      </Card>
+
       {list.length === 0 ? (
-        <Card className="text-center text-ink/50">ยังไม่มีงาน</Card>
+        <Card className="text-center text-ink/50">ไม่พบงานที่ตรงกับเงื่อนไข</Card>
       ) : (
-        <div className="space-y-3">
-          {list.map((ev) => (
-            <Link key={ev.id} href={`/admin/events/${ev.id}`}>
-              <Card className="flex items-center justify-between hover:border-primary/40">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-display font-bold">{ev.title}</span>
-                    <Badge className={statusClass[ev.status]}>
-                      {statusLabel[ev.status]}
-                    </Badge>
-                  </div>
-                  <p className="mt-1 font-mono text-xs text-ink/45 tnum">
-                    {ev.start_date} → {ev.end_date} · {ev.packages.length} แพ็กเกจ
-                  </p>
-                </div>
-                <span className="text-sm text-primary-dark">แก้ไข →</span>
-              </Card>
-            </Link>
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {list.map((ev) => {
+              const confirmedCount = ev.registrations.filter((r) => r.status === "confirmed").length;
+              return (
+                <Link key={ev.id} href={`/admin/events/${ev.id}`} className="group">
+                  <Card className="flex h-full flex-col overflow-hidden p-0 hover:border-primary/40">
+                    <div className="relative h-44 w-full overflow-hidden bg-lane">
+                      {ev.cover_image ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={ev.cover_image}
+                          alt=""
+                          className="h-full w-full object-cover transition group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-4xl">
+                          🏃
+                        </div>
+                      )}
+                      <Badge className={`absolute right-3 top-3 ${statusClass[ev.status]}`}>
+                        {statusLabel[ev.status]}
+                      </Badge>
+                    </div>
+                    <div className="flex flex-1 flex-col gap-2 p-5">
+                      <h3 className="line-clamp-2 font-display font-bold">{ev.title}</h3>
+                      <p className="flex flex-wrap items-center gap-1.5 font-mono text-xs text-ink/45 tnum">
+                        <span>🕐 {formatDate(ev.start_date)}</span>
+                        <span>
+                          · {ev.registrations.length} ผู้สมัคร ({confirmedCount} ยืนยันแล้ว)
+                        </span>
+                      </p>
+                      {ev.description && (
+                        <p className="line-clamp-2 text-sm text-ink/60">{ev.description}</p>
+                      )}
+                      <span className="mt-auto inline-flex w-fit items-center rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-white transition group-hover:bg-primary-dark">
+                        ดูรายละเอียด →
+                      </span>
+                    </div>
+                  </Card>
+                </Link>
+              );
+            })}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+              <Link
+                href={buildPageHref(Math.max(1, page - 1))}
+                className={`rounded-lg px-3 py-2 text-sm font-medium ${
+                  page === 1 ? "pointer-events-none text-ink/30" : "text-ink/60 hover:bg-lane/60"
+                }`}
+              >
+                ← ก่อนหน้า
+              </Link>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                <Link
+                  key={p}
+                  href={buildPageHref(p)}
+                  className={`rounded-lg px-3 py-2 text-sm font-medium tnum ${
+                    p === page ? "bg-primary text-white" : "text-ink/60 hover:bg-lane/60"
+                  }`}
+                >
+                  {p}
+                </Link>
+              ))}
+              <Link
+                href={buildPageHref(Math.min(totalPages, page + 1))}
+                className={`rounded-lg px-3 py-2 text-sm font-medium ${
+                  page === totalPages
+                    ? "pointer-events-none text-ink/30"
+                    : "text-ink/60 hover:bg-lane/60"
+                }`}
+              >
+                ถัดไป →
+              </Link>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
