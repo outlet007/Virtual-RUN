@@ -90,7 +90,7 @@ export default async function AdminRewardsPage({
               <Card className="space-y-3">
                 <div className="flex items-center gap-2">
                   <span className="font-display font-bold">{rw.name}</span>
-                  <Badge className={rw.stock > 0 ? "bg-primary-soft text-primary-dark" : "bg-lane text-ink/60"}>
+                  <Badge className={rw.stock > 0 ? "bg-primary-soft text-primary-dark" : "bg-lane text-muted"}>
                     คงเหลือ {rw.stock}
                   </Badge>
                 </div>

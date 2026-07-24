@@ -69,7 +69,7 @@ export default async function RewardsPage({
                   <p className="font-mono text-sm text-ink/50 tnum">{r.cost_points} แต้ม</p>
                   <Badge
                     className={
-                      r.stock > 0 ? "mt-1 bg-primary-soft text-primary-dark" : "mt-1 bg-lane text-ink/60"
+                      r.stock > 0 ? "mt-1 bg-primary-soft text-primary-dark" : "mt-1 bg-lane text-muted"
                     }
                   >
                     {r.stock > 0 ? `คงเหลือ ${r.stock}` : "หมดแล้ว"}

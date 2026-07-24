@@ -26,8 +26,10 @@ async function uploadEventImage(
     .from("event-images")
     .upload(path, file, { contentType: file.type });
   if (error) throw new Error(error.message);
-  const { data } = db.storage.from("event-images").getPublicUrl(path);
-  return data.publicUrl;
+  // สร้าง public URL เองจาก NEXT_PUBLIC_SUPABASE_URL เสมอ (ไม่ใช้ getPublicUrl() ของ admin client)
+  // เพราะ admin client อาจตั้ง SUPABASE_URL แยกไว้ใช้ host.docker.internal ตอนรันใน Docker —
+  // ค่านั้นใช้ได้แค่จากใน container เท่านั้น แต่ URL นี้ browser จริงต้องเปิดได้ด้วย
+  return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/event-images/${path}`;
 }
 
 // ---------- Events ----------
@@ -534,4 +536,96 @@ export async function fulfillRedemption(formData: FormData) {
 
   revalidatePath("/admin/rewards");
   redirect("/admin/rewards?fulfilled=1");
+}
+
+// ---------- Hero Banners ----------
+
+export async function createHeroBanner(formData: FormData) {
+  await requireAdmin();
+  const db = createAdminClient();
+
+  const title = String(formData.get("title") ?? "").trim();
+  const subtitle = String(formData.get("subtitle") ?? "").trim();
+  const link_url = String(formData.get("link_url") ?? "").trim();
+  const sort_order = Number(formData.get("sort_order") ?? 0);
+  const is_active = formData.get("is_active") === "on";
+
+  let image_url: string | null = null;
+  try {
+    image_url = await uploadEventImage(db, formData.get("image_file"), "hero");
+  } catch (e) {
+    err("/admin/hero-banners", (e as Error).message);
+  }
+  if (!image_url) {
+    err("/admin/hero-banners", "ต้องแนบรูปสำหรับ banner");
+  }
+
+  const { error } = await db.from("hero_banners").insert({
+    image_url,
+    title: title || null,
+    subtitle: subtitle || null,
+    link_url: link_url || null,
+    sort_order,
+    is_active,
+  });
+  if (error) err("/admin/hero-banners", error.message);
+
+  revalidatePath("/admin/hero-banners");
+  revalidatePath("/");
+  redirect("/admin/hero-banners?created=1");
+}
+
+export async function updateHeroBanner(formData: FormData) {
+  await requireAdmin();
+  const db = createAdminClient();
+
+  const id = String(formData.get("id") ?? "");
+  const title = String(formData.get("title") ?? "").trim();
+  const subtitle = String(formData.get("subtitle") ?? "").trim();
+  const link_url = String(formData.get("link_url") ?? "").trim();
+  const sort_order = Number(formData.get("sort_order") ?? 0);
+  const is_active = formData.get("is_active") === "on";
+
+  if (!id) err("/admin/hero-banners", "ไม่พบ banner");
+
+  // ถ้าไม่ได้เลือกไฟล์ใหม่ ใช้รูปเดิมต่อ (ส่งมาจาก hidden field ในฟอร์ม)
+  let image_url = String(formData.get("existing_image_url") ?? "").trim() || null;
+  try {
+    const uploaded = await uploadEventImage(db, formData.get("image_file"), "hero");
+    if (uploaded) image_url = uploaded;
+  } catch (e) {
+    err("/admin/hero-banners", (e as Error).message);
+  }
+
+  const { error } = await db
+    .from("hero_banners")
+    .update({
+      image_url,
+      title: title || null,
+      subtitle: subtitle || null,
+      link_url: link_url || null,
+      sort_order,
+      is_active,
+    })
+    .eq("id", id);
+  if (error) err("/admin/hero-banners", error.message);
+
+  revalidatePath("/admin/hero-banners");
+  revalidatePath("/");
+  redirect("/admin/hero-banners?saved=1");
+}
+
+export async function deleteHeroBanner(formData: FormData) {
+  await requireAdmin();
+  const db = createAdminClient();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) err("/admin/hero-banners", "ไม่พบ banner");
+
+  const { error } = await db.from("hero_banners").delete().eq("id", id);
+  if (error) err("/admin/hero-banners", error.message);
+
+  revalidatePath("/admin/hero-banners");
+  revalidatePath("/");
+  redirect("/admin/hero-banners?deleted=1");
 }

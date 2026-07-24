@@ -32,7 +32,7 @@ export default async function EventDetailPage({
   } = await supabase.auth.getUser();
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <Link href="/" className="text-sm text-ink/50 hover:text-ink">
         ← งานทั้งหมด
       </Link>
@@ -54,8 +54,8 @@ export default async function EventDetailPage({
           {event.pricing === "free" ? "ฟรี" : "มีค่าสมัคร"}
         </Badge>
         <h1 className="mt-3 font-display text-3xl font-bold">{event.title}</h1>
-        <p className="mt-2 text-ink/60">{event.description}</p>
-        <p className="mt-3 font-mono text-sm text-ink/45 tnum">
+        <p className="mt-2 text-muted">{event.description}</p>
+        <p className="mt-3 font-mono text-sm text-accent tnum">
           {event.start_date} → {event.end_date}
         </p>
       </div>
@@ -66,7 +66,7 @@ export default async function EventDetailPage({
           <Card key={p.id} className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-display font-bold">{p.name}</span>
+                <span className="font-display font-bold text-charcoal">{p.name}</span>
                 {p.has_physical_medal && (
                   <Badge className="bg-medal-soft text-medal">🏅 เหรียญจริง</Badge>
                 )}

@@ -35,10 +35,21 @@ Supabase > Authentication > Providers > Email → ปิด "Confirm email"
 (เพื่อให้สมัครแล้วมี session ทันที + บันทึก consent ได้)
 
 ### 5. รัน
+
+**แบบตรง (host):**
 ```bash
 npm install
 npm run dev
 ```
+
+**แบบ Docker (dev, hot-reload):** ต้องมี local Supabase รันอยู่ก่อน (`supabase start`)
+```bash
+docker compose -f docker-compose.dev.yml up
+```
+mount โค้ดเป็น volume แล้วรัน `next dev` ในคอนเทนเนอร์ — แก้โค้ดแล้ว hot-reload ทันทีเหมือนรันตรง ไม่ต้อง build ใหม่ทุกครั้ง (ฝั่ง container เรียก Supabase ผ่าน `host.docker.internal` แทน `127.0.0.1` โดยอัตโนมัติผ่าน `SUPABASE_URL` ใน `docker-compose.dev.yml`)
+
+**แบบ Docker (production build):** `docker compose up` (ใช้ `Dockerfile`/`docker-compose.yml` เดิม — build เต็มรูปแบบทุกครั้งที่แก้โค้ด เหมาะกับ deploy ไม่ใช่ dev)
+
 เปิด http://localhost:3000
 
 ## ถัดไป (ตาม roadmap)

@@ -73,7 +73,7 @@ export default async function RootLayout({
                     </Link>
                   )}
                   <form action="/auth/signout" method="post">
-                    <button className="rounded-lg px-3 py-2 font-medium text-ink/60 hover:bg-lane/60">
+                    <button className="rounded-lg px-3 py-2 font-medium text-muted hover:bg-lane/60">
                       ออกจากระบบ
                     </button>
                   </form>
@@ -90,8 +90,8 @@ export default async function RootLayout({
           </nav>
         </header>
         <main className="mx-auto max-w-[1104px] px-4 py-8">{children}</main>
-        <footer className="mx-auto max-w-[1104px] px-4 py-10 text-xs text-ink/40">
-          © 2026 VirtualRun · Phase 0-1 scaffold
+        <footer className="mx-auto max-w-[1104px] px-4 py-10 text-center text-xs text-ink/40">
+          © 2026 VirtualRun · Bangkok University. All Rights Reserved.
         </footer>
       </body>
     </html>

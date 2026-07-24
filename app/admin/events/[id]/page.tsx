@@ -38,7 +38,7 @@ const statusLabel: Record<string, string> = {
   closed: "ปิดรับสมัคร",
 };
 const statusClass: Record<string, string> = {
-  draft: "bg-lane text-ink/60",
+  draft: "bg-lane text-muted",
   open: "bg-primary-soft text-primary-dark",
   closed: "bg-medal-soft text-medal",
 };
@@ -134,7 +134,7 @@ export default async function EventDashboardPage({
             <h2 className="font-display text-xl font-bold">{event.title}</h2>
             <Badge className={statusClass[event.status]}>{statusLabel[event.status]}</Badge>
           </div>
-          <p className="mt-1 font-mono text-xs text-ink/45 tnum">
+          <p className="mt-1 font-mono text-xs text-accent tnum">
             {event.start_date} → {event.end_date} · {pricingLabel[event.pricing]}
           </p>
         </div>
@@ -204,7 +204,7 @@ export default async function EventDashboardPage({
               <input type="hidden" name="event_id" value={event.id} />
               <Card className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <span className="font-display font-bold">{p.name}</span>
+                  <span className="font-display font-bold text-charcoal">{p.name}</span>
                   {p.has_physical_medal && (
                     <Badge className="bg-medal-soft text-medal">🏅 เหรียญจริง</Badge>
                   )}

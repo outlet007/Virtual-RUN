@@ -13,7 +13,7 @@ export function Button({
   variant?: "primary" | "ink" | "ghost";
 }) {
   const styles = {
-    primary: "bg-primary text-white hover:bg-primary-dark",
+    primary: "bg-primary text-ink hover:bg-primary-dark",
     ink: "bg-ink text-paper hover:bg-ink/90",
     ghost: "border border-lane bg-transparent hover:bg-lane/50",
   }[variant];
@@ -35,7 +35,7 @@ export function LinkButton({
   ...props
 }: React.ComponentProps<typeof Link> & { variant?: "primary" | "ink" | "ghost" }) {
   const styles = {
-    primary: "bg-primary text-white hover:bg-primary-dark",
+    primary: "bg-primary text-ink hover:bg-primary-dark",
     ink: "bg-ink text-paper hover:bg-ink/90",
     ghost: "border border-lane bg-transparent hover:bg-lane/50",
   }[variant];

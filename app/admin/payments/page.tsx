@@ -26,7 +26,7 @@ const statusLabel: Record<string, string> = {
 const statusClass: Record<string, string> = {
   pending: "bg-medal-soft text-medal",
   paid: "bg-primary-soft text-primary-dark",
-  failed: "bg-lane text-ink/60",
+  failed: "bg-lane text-muted",
 };
 
 export default async function AdminPaymentsPage({
@@ -60,7 +60,7 @@ export default async function AdminPaymentsPage({
         </div>
       )}
       {rejected && (
-        <div className="rounded-xl bg-lane px-4 py-3 text-sm text-ink/60">
+        <div className="rounded-xl bg-lane px-4 py-3 text-sm text-muted">
           ปฏิเสธรายการนี้แล้ว
         </div>
       )}

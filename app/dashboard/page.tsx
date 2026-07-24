@@ -159,7 +159,7 @@ export default async function DashboardPage({
         </div>
       )}
       {strava === "disconnected" && (
-        <div className="rounded-xl bg-lane px-4 py-3 text-sm text-ink/60">
+        <div className="rounded-xl bg-lane px-4 py-3 text-sm text-muted">
           ตัดการเชื่อมต่อ Strava แล้ว
         </div>
       )}
@@ -169,7 +169,7 @@ export default async function DashboardPage({
         </div>
       )}
       {line === "disconnected" && (
-        <div className="rounded-xl bg-lane px-4 py-3 text-sm text-ink/60">
+        <div className="rounded-xl bg-lane px-4 py-3 text-sm text-muted">
           ตัดการเชื่อมต่อ LINE แล้ว
         </div>
       )}
@@ -346,7 +346,7 @@ export default async function DashboardPage({
                   </div>
                   <div className="text-right">
                     {r.bib_number && (
-                      <p className="font-mono text-sm text-ink/60 tnum">
+                      <p className="font-mono text-sm text-muted tnum">
                         BIB {r.bib_number}
                       </p>
                     )}
@@ -361,7 +361,7 @@ export default async function DashboardPage({
                         className={
                           finished
                             ? "bg-primary-soft text-primary-dark"
-                            : "bg-lane text-ink/60"
+                            : "bg-lane text-muted"
                         }
                       >
                         {finished ? "🏁 ครบเป้า" : "กำลังสะสม"}

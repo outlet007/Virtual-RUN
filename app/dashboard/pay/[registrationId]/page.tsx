@@ -75,7 +75,7 @@ export default async function PayPage({
             alt="PromptPay QR Code"
             className="mx-auto h-64 w-64 rounded-xl border border-lane"
           />
-          <p className="text-sm text-ink/60">
+          <p className="text-sm text-muted">
             สแกนจ่ายผ่านแอปธนาคารได้เลย — ระบบยังไม่ยืนยันอัตโนมัติ
             แอดมินจะตรวจสอบและยืนยันให้หลังเห็นเงินเข้าจริง
           </p>
@@ -93,14 +93,14 @@ export default async function PayPage({
           {reg.bib_number && (
             <p className="font-mono text-2xl font-bold tnum">BIB {reg.bib_number}</p>
           )}
-          <p className="text-sm text-ink/60">เริ่มบันทึกผลวิ่งได้จากแดชบอร์ดเลย</p>
+          <p className="text-sm text-muted">เริ่มบันทึกผลวิ่งได้จากแดชบอร์ดเลย</p>
         </Card>
       )}
 
       {payment.status === "failed" && (
         <Card className="space-y-3 text-center">
           <Badge className="bg-red-50 text-red-600">การชำระเงินถูกปฏิเสธ</Badge>
-          <p className="text-sm text-ink/60">
+          <p className="text-sm text-muted">
             ติดต่อผู้จัดงานถ้าคิดว่าเป็นความผิดพลาด
           </p>
         </Card>

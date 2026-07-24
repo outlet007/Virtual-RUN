@@ -12,7 +12,7 @@ const statusLabel: Record<string, string> = {
   closed: "ปิดรับสมัคร",
 };
 const statusClass: Record<string, string> = {
-  draft: "bg-lane text-ink/60",
+  draft: "bg-lane text-muted",
   open: "bg-primary-soft text-primary-dark",
   closed: "bg-medal-soft text-medal",
 };
@@ -121,7 +121,7 @@ export default async function AdminEventsPage({
           <div className="flex items-center gap-3">
             <button
               type="submit"
-              className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-semibold text-white transition hover:bg-primary-dark"
+              className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-semibold text-ink transition hover:bg-primary-dark"
             >
               กรอง
             </button>
@@ -163,16 +163,16 @@ export default async function AdminEventsPage({
                     </div>
                     <div className="flex flex-1 flex-col gap-2 p-5">
                       <h3 className="line-clamp-2 font-display font-bold">{ev.title}</h3>
-                      <p className="flex flex-wrap items-center gap-1.5 font-mono text-xs text-ink/45 tnum">
+                      <p className="flex flex-wrap items-center gap-1.5 font-mono text-xs text-accent tnum">
                         <span>🕐 {formatDate(ev.start_date)}</span>
                         <span>
                           · {ev.registrations.length} ผู้สมัคร ({confirmedCount} ยืนยันแล้ว)
                         </span>
                       </p>
                       {ev.description && (
-                        <p className="line-clamp-2 text-sm text-ink/60">{ev.description}</p>
+                        <p className="line-clamp-2 text-sm text-muted">{ev.description}</p>
                       )}
-                      <span className="mt-auto inline-flex w-fit items-center rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-white transition group-hover:bg-primary-dark">
+                      <span className="mt-auto inline-flex w-fit items-center rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-ink transition group-hover:bg-primary-dark">
                         ดูรายละเอียด →
                       </span>
                     </div>
@@ -187,7 +187,7 @@ export default async function AdminEventsPage({
               <Link
                 href={buildPageHref(Math.max(1, page - 1))}
                 className={`rounded-lg px-3 py-2 text-sm font-medium ${
-                  page === 1 ? "pointer-events-none text-ink/30" : "text-ink/60 hover:bg-lane/60"
+                  page === 1 ? "pointer-events-none text-ink/30" : "text-muted hover:bg-lane/60"
                 }`}
               >
                 ← ก่อนหน้า
@@ -197,7 +197,7 @@ export default async function AdminEventsPage({
                   key={p}
                   href={buildPageHref(p)}
                   className={`rounded-lg px-3 py-2 text-sm font-medium tnum ${
-                    p === page ? "bg-primary text-white" : "text-ink/60 hover:bg-lane/60"
+                    p === page ? "bg-primary text-ink" : "text-muted hover:bg-lane/60"
                   }`}
                 >
                   {p}
@@ -208,7 +208,7 @@ export default async function AdminEventsPage({
                 className={`rounded-lg px-3 py-2 text-sm font-medium ${
                   page === totalPages
                     ? "pointer-events-none text-ink/30"
-                    : "text-ink/60 hover:bg-lane/60"
+                    : "text-muted hover:bg-lane/60"
                 }`}
               >
                 ถัดไป →

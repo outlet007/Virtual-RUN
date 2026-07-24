@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/auth/admin";
 
 const tabs = [
   { href: "/admin", label: "ภาพรวม" },
+  { href: "/admin/hero-banners", label: "Banner หน้าแรก" },
   { href: "/admin/events", label: "งาน" },
   { href: "/admin/submissions", label: "ตรวจผลวิ่ง" },
   { href: "/admin/payments", label: "การชำระเงิน" },

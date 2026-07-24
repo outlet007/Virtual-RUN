@@ -31,10 +31,10 @@ const statusLabel: Record<string, string> = {
   delivered: "ถึงแล้ว",
 };
 const statusClass: Record<string, string> = {
-  pending: "bg-lane text-ink/60",
+  pending: "bg-lane text-muted",
   packed: "bg-medal-soft text-medal",
   shipped: "bg-primary-soft text-primary-dark",
-  delivered: "bg-primary text-white",
+  delivered: "bg-primary text-ink",
 };
 
 export default async function AdminShipmentsPage({

@@ -39,7 +39,7 @@ const statusClass: Record<string, string> = {
   pending: "bg-medal-soft text-medal",
   flagged: "bg-red-50 text-red-600",
   approved: "bg-primary-soft text-primary-dark",
-  rejected: "bg-lane text-ink/60",
+  rejected: "bg-lane text-muted",
 };
 
 export default async function AdminSubmissionsPage({
