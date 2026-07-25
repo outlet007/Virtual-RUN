@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { Search, Footprints, CalendarDays, Road, ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Badge, LinkButton, Input, Select } from "@/components/ui";
 import { HeroCarousel } from "@/components/hero-carousel";
+import { formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -24,14 +26,6 @@ type EventRow = {
   end_date: string;
   packages: PackageRow[];
 };
-
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
 
 export default async function HomePage({
   searchParams,
@@ -79,8 +73,8 @@ export default async function HomePage({
   return (
     <div className="space-y-12">
       {/* Hero — thesis: ระยะทางคือหัวใจ (ทับอยู่บน banner slide ที่จัดการได้จาก admin) */}
-      {/* -mt-8 หักล้าง py-8 ของ <main> ใน layout — ให้ banner ชิดกับ header พอดี ไม่มีช่องว่าง */}
-      <section className="-mt-8">
+      {/* main ไม่มี padding-top แล้ว (.py-8 override ใน globals.css) — banner ชิดกับ header โดยไม่ต้องหักล้างเอง */}
+      <section>
         <HeroCarousel slides={banners ?? []}>
           <p className="font-mono text-xs uppercase tracking-[0.2em] text-primary">
             Run · Walk · Collect
@@ -123,7 +117,7 @@ export default async function HomePage({
               <label className="mb-1.5 block text-sm font-medium text-ink/70">ค้นหา</label>
               <div className="relative">
                 <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink/40">
-                  🔍
+                  <Search className="h-4 w-4" />
                 </span>
                 <Input name="q" defaultValue={q} placeholder="ชื่องาน..." className="pl-9" />
               </div>
@@ -179,15 +173,15 @@ export default async function HomePage({
                             className="h-full w-full object-cover transition group-hover:scale-105"
                           />
                         ) : (
-                          <div className="flex h-full w-full items-center justify-center text-4xl">
-                            🏃
+                          <div className="flex h-full w-full items-center justify-center text-ink/30">
+                            <Footprints className="h-10 w-10" />
                           </div>
                         )}
                         <Badge
-                          className={`absolute right-3 top-3 ${
+                          className={`absolute right-3 top-3 text-sm ${
                             ev.pricing === "free"
-                              ? "bg-primary-soft text-primary-dark"
-                              : "bg-medal-soft text-medal"
+                              ? "bg-green-50 text-green-700"
+                              : "bg-accent/10 text-accent"
                           }`}
                         >
                           {ev.pricing === "free" ? "ฟรี" : "มีค่าสมัคร"}
@@ -196,10 +190,14 @@ export default async function HomePage({
                       <div className="flex flex-1 flex-col gap-2 p-5">
                         <h3 className="line-clamp-2 font-display font-bold">{ev.title}</h3>
                         <p className="flex flex-wrap items-center gap-1.5 font-mono text-xs text-accent tnum">
-                          <span>🕐 {formatDate(ev.start_date)}</span>
+                          <span className="inline-flex items-center gap-1">
+                            <CalendarDays className="h-3.5 w-3.5" /> {formatDate(ev.start_date)} –{" "}
+                            {formatDate(ev.end_date)}
+                          </span>
                           {hasPackages && (
-                            <span>
-                              · {minKm === maxKm ? `${minKm}` : `${minKm}–${maxKm}`} km ·{" "}
+                            <span className="inline-flex items-center gap-1">
+                              | <Road className="h-3.5 w-3.5" />{" "}
+                              {minKm === maxKm ? `${minKm}` : `${minKm}–${maxKm}`} km |{" "}
                               {ev.packages.length} แพ็กเกจ
                             </span>
                           )}
@@ -207,8 +205,8 @@ export default async function HomePage({
                         {ev.description && (
                           <p className="line-clamp-2 text-sm text-muted">{ev.description}</p>
                         )}
-                        <span className="mt-auto inline-flex w-fit items-center rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-ink transition group-hover:bg-primary-dark">
-                          ดูรายละเอียด →
+                        <span className="mt-auto inline-flex w-fit items-center gap-1 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-ink transition group-hover:bg-primary-dark">
+                          ดูรายละเอียด <ChevronRight className="h-4 w-4" />
                         </span>
                       </div>
                     </Card>

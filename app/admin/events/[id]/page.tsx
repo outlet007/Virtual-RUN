@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Medal } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, Button, Input, Label, Select, Badge, ImageUploadField, Tabs } from "@/components/ui";
 import { EditEventModal } from "@/components/admin/edit-event-modal";
@@ -66,7 +67,7 @@ export default async function EventDashboardPage({
   const { data: event } = await db
     .from("events")
     .select(
-      "id, title, description, cover_image, pricing, start_date, end_date, status, packages(id, name, target_distance_km, price, activity_types, has_physical_medal), medals(id, name, tier, bonus_points, image_url, unlock_rule)",
+      "id, title, description, cover_image, poster_image, pricing, start_date, end_date, status, packages(id, name, target_distance_km, price, activity_types, has_physical_medal), medals(id, name, tier, bonus_points, image_url, unlock_rule)",
     )
     .eq("id", id)
     .single();
@@ -144,6 +145,7 @@ export default async function EventDashboardPage({
             title: event.title,
             description: event.description,
             cover_image: event.cover_image,
+            poster_image: event.poster_image,
             pricing: event.pricing,
             status: event.status,
             start_date: event.start_date,
@@ -159,14 +161,42 @@ export default async function EventDashboardPage({
             content: (
               <div className="space-y-6">
                 <Card className="space-y-3">
-                  {event.cover_image && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={event.cover_image}
-                      alt=""
-                      className="h-40 w-full rounded-xl border border-lane object-cover"
-                    />
-                  )}
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <p className="mb-1 text-xs uppercase tracking-wider text-ink/40">
+                        รูปปกงาน (banner)
+                      </p>
+                      {event.cover_image ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={event.cover_image}
+                          alt=""
+                          className="h-40 w-full rounded-xl border border-lane object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-40 w-full items-center justify-center rounded-xl border border-dashed border-lane text-sm text-ink/30">
+                          ยังไม่มีรูป
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <p className="mb-1 text-xs uppercase tracking-wider text-ink/40">
+                        รูป poster
+                      </p>
+                      {event.poster_image ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={event.poster_image}
+                          alt=""
+                          className="h-40 w-full rounded-xl border border-lane object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-40 w-full items-center justify-center rounded-xl border border-dashed border-lane text-sm text-ink/30">
+                          ยังไม่มีรูป
+                        </div>
+                      )}
+                    </div>
+                  </div>
                   {event.description && (
                     <p className="text-sm text-ink/70">{event.description}</p>
                   )}
@@ -206,7 +236,9 @@ export default async function EventDashboardPage({
                 <div className="flex items-center gap-2">
                   <span className="font-display font-bold text-charcoal">{p.name}</span>
                   {p.has_physical_medal && (
-                    <Badge className="bg-medal-soft text-medal">🏅 เหรียญจริง</Badge>
+                    <Badge className="gap-1 bg-medal-soft text-medal">
+                      <Medal className="h-3 w-3" /> เหรียญจริง
+                    </Badge>
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-3">

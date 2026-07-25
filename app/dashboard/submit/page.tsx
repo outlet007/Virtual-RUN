@@ -77,8 +77,8 @@ export default async function SubmitPage({
                 name="activity_type"
                 className="h-11 w-full rounded-xl border border-lane bg-white px-3 text-sm outline-none focus:border-primary"
               >
-                <option value="run">วิ่ง 🏃</option>
-                <option value="walk">เดิน 🚶</option>
+                <option value="run">วิ่ง</option>
+                <option value="walk">เดิน</option>
               </select>
             </div>
 

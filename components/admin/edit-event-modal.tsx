@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { X } from "lucide-react";
 import { Button, Card, Input, Label, Textarea, Select, ImageUploadField } from "@/components/ui";
 import { updateEvent } from "@/lib/actions/admin";
 
@@ -9,6 +10,7 @@ type EventForModal = {
   title: string;
   description: string | null;
   cover_image: string | null;
+  poster_image: string | null;
   pricing: string;
   status: string;
   start_date: string;
@@ -45,16 +47,17 @@ export function EditEventModal({ event }: { event: EventForModal }) {
             <form action={updateEvent}>
               <input type="hidden" name="id" value={event.id} />
               <input type="hidden" name="existing_cover_image" value={event.cover_image ?? ""} />
+              <input type="hidden" name="existing_poster_image" value={event.poster_image ?? ""} />
               <Card className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="font-display text-lg font-bold">แก้ไขงาน</h3>
                   <button
                     type="button"
                     onClick={() => setOpen(false)}
-                    className="text-xl leading-none text-ink/40 hover:text-ink"
+                    className="leading-none text-ink/40 hover:text-ink"
                     aria-label="ปิด"
                   >
-                    ✕
+                    <X className="h-5 w-5" />
                   </button>
                 </div>
                 <div>
@@ -67,8 +70,13 @@ export function EditEventModal({ event }: { event: EventForModal }) {
                 </div>
                 <ImageUploadField
                   name="cover_image_file"
-                  label="รูปปกงาน"
+                  label="รูปปกงาน (banner)"
                   defaultImageUrl={event.cover_image}
+                />
+                <ImageUploadField
+                  name="poster_image_file"
+                  label="รูป poster"
+                  defaultImageUrl={event.poster_image}
                 />
                 <div className="grid grid-cols-2 gap-3">
                   <div>

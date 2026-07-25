@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Footprints, PersonStanding } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, Badge, Button } from "@/components/ui";
 import { formatKm } from "@/lib/utils";
@@ -119,9 +120,13 @@ export default async function AdminSubmissionsPage({
                   <p className="font-semibold">
                     {s.users?.name || s.users?.email || "ไม่ทราบชื่อ"}
                   </p>
-                  <p className="mt-1 font-mono text-sm tnum">
-                    {s.activity_type === "walk" ? "🚶" : "🏃"} {formatKm(Number(s.distance_km))}{" "}
-                    km
+                  <p className="mt-1 inline-flex items-center gap-1 font-mono text-sm tnum">
+                    {s.activity_type === "walk" ? (
+                      <PersonStanding className="h-4 w-4" />
+                    ) : (
+                      <Footprints className="h-4 w-4" />
+                    )}{" "}
+                    {formatKm(Number(s.distance_km))} km
                     {s.duration_sec ? ` · ${Math.round(s.duration_sec / 60)} นาที` : ""}
                     <span className="ml-2 text-ink/40">
                       {new Date(s.activity_date).toLocaleDateString("th-TH")}

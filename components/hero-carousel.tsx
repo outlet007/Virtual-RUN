@@ -29,7 +29,7 @@ export function HeroCarousel({
 
   return (
     // full-bleed: ดึงตัวเองออกจากกรอบ max-w ของ <main> ให้รูปกว้างเต็มจอ
-    // ส่วนเนื้อหา (children) ด้านในยังคุมความกว้างแบบเดิม (max-w-[1104px]) ไม่ให้ล้นจอ
+    // ส่วนเนื้อหา (children) ด้านในยังคุมความกว้างแบบเดิม (max-w-[1500px]) ไม่ให้ล้นจอ
     <div className="relative left-1/2 right-1/2 -mx-[50vw] min-h-[420px] w-screen overflow-hidden bg-ink sm:min-h-[480px]">
       {slides.map((s, i) => (
         <div
@@ -47,7 +47,7 @@ export function HeroCarousel({
       {slides.length > 0 && (
         <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-ink/50 to-ink/20" />
       )}
-      <div className="relative mx-auto flex min-h-[420px] max-w-[1104px] flex-col justify-center px-4 py-6 sm:min-h-[480px] sm:px-8 sm:py-12">
+      <div className="relative mx-auto flex min-h-[420px] max-w-[1500px] flex-col justify-center px-4 py-6 sm:min-h-[480px] sm:px-8 sm:py-12">
         {children}
       </div>
 

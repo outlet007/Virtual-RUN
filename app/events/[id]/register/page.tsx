@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { Medal } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Button, Input, Label, Badge } from "@/components/ui";
 import { registerForEvent } from "@/lib/actions/registration";
@@ -47,7 +48,9 @@ export default async function RegisterPage({
         <div className="flex items-center gap-2">
           <span className="font-display text-xl font-bold">{pkg.name}</span>
           {pkg.has_physical_medal && (
-            <Badge className="bg-medal/20 text-medal">🏅 เหรียญจริง</Badge>
+            <Badge className="gap-1 bg-medal/20 text-medal">
+              <Medal className="h-3 w-3" /> เหรียญจริง
+            </Badge>
           )}
         </div>
         <div className="font-mono text-sm text-primary tnum">

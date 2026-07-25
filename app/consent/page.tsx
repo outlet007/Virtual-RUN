@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Button } from "@/components/ui";
 import { acceptConsent } from "@/lib/actions/auth";
@@ -34,7 +35,7 @@ export default async function ConsentPage({
       <form action={acceptConsent}>
         <Card className="space-y-4">
           <div className="flex items-center gap-2">
-            <span className="text-xl">🛡️</span>
+            <ShieldCheck className="h-6 w-6 text-primary" />
             <h1 className="font-display text-lg font-bold">การยินยอมเปิดเผยข้อมูล *</h1>
           </div>
 

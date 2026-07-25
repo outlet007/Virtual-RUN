@@ -14,6 +14,11 @@ const nextConfig: NextConfig = {
   experimental: {
     cpus: 1,
     workerThreads: false,
+    // default 1MB เล็กเกินไปสำหรับอัปโหลดรูปจริง (event-images bucket จำกัดไว้ 5MB
+    // ดู 0008_event_images_storage.sql) — เผื่อ margin ให้ multipart form overhead
+    serverActions: {
+      bodySizeLimit: "6mb",
+    },
   },
 };
 

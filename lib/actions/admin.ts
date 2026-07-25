@@ -50,8 +50,10 @@ export async function createEvent(formData: FormData) {
   }
 
   let cover_image: string | null = null;
+  let poster_image: string | null = null;
   try {
     cover_image = await uploadEventImage(db, formData.get("cover_image_file"), "covers");
+    poster_image = await uploadEventImage(db, formData.get("poster_image_file"), "posters");
   } catch (e) {
     err("/admin/events/new", (e as Error).message);
   }
@@ -62,6 +64,7 @@ export async function createEvent(formData: FormData) {
       title,
       description: description || null,
       cover_image,
+      poster_image,
       pricing,
       start_date,
       end_date,
@@ -95,9 +98,12 @@ export async function updateEvent(formData: FormData) {
 
   // ถ้าไม่ได้เลือกไฟล์ใหม่ ใช้รูปเดิมต่อ (ส่งมาจาก hidden field ในฟอร์ม)
   let cover_image = String(formData.get("existing_cover_image") ?? "").trim() || null;
+  let poster_image = String(formData.get("existing_poster_image") ?? "").trim() || null;
   try {
-    const uploaded = await uploadEventImage(db, formData.get("cover_image_file"), "covers");
-    if (uploaded) cover_image = uploaded;
+    const uploadedCover = await uploadEventImage(db, formData.get("cover_image_file"), "covers");
+    if (uploadedCover) cover_image = uploadedCover;
+    const uploadedPoster = await uploadEventImage(db, formData.get("poster_image_file"), "posters");
+    if (uploadedPoster) poster_image = uploadedPoster;
   } catch (e) {
     err(`/admin/events/${id}`, (e as Error).message);
   }
@@ -108,6 +114,7 @@ export async function updateEvent(formData: FormData) {
       title,
       description: description || null,
       cover_image,
+      poster_image,
       pricing,
       start_date,
       end_date,

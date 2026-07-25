@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Gift } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Badge, Button } from "@/components/ui";
 import { redeemReward } from "@/lib/actions/rewards";
@@ -49,8 +50,8 @@ export default async function RewardsPage({
         <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       )}
       {redeemed && (
-        <div className="rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
-          🎁 แลกรางวัลสำเร็จ — รอผู้จัดติดต่อกลับ
+        <div className="flex items-center gap-2 rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
+          <Gift className="h-4 w-4 shrink-0" /> แลกรางวัลสำเร็จ — รอผู้จัดติดต่อกลับ
         </div>
       )}
 

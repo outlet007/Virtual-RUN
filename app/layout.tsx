@@ -40,7 +40,7 @@ export default async function RootLayout({
     <html lang="th">
       <body className={`${notoSansThai.variable} font-sans`}>
         <header className="sticky top-0 z-20 border-b border-lane bg-paper/85 backdrop-blur">
-          <nav className="mx-auto flex h-16 max-w-[1104px] items-center justify-between px-4">
+          <nav className="mx-auto flex h-16 max-w-[1500px] items-center justify-between px-4">
             <Link href="/" className="flex items-center gap-2">
               <span className="grid h-8 w-8 place-items-center rounded-full bg-ink font-mono text-sm font-bold text-primary">
                 VR
@@ -89,8 +89,8 @@ export default async function RootLayout({
             </div>
           </nav>
         </header>
-        <main className="mx-auto max-w-[1104px] px-4 py-8">{children}</main>
-        <footer className="mx-auto max-w-[1104px] px-4 py-10 text-center text-xs text-ink/40">
+        <main className="mx-auto max-w-[1500px] px-4 py-8">{children}</main>
+        <footer className="mx-auto max-w-[1500px] px-4 py-10 text-center text-xs text-ink/40">
           © 2026 VirtualRun · Bangkok University. All Rights Reserved.
         </footer>
       </body>

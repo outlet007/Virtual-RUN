@@ -1,5 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import {
+  PartyPopper,
+  CheckCircle2,
+  FileText,
+  Link2,
+  Footprints,
+  PersonStanding,
+  Medal,
+  Flag,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Badge, LinkButton, Button, Select } from "@/components/ui";
 import { TrackProgress } from "@/components/ui";
@@ -142,20 +152,26 @@ export default async function DashboardPage({
   return (
     <div className="space-y-8">
       {welcome && (
-        <div className="rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
-          🎉 สมัครสำเร็จ! เริ่มบันทึกผลวิ่งได้เลย
+        <div className="flex items-center gap-2 rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
+          <PartyPopper className="h-4 w-4 shrink-0" /> สมัครสำเร็จ! เริ่มบันทึกผลวิ่งได้เลย
         </div>
       )}
       {submitted && (
-        <div className="rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
-          {submitted === "approved"
-            ? "✅ บันทึกผลสำเร็จ — ระยะถูกเพิ่มเข้ายอดสะสมแล้ว"
-            : "📝 บันทึกผลแล้ว — รอผู้จัดงานตรวจสอบ"}
+        <div className="flex items-center gap-2 rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
+          {submitted === "approved" ? (
+            <>
+              <CheckCircle2 className="h-4 w-4 shrink-0" /> บันทึกผลสำเร็จ — ระยะถูกเพิ่มเข้ายอดสะสมแล้ว
+            </>
+          ) : (
+            <>
+              <FileText className="h-4 w-4 shrink-0" /> บันทึกผลแล้ว — รอผู้จัดงานตรวจสอบ
+            </>
+          )}
         </div>
       )}
       {strava === "connected" && (
-        <div className="rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
-          🔗 เชื่อมต่อ Strava สำเร็จ — กิจกรรมใหม่จะถูกดึงเข้าระบบอัตโนมัติ
+        <div className="flex items-center gap-2 rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
+          <Link2 className="h-4 w-4 shrink-0" /> เชื่อมต่อ Strava สำเร็จ — กิจกรรมใหม่จะถูกดึงเข้าระบบอัตโนมัติ
         </div>
       )}
       {strava === "disconnected" && (
@@ -164,8 +180,8 @@ export default async function DashboardPage({
         </div>
       )}
       {line === "connected" && (
-        <div className="rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
-          🔗 เชื่อมต่อ LINE สำเร็จ — รับการแจ้งเตือนผ่าน LINE ได้แล้ว
+        <div className="flex items-center gap-2 rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
+          <Link2 className="h-4 w-4 shrink-0" /> เชื่อมต่อ LINE สำเร็จ — รับการแจ้งเตือนผ่าน LINE ได้แล้ว
         </div>
       )}
       {line === "disconnected" && (
@@ -174,8 +190,8 @@ export default async function DashboardPage({
         </div>
       )}
       {assigned && (
-        <div className="rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
-          ✅ จับคู่กิจกรรมกับใบสมัครแล้ว
+        <div className="flex items-center gap-2 rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
+          <CheckCircle2 className="h-4 w-4 shrink-0" /> จับคู่กิจกรรมกับใบสมัครแล้ว
         </div>
       )}
       {error && (
@@ -237,7 +253,13 @@ export default async function DashboardPage({
             {pendingActivities.map((p) => (
               <Card key={p.id} className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <span className="text-lg">{p.activity_type === "walk" ? "🚶" : "🏃"}</span>
+                  <span className="text-ink/60">
+                    {p.activity_type === "walk" ? (
+                      <PersonStanding className="h-5 w-5" />
+                    ) : (
+                      <Footprints className="h-5 w-5" />
+                    )}
+                  </span>
                   <span className="font-mono text-sm tnum">
                     {formatKm(Number(p.distance_km))} km
                   </span>
@@ -307,7 +329,7 @@ export default async function DashboardPage({
           <div className="flex flex-wrap gap-3">
             {earnedMedals.map((em) => (
               <Card key={em.id} className="flex items-center gap-3 py-3">
-                <span className="text-2xl">🏅</span>
+                <Medal className="h-7 w-7 text-medal" />
                 <div>
                   <p className="font-semibold">{em.medals?.name}</p>
                   <Badge className="bg-medal-soft text-medal">
@@ -364,7 +386,13 @@ export default async function DashboardPage({
                             : "bg-lane text-muted"
                         }
                       >
-                        {finished ? "🏁 ครบเป้า" : "กำลังสะสม"}
+                        {finished ? (
+                          <span className="inline-flex items-center gap-1">
+                            <Flag className="h-3 w-3" /> ครบเป้า
+                          </span>
+                        ) : (
+                          "กำลังสะสม"
+                        )}
                       </Badge>
                     )}
                   </div>
@@ -392,8 +420,12 @@ export default async function DashboardPage({
             {subs.slice(0, 8).map((s, i) => (
               <div key={i} className="flex items-center justify-between px-5 py-3">
                 <div className="flex items-center gap-3">
-                  <span className="text-lg">
-                    {s.activity_type === "walk" ? "🚶" : "🏃"}
+                  <span className="text-ink/60">
+                    {s.activity_type === "walk" ? (
+                      <PersonStanding className="h-5 w-5" />
+                    ) : (
+                      <Footprints className="h-5 w-5" />
+                    )}
                   </span>
                   <span className="font-mono text-sm tnum">
                     {formatKm(Number(s.distance_km))} km

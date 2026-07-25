@@ -32,7 +32,8 @@ export default async function NewEventPage({
             <Label>รายละเอียด</Label>
             <Textarea name="description" rows={4} />
           </div>
-          <ImageUploadField name="cover_image_file" label="รูปปกงาน" />
+          <ImageUploadField name="cover_image_file" label="รูปปกงาน (banner)" />
+          <ImageUploadField name="poster_image_file" label="รูป poster" />
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>ประเภทค่าสมัคร</Label>

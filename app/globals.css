@@ -16,6 +16,13 @@
   }
 }
 
+@layer utilities {
+  /* ตัด padding-top ของ <main> ออกทุกหน้า — ให้ banner/hero แต่ละหน้าชิดกับ header ได้เองโดยไม่ต้องใช้ -mt-8 แก้เฉพาะจุด */
+  .py-8 {
+    padding-top: 0rem;
+  }
+}
+
 @layer components {
   /* Signature: แถบความคืบหน้าแบบ "ลู่วิ่ง" */
   .track-lane {
