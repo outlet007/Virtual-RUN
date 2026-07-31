@@ -31,3 +31,15 @@ export function formatDate(dateStr: string) {
 export function genBib() {
   return "VR" + Math.floor(100000 + Math.random() * 900000).toString();
 }
+
+// สำหรับ preview รายละเอียดงาน (เก็บเป็น HTML จาก RichTextEditor) แบบข้อความล้วนบน card/list
+export function stripHtml(html: string) {
+  return html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+}

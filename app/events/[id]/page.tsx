@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Medal, CalendarDays, ChevronLeft, Road } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Badge, LinkButton } from "@/components/ui";
-import { formatBaht, formatDate } from "@/lib/utils";
+import { formatBaht, formatDate, stripHtml } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +41,8 @@ export default async function EventDetailPage({
       )}
 
       {/* Banner header ของงานนี้ — full-bleed เหมือน hero, ใช้ cover_image ของ event เอง */}
-      <div className="relative left-1/2 right-1/2 -mx-[50vw] min-h-[240px] w-screen overflow-hidden bg-ink sm:min-h-[320px]">
+      {/* -mt-8 หักล้าง padding-top ของ <main> (py-8) ให้ banner ชิดกับ header เหมือนหน้าแรก */}
+      <div className="relative left-1/2 right-1/2 -mx-[50vw] -mt-8 min-h-[240px] w-screen overflow-hidden bg-ink sm:min-h-[320px]">
         {event.cover_image && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -55,8 +56,8 @@ export default async function EventDetailPage({
           <Badge
             className={
               event.pricing === "free"
-                ? "w-fit text-sm bg-green-50 text-green-700"
-                : "w-fit text-sm bg-accent/10 text-accent"
+                ? "w-fit text-sm bg-[rgb(10,164,57)] text-white"
+                : "w-fit text-sm bg-[rgb(255,93,0)] text-white"
             }
           >
             {event.pricing === "free" ? "ฟรี" : "มีค่าสมัคร"}
@@ -67,7 +68,9 @@ export default async function EventDetailPage({
             {formatDate(event.end_date)}
           </p>
           {event.description && (
-            <p className="mt-2 max-w-2xl text-sm text-paper/80">{event.description}</p>
+            <p className="mt-2 line-clamp-2 max-w-2xl text-sm text-paper/80">
+              {stripHtml(event.description)}
+            </p>
           )}
         </div>
       </div>
@@ -85,7 +88,10 @@ export default async function EventDetailPage({
         <div className="space-y-4">
           <h2 className="font-display text-xl font-bold">รายละเอียดงาน</h2>
           {event.description && (
-            <p className="leading-relaxed text-muted">{event.description}</p>
+            <div
+              className="prose prose-sm max-w-none text-muted prose-headings:font-display prose-headings:text-ink prose-img:rounded-xl"
+              dangerouslySetInnerHTML={{ __html: event.description }}
+            />
           )}
           {event.poster_image && (
             // eslint-disable-next-line @next/next/no-img-element
@@ -117,7 +123,7 @@ export default async function EventDetailPage({
                   </span>
                   <span className="text-ink/25">·</span>
                   {Number(p.price) === 0 ? (
-                    <Badge className="bg-green-50 text-green-700">ฟรี</Badge>
+                    <Badge className="bg-[rgb(10,164,57)] text-white">ฟรี</Badge>
                   ) : (
                     formatBaht(Number(p.price))
                   )}

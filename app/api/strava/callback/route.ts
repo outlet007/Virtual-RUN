@@ -17,7 +17,7 @@ export async function GET(request: Request) {
   if (error || !code || !state || state !== expectedState) {
     return NextResponse.redirect(
       new URL(
-        `/dashboard?error=${encodeURIComponent("เชื่อมต่อ Strava ไม่สำเร็จ")}`,
+        `/admin/settings?error=${encodeURIComponent("เชื่อมต่อ Strava ไม่สำเร็จ")}`,
         request.url,
       ),
     );
@@ -65,7 +65,7 @@ export async function GET(request: Request) {
     }
   }
 
-  const response = NextResponse.redirect(new URL("/dashboard?strava=connected", request.url));
+  const response = NextResponse.redirect(new URL("/admin/settings?strava=connected", request.url));
   response.cookies.delete("strava_oauth_state");
   return response;
 }

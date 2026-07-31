@@ -10,6 +10,7 @@ const tabs = [
   { href: "/admin/shipments", label: "จัดส่งเหรียญ" },
   { href: "/admin/rewards", label: "รางวัล" },
   { href: "/admin/admins", label: "ผู้ดูแลระบบ" },
+  { href: "/admin/settings", label: "ตั้งค่าระบบ" },
 ];
 
 export default async function AdminLayout({

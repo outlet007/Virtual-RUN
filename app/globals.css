@@ -16,13 +16,6 @@
   }
 }
 
-@layer utilities {
-  /* ตัด padding-top ของ <main> ออกทุกหน้า — ให้ banner/hero แต่ละหน้าชิดกับ header ได้เองโดยไม่ต้องใช้ -mt-8 แก้เฉพาะจุด */
-  .py-8 {
-    padding-top: 0rem;
-  }
-}
-
 @layer components {
   /* Signature: แถบความคืบหน้าแบบ "ลู่วิ่ง" */
   .track-lane {
@@ -37,6 +30,14 @@
   }
   .track-lane__fill {
     @apply absolute inset-y-0 left-0 rounded-full bg-primary transition-[width] duration-700;
+  }
+
+  /* iframe วิดีโอ YouTube ที่ฝังผ่าน RichTextEditor มี width/height เป็น attribute ตายตัว (640x360)
+     บังคับให้ responsive ตามกล่อง .prose แทน ทั้งในหน้าแก้ไขและหน้าแสดงผลจริง */
+  .prose iframe {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    height: auto;
   }
 }
 

@@ -13,6 +13,6 @@ export async function disconnectLine() {
 
   await supabase.from("users").update({ line_user_id: null }).eq("id", user.id);
 
-  revalidatePath("/dashboard");
-  redirect("/dashboard?line=disconnected");
+  revalidatePath("/admin/settings");
+  redirect("/admin/settings?line=disconnected");
 }

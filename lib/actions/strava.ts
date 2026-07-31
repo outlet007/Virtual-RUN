@@ -15,8 +15,8 @@ export async function disconnectStrava() {
 
   await supabase.from("strava_connections").delete().eq("user_id", user.id);
 
-  revalidatePath("/dashboard");
-  redirect("/dashboard?strava=disconnected");
+  revalidatePath("/admin/settings");
+  redirect("/admin/settings?strava=disconnected");
 }
 
 // user เลือก registration เองให้กิจกรรมที่จับคู่อัตโนมัติไม่ได้ (ไม่มี/มีมากกว่า 1 ใบที่ตรงช่วงวันงาน)

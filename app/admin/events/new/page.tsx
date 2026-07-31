@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Card, Button, Input, Label, Textarea, Select, ImageUploadField } from "@/components/ui";
+import { Card, Button, Input, Label, Select, ImageUploadField } from "@/components/ui";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { createEvent } from "@/lib/actions/admin";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +31,7 @@ export default async function NewEventPage({
           </div>
           <div>
             <Label>รายละเอียด</Label>
-            <Textarea name="description" rows={4} />
+            <RichTextEditor name="description" />
           </div>
           <ImageUploadField name="cover_image_file" label="รูปปกงาน (banner)" />
           <ImageUploadField name="poster_image_file" label="รูป poster" />

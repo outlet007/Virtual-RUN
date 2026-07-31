@@ -13,7 +13,7 @@ export async function GET(request: Request) {
 
   if (error || !code || !state || state !== expectedState) {
     return NextResponse.redirect(
-      new URL(`/dashboard?error=${encodeURIComponent("เชื่อมต่อ LINE ไม่สำเร็จ")}`, request.url),
+      new URL(`/admin/settings?error=${encodeURIComponent("เชื่อมต่อ LINE ไม่สำเร็จ")}`, request.url),
     );
   }
 
@@ -39,7 +39,7 @@ export async function GET(request: Request) {
 
   if (!tokenRes.ok) {
     return NextResponse.redirect(
-      new URL(`/dashboard?error=${encodeURIComponent("เชื่อมต่อ LINE ไม่สำเร็จ")}`, request.url),
+      new URL(`/admin/settings?error=${encodeURIComponent("เชื่อมต่อ LINE ไม่สำเร็จ")}`, request.url),
     );
   }
 
@@ -52,7 +52,7 @@ export async function GET(request: Request) {
 
   await supabase.from("users").update({ line_user_id: profile.userId }).eq("id", user.id);
 
-  const response = NextResponse.redirect(new URL("/dashboard?line=connected", request.url));
+  const response = NextResponse.redirect(new URL("/admin/settings?line=connected", request.url));
   response.cookies.delete("line_oauth_state");
   return response;
 }

@@ -4,7 +4,6 @@ import {
   PartyPopper,
   CheckCircle2,
   FileText,
-  Link2,
   Footprints,
   PersonStanding,
   Medal,
@@ -13,9 +12,8 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { Card, Badge, LinkButton, Button, Select } from "@/components/ui";
 import { TrackProgress } from "@/components/ui";
-import { formatKm } from "@/lib/utils";
-import { disconnectStrava, assignPendingActivity } from "@/lib/actions/strava";
-import { disconnectLine } from "@/lib/actions/line";
+import { formatKm, formatDate } from "@/lib/utils";
+import { assignPendingActivity } from "@/lib/actions/strava";
 
 export const dynamic = "force-dynamic";
 
@@ -63,13 +61,11 @@ export default async function DashboardPage({
     welcome?: string;
     submitted?: string;
     pending?: string;
-    strava?: string;
-    line?: string;
     assigned?: string;
     error?: string;
   }>;
 }) {
-  const { welcome, submitted, strava, line, assigned, error } = await searchParams;
+  const { welcome, submitted, assigned, error } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -85,6 +81,12 @@ export default async function DashboardPage({
     .maybeSingle();
   if (!privacyConsent) redirect("/consent");
 
+  const { data: profile } = await supabase
+    .from("users")
+    .select("name, email, phone, avatar_url, created_at")
+    .eq("id", user.id)
+    .single();
+
   const { data: regsRaw } = await supabase
     .from("registrations")
     .select(
@@ -98,19 +100,6 @@ export default async function DashboardPage({
     .select("registration_id, distance_km, status, activity_type, activity_date")
     .eq("user_id", user.id)
     .order("activity_date", { ascending: false });
-
-  const { data: stravaConnection } = await supabase
-    .from("strava_connections")
-    .select("strava_athlete_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("line_user_id")
-    .eq("id", user.id)
-    .single();
-  const lineConnected = Boolean(profile?.line_user_id);
 
   const { data: pendingActivitiesRaw } = await supabase
     .from("strava_pending_activities")
@@ -169,26 +158,6 @@ export default async function DashboardPage({
           )}
         </div>
       )}
-      {strava === "connected" && (
-        <div className="flex items-center gap-2 rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
-          <Link2 className="h-4 w-4 shrink-0" /> เชื่อมต่อ Strava สำเร็จ — กิจกรรมใหม่จะถูกดึงเข้าระบบอัตโนมัติ
-        </div>
-      )}
-      {strava === "disconnected" && (
-        <div className="rounded-xl bg-lane px-4 py-3 text-sm text-muted">
-          ตัดการเชื่อมต่อ Strava แล้ว
-        </div>
-      )}
-      {line === "connected" && (
-        <div className="flex items-center gap-2 rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
-          <Link2 className="h-4 w-4 shrink-0" /> เชื่อมต่อ LINE สำเร็จ — รับการแจ้งเตือนผ่าน LINE ได้แล้ว
-        </div>
-      )}
-      {line === "disconnected" && (
-        <div className="rounded-xl bg-lane px-4 py-3 text-sm text-muted">
-          ตัดการเชื่อมต่อ LINE แล้ว
-        </div>
-      )}
       {assigned && (
         <div className="flex items-center gap-2 rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
           <CheckCircle2 className="h-4 w-4 shrink-0" /> จับคู่กิจกรรมกับใบสมัครแล้ว
@@ -198,48 +167,46 @@ export default async function DashboardPage({
         <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       )}
 
-      {/* Strava */}
-      <Card className="flex items-center justify-between">
-        <div>
-          <p className="font-display font-bold">Strava</p>
-          <p className="text-sm text-ink/50">
-            {stravaConnection
-              ? "เชื่อมต่ออยู่ — กิจกรรมวิ่ง/เดินใหม่จะถูกดึงเข้าระบบอัตโนมัติ"
-              : "เชื่อมต่อ Strava เพื่อให้ระบบดึงผลวิ่งให้อัตโนมัติ ไม่ต้องอัปโหลดเอง"}
-          </p>
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[3fr_7fr]">
+        {/* ซ้าย: ข้อมูล user profile */}
+        <div className="space-y-4">
+          <Card className="space-y-4">
+            <div className="flex items-center gap-3">
+              {profile?.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={profile.avatar_url}
+                  alt=""
+                  className="h-14 w-14 shrink-0 rounded-full object-cover"
+                />
+              ) : (
+                <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-ink font-display text-lg font-bold text-primary">
+                  {(profile?.name ?? user.email ?? "?").trim().charAt(0).toUpperCase()}
+                </span>
+              )}
+              <div className="min-w-0">
+                <p className="truncate font-display text-lg font-bold">
+                  {profile?.name ?? "—"}
+                </p>
+                <p className="truncate text-sm text-ink/50">{profile?.email ?? user.email}</p>
+              </div>
+            </div>
+            {profile?.phone && (
+              <p className="text-sm text-ink/70">โทร {profile.phone}</p>
+            )}
+            {profile?.created_at && (
+              <p className="text-xs text-ink/40">
+                สมาชิกตั้งแต่ {formatDate(profile.created_at)}
+              </p>
+            )}
+            <LinkButton href="/profile" variant="ghost" className="w-full">
+              แก้ไขโปรไฟล์
+            </LinkButton>
+          </Card>
         </div>
-        {stravaConnection ? (
-          <form action={disconnectStrava}>
-            <Button variant="ghost" type="submit">
-              ตัดการเชื่อมต่อ
-            </Button>
-          </form>
-        ) : (
-          <LinkButton href="/api/strava/connect">เชื่อมต่อ Strava</LinkButton>
-        )}
-      </Card>
 
-      {/* LINE */}
-      <Card className="flex items-center justify-between">
-        <div>
-          <p className="font-display font-bold">LINE</p>
-          <p className="text-sm text-ink/50">
-            {lineConnected
-              ? "เชื่อมต่ออยู่ — รับการแจ้งเตือนผ่าน LINE ได้"
-              : "เชื่อมต่อ LINE เพื่อรับการแจ้งเตือนแทน/เพิ่มเติมจากอีเมล"}
-          </p>
-        </div>
-        {lineConnected ? (
-          <form action={disconnectLine}>
-            <Button variant="ghost" type="submit">
-              ตัดการเชื่อมต่อ
-            </Button>
-          </form>
-        ) : (
-          <LinkButton href="/api/line/connect">เชื่อมต่อ LINE</LinkButton>
-        )}
-      </Card>
-
+        {/* ขวา: เนื้อหาเดิมของแดชบอร์ด */}
+        <div className="space-y-8">
       {/* กิจกรรมจาก Strava ที่ต้องเลือกใบสมัครเอง */}
       {pendingActivities.length > 0 && (
         <section className="space-y-3">
@@ -454,6 +421,8 @@ export default async function DashboardPage({
           </Card>
         </section>
       )}
+        </div>
+      </div>
     </div>
   );
 }

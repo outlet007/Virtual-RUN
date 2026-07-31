@@ -6,7 +6,7 @@ export async function GET(request: Request) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return NextResponse.redirect(new URL("/login?next=/dashboard", request.url));
+  if (!user) return NextResponse.redirect(new URL("/login?next=/admin/settings", request.url));
 
   const state = crypto.randomUUID();
   const redirectUri = new URL("/api/strava/callback", request.url).toString();

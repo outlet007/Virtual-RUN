@@ -3,7 +3,7 @@ import { Search, Footprints, CalendarDays, Road, ChevronRight } from "lucide-rea
 import { createClient } from "@/lib/supabase/server";
 import { Card, Badge, LinkButton, Input, Select } from "@/components/ui";
 import { HeroCarousel } from "@/components/hero-carousel";
-import { formatDate } from "@/lib/utils";
+import { formatDate, stripHtml } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -73,8 +73,8 @@ export default async function HomePage({
   return (
     <div className="space-y-12">
       {/* Hero — thesis: ระยะทางคือหัวใจ (ทับอยู่บน banner slide ที่จัดการได้จาก admin) */}
-      {/* main ไม่มี padding-top แล้ว (.py-8 override ใน globals.css) — banner ชิดกับ header โดยไม่ต้องหักล้างเอง */}
-      <section>
+      {/* -mt-8 หักล้าง padding-top ของ <main> (py-8) เฉพาะหน้านี้ ให้ banner ชิดกับ header */}
+      <section className="-mt-8">
         <HeroCarousel slides={banners ?? []}>
           <p className="font-mono text-xs uppercase tracking-[0.2em] text-primary">
             Run · Walk · Collect
@@ -180,8 +180,8 @@ export default async function HomePage({
                         <Badge
                           className={`absolute right-3 top-3 text-sm ${
                             ev.pricing === "free"
-                              ? "bg-green-50 text-green-700"
-                              : "bg-accent/10 text-accent"
+                              ? "bg-[rgb(10,164,57)] text-white"
+                              : "bg-[rgb(255,93,0)] text-white"
                           }`}
                         >
                           {ev.pricing === "free" ? "ฟรี" : "มีค่าสมัคร"}
@@ -203,7 +203,7 @@ export default async function HomePage({
                           )}
                         </p>
                         {ev.description && (
-                          <p className="line-clamp-2 text-sm text-muted">{ev.description}</p>
+                          <p className="line-clamp-2 text-sm text-muted">{stripHtml(ev.description)}</p>
                         )}
                         <span className="mt-auto inline-flex w-fit items-center gap-1 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-ink transition group-hover:bg-primary-dark">
                           ดูรายละเอียด <ChevronRight className="h-4 w-4" />

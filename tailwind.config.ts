@@ -5,22 +5,24 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#2C3B98",
+        // ink/primary/accent/medal ผูกกับ CSS variable ที่ฉีดจาก system_settings ใน root layout
+        // (app/layout.tsx) — admin แก้สีธีมผ่านหน้า /admin/settings แล้วมีผลทันทีทั้งระบบ
+        // ไม่ต้อง build ใหม่ ดู lib/color.ts สำหรับการไล่เฉด dark/soft จากสีหลัก
+        ink: "var(--color-ink)",
         paper: "#FAFAF8",
         primary: {
-          DEFAULT: "#FEC81D", // go / distance
-          // #FEC81D สว่างมาก ปุ่ม primary เดิมใช้ text-white ทับ (bg-primary text-white)
-          // อ่านไม่ออก — ต้องเปลี่ยนตัวหนังสือบนปุ่มเป็น text-ink แทนทุกจุด (ดู components/ui/index.tsx)
-          dark: "#D9AB0A", // เข้มกว่าเดิมสำหรับ hover
-          soft: "#FFF6D9",
+          DEFAULT: "var(--color-primary)", // go / distance
+          // ปุ่ม primary ใช้ text-ink ทับเสมอ (ดู components/ui/index.tsx) เพราะสีพื้นอาจสว่าง
+          dark: "var(--color-primary-dark)",
+          soft: "var(--color-primary-soft)",
         },
         medal: {
-          DEFAULT: "#F5A524", // achievements
-          soft: "#FDF4E3",
+          DEFAULT: "var(--color-medal)", // achievements
+          soft: "var(--color-medal-soft)",
         },
         lane: "#E7E5DF", // track lane lines
         muted: "#585858", // ตัวหนังสือรอง/จาง — แทน text-ink/60 เดิม (คงที่ ไม่ผูกกับสี ink)
-        accent: "#FF4A00", // ตัวหนังสือวันที่/สถิติย่อยบนการ์ด — แทน text-ink/45 เดิม
+        accent: "var(--color-accent)", // ตัวหนังสือวันที่/สถิติย่อยบนการ์ด — แทน text-ink/45 เดิม
         charcoal: "#414141", // ชื่อแพ็กเกจ
       },
       fontFamily: {
@@ -35,7 +37,7 @@ const config: Config = {
       },
     },
   },
-  plugins: [],
+  plugins: [require("@tailwindcss/typography")],
 };
 
 export default config;

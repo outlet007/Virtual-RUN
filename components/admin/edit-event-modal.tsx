@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { Button, Card, Input, Label, Textarea, Select, ImageUploadField } from "@/components/ui";
+import { Button, Card, Input, Label, Select, ImageUploadField } from "@/components/ui";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { updateEvent } from "@/lib/actions/admin";
 
 type EventForModal = {
@@ -41,7 +42,7 @@ export function EditEventModal({ event }: { event: EventForModal }) {
           onClick={() => setOpen(false)}
         >
           <div
-            className="max-h-[90vh] w-full max-w-lg overflow-y-auto"
+            className="max-h-[95vh] w-full max-w-3xl overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <form action={updateEvent}>
@@ -66,18 +67,20 @@ export function EditEventModal({ event }: { event: EventForModal }) {
                 </div>
                 <div>
                   <Label>รายละเอียด</Label>
-                  <Textarea name="description" rows={4} defaultValue={event.description ?? ""} />
+                  <RichTextEditor name="description" defaultValue={event.description} />
                 </div>
-                <ImageUploadField
-                  name="cover_image_file"
-                  label="รูปปกงาน (banner)"
-                  defaultImageUrl={event.cover_image}
-                />
-                <ImageUploadField
-                  name="poster_image_file"
-                  label="รูป poster"
-                  defaultImageUrl={event.poster_image}
-                />
+                <div className="grid grid-cols-2 gap-3">
+                  <ImageUploadField
+                    name="cover_image_file"
+                    label="รูปปกงาน (banner)"
+                    defaultImageUrl={event.cover_image}
+                  />
+                  <ImageUploadField
+                    name="poster_image_file"
+                    label="รูป poster"
+                    defaultImageUrl={event.poster_image}
+                  />
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>ประเภทค่าสมัคร</Label>

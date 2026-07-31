@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Search, Footprints, CalendarDays, ChevronRight } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, Badge, LinkButton, Input, Select } from "@/components/ui";
-import { formatDate } from "@/lib/utils";
+import { formatDate, stripHtml } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -166,7 +166,7 @@ export default async function AdminEventsPage({
                         </span>
                       </p>
                       {ev.description && (
-                        <p className="line-clamp-2 text-sm text-muted">{ev.description}</p>
+                        <p className="line-clamp-2 text-sm text-muted">{stripHtml(ev.description)}</p>
                       )}
                       <span className="mt-auto inline-flex w-fit items-center gap-1 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-ink transition group-hover:bg-primary-dark">
                         ดูรายละเอียด <ChevronRight className="h-4 w-4" />

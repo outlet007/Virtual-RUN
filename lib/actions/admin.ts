@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import sanitizeHtml from "sanitize-html";
 import { requireAdmin } from "@/lib/auth/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { genBib } from "@/lib/utils";
@@ -12,24 +13,73 @@ function err(path: string, message: string): never {
   redirect(`${path}?error=${encodeURIComponent(message)}`);
 }
 
+// รายละเอียดงานเป็น rich text (HTML) จาก RichTextEditor — admin เขียนได้เอง แต่ต้องแสดง
+// ให้ผู้ใช้ทุกคนดู จึง sanitize ก่อนเก็บเสมอ กัน stored XSS หาก session admin โดนขโมย
+function sanitizeDescription(html: string): string {
+  return sanitizeHtml(html, {
+    allowedTags: [
+      "p", "br", "strong", "em", "b", "i", "u", "s",
+      "h1", "h2", "h3", "ul", "ol", "li", "img", "blockquote", "code", "pre",
+      "video", "source", "iframe",
+    ],
+    allowedAttributes: {
+      img: ["src", "alt"],
+      video: ["src", "controls", "class"],
+      source: ["src", "type"],
+      iframe: ["src", "width", "height", "allow", "allowfullscreen", "frameborder"],
+    },
+    allowedSchemes: ["http", "https"],
+    // จำกัด iframe ให้ฝังได้แค่โดเมนวิดีโอที่เชื่อถือได้ — กัน admin (หรือ session admin ที่โดนขโมย)
+    // ฝัง iframe ชี้ไปเว็บ phishing/clickjacking อื่นผ่านช่องทางเดียวกันนี้
+    allowedIframeHostnames: [
+      "www.youtube.com", "youtube.com",
+      "www.youtube-nocookie.com", "youtube-nocookie.com",
+      "player.vimeo.com",
+    ],
+  });
+}
+
 // อัปโหลดรูปปกงาน/รูปเหรียญเข้า bucket สาธารณะ "event-images" แล้วคืน public URL
 // (ต่างจาก run-evidence ที่ private — รูปพวกนี้ต้องโชว์ในหน้าเว็บสาธารณะได้)
-async function uploadEventImage(
+async function uploadEventFile(
   db: ReturnType<typeof createAdminClient>,
   file: FormDataEntryValue | null,
+  bucket: string,
   folder: string,
 ): Promise<string | null> {
   if (!(file instanceof File) || file.size === 0) return null;
   const ext = file.type.split("/")[1] ?? "jpg";
   const path = `${folder}/${crypto.randomUUID()}.${ext}`;
   const { error } = await db.storage
-    .from("event-images")
+    .from(bucket)
     .upload(path, file, { contentType: file.type });
   if (error) throw new Error(error.message);
   // สร้าง public URL เองจาก NEXT_PUBLIC_SUPABASE_URL เสมอ (ไม่ใช้ getPublicUrl() ของ admin client)
   // เพราะ admin client อาจตั้ง SUPABASE_URL แยกไว้ใช้ host.docker.internal ตอนรันใน Docker —
   // ค่านั้นใช้ได้แค่จากใน container เท่านั้น แต่ URL นี้ browser จริงต้องเปิดได้ด้วย
-  return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/event-images/${path}`;
+  return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${bucket}/${path}`;
+}
+
+function uploadEventImage(
+  db: ReturnType<typeof createAdminClient>,
+  file: FormDataEntryValue | null,
+  folder: string,
+): Promise<string | null> {
+  return uploadEventFile(db, file, "event-images", folder);
+}
+
+// เรียกตรงจาก RichTextEditor (client component) ไม่ใช่ผ่าน <form> — คืนค่า URL ตรงๆ
+// ไม่ redirect เหมือน action อื่นในไฟล์นี้ เพราะ editor ต้องได้ URL กลับไปแทรกรูปทันที
+export async function uploadDescriptionImage(formData: FormData): Promise<string | null> {
+  await requireAdmin();
+  const db = createAdminClient();
+  return uploadEventImage(db, formData.get("image_file"), "description");
+}
+
+export async function uploadDescriptionVideo(formData: FormData): Promise<string | null> {
+  await requireAdmin();
+  const db = createAdminClient();
+  return uploadEventFile(db, formData.get("video_file"), "event-videos", "description");
 }
 
 // ---------- Events ----------
@@ -39,7 +89,7 @@ export async function createEvent(formData: FormData) {
   const db = createAdminClient();
 
   const title = String(formData.get("title") ?? "").trim();
-  const description = String(formData.get("description") ?? "").trim();
+  const description = sanitizeDescription(String(formData.get("description") ?? "").trim());
   const pricing = String(formData.get("pricing") ?? "free");
   const start_date = String(formData.get("start_date") ?? "");
   const end_date = String(formData.get("end_date") ?? "");
@@ -86,7 +136,7 @@ export async function updateEvent(formData: FormData) {
 
   const id = String(formData.get("id") ?? "");
   const title = String(formData.get("title") ?? "").trim();
-  const description = String(formData.get("description") ?? "").trim();
+  const description = sanitizeDescription(String(formData.get("description") ?? "").trim());
   const pricing = String(formData.get("pricing") ?? "free");
   const start_date = String(formData.get("start_date") ?? "");
   const end_date = String(formData.get("end_date") ?? "");
@@ -635,4 +685,53 @@ export async function deleteHeroBanner(formData: FormData) {
   revalidatePath("/admin/hero-banners");
   revalidatePath("/");
   redirect("/admin/hero-banners?deleted=1");
+}
+
+// ---------- System Settings ----------
+
+const HEX_COLOR = /^#[0-9A-Fa-f]{6}$/;
+
+export async function updateSystemSettings(formData: FormData) {
+  await requireAdmin();
+  const db = createAdminClient();
+
+  const site_name = String(formData.get("site_name") ?? "").trim();
+  const color_ink = String(formData.get("color_ink") ?? "").trim();
+  const color_primary = String(formData.get("color_primary") ?? "").trim();
+  const color_accent = String(formData.get("color_accent") ?? "").trim();
+  const color_medal = String(formData.get("color_medal") ?? "").trim();
+
+  if (!site_name) err("/admin/settings", "กรุณากรอกชื่อระบบ");
+  for (const c of [color_ink, color_primary, color_accent, color_medal]) {
+    if (!HEX_COLOR.test(c)) err("/admin/settings", "รูปแบบสีไม่ถูกต้อง (ต้องเป็น #RRGGBB)");
+  }
+
+  const update: Record<string, unknown> = {
+    site_name,
+    color_ink,
+    color_primary,
+    color_accent,
+    color_medal,
+  };
+
+  try {
+    const logo_url = await uploadEventFile(db, formData.get("logo_file"), "system-assets", "branding");
+    if (logo_url) update.logo_url = logo_url;
+    const favicon_url = await uploadEventFile(
+      db,
+      formData.get("favicon_file"),
+      "system-assets",
+      "branding",
+    );
+    if (favicon_url) update.favicon_url = favicon_url;
+  } catch (e) {
+    err("/admin/settings", (e as Error).message);
+  }
+
+  const { error } = await db.from("system_settings").update(update).eq("id", 1);
+  if (error) err("/admin/settings", error.message);
+
+  // ธีม/ชื่อ/โลโก้ฉีดจาก root layout ซึ่งครอบทุกหน้า — revalidate ที่ layout ให้มีผลทันทีทั้งเว็บ
+  revalidatePath("/", "layout");
+  redirect("/admin/settings?saved=1");
 }

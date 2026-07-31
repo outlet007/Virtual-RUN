@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Medal } from "lucide-react";
+import { Medal, CalendarDays, Road } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, Button, Input, Label, Select, Badge, ImageUploadField, Tabs } from "@/components/ui";
 import { EditEventModal } from "@/components/admin/edit-event-modal";
 import { createPackage, updatePackage, createMedal, updateMedal } from "@/lib/actions/admin";
+import { formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -135,8 +136,24 @@ export default async function EventDashboardPage({
             <h2 className="font-display text-xl font-bold">{event.title}</h2>
             <Badge className={statusClass[event.status]}>{statusLabel[event.status]}</Badge>
           </div>
-          <p className="mt-1 font-mono text-xs text-accent tnum">
-            {event.start_date} → {event.end_date} · {pricingLabel[event.pricing]}
+          <p className="mt-1 flex flex-wrap items-center gap-1.5 font-mono text-xs text-accent tnum">
+            <span className="inline-flex items-center gap-1">
+              <CalendarDays className="h-3.5 w-3.5" /> {formatDate(event.start_date)} –{" "}
+              {formatDate(event.end_date)}
+            </span>
+            {packages.length > 0 && (
+              <span className="inline-flex items-center gap-1">
+                | <Road className="h-3.5 w-3.5" />{" "}
+                {(() => {
+                  const kms = packages.map((p) => p.target_distance_km);
+                  const minKm = Math.min(...kms);
+                  const maxKm = Math.max(...kms);
+                  return minKm === maxKm ? `${minKm}` : `${minKm}–${maxKm}`;
+                })()}{" "}
+                km | {packages.length} แพ็กเกจ
+              </span>
+            )}
+            <span>| {pricingLabel[event.pricing]}</span>
           </p>
         </div>
         <EditEventModal
@@ -198,7 +215,10 @@ export default async function EventDashboardPage({
                     </div>
                   </div>
                   {event.description && (
-                    <p className="text-sm text-ink/70">{event.description}</p>
+                    <div
+                      className="prose prose-sm max-w-none text-ink/70"
+                      dangerouslySetInnerHTML={{ __html: event.description }}
+                    />
                   )}
                 </Card>
 
