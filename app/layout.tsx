@@ -88,12 +88,6 @@ export default async function RootLayout({
                   >
                     แดชบอร์ด
                   </Link>
-                  <Link
-                    href="/profile"
-                    className="rounded-lg px-3 py-2 font-medium hover:bg-lane/60"
-                  >
-                    โปรไฟล์
-                  </Link>
                   {isAdmin && (
                     <>
                       <Link

@@ -24,7 +24,7 @@ export default async function ProfilePage({
     .single();
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="space-y-6">
       <div>
         <h2 className="font-display text-xl font-bold">โปรไฟล์ของฉัน</h2>
         <p className="mt-1 text-sm text-muted">แก้ไขข้อมูลส่วนตัวและรหัสผ่านของบัญชี</p>

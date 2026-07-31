@@ -32,6 +32,14 @@ export function genBib() {
   return "VR" + Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+// Level/XP เป็นค่าที่คำนวณจากแต้มสะสม (points_ledger) ไม่ใช่คอลัมน์ใหม่ — 1000 แต้ม/เลเวล เป็นค่าคงที่กำหนดเอง
+const XP_PER_LEVEL = 1000;
+export function getLevelProgress(points: number) {
+  const level = Math.floor(points / XP_PER_LEVEL) + 1;
+  const currentXp = points % XP_PER_LEVEL;
+  return { level, currentXp, xpPerLevel: XP_PER_LEVEL };
+}
+
 // สำหรับ preview รายละเอียดงาน (เก็บเป็น HTML จาก RichTextEditor) แบบข้อความล้วนบน card/list
 export function stripHtml(html: string) {
   return html
