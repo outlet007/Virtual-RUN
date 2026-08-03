@@ -4,6 +4,7 @@ import { Medal, CalendarDays, Road } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, Button, Input, Label, Select, Badge, ImageUploadField, Tabs } from "@/components/ui";
 import { EditEventModal } from "@/components/admin/edit-event-modal";
+import { MedalDeleteButton } from "@/components/admin/medal-delete-button";
 import { createPackage, updatePackage, createMedal, updateMedal } from "@/lib/actions/admin";
 import { formatDate } from "@/lib/utils";
 
@@ -25,6 +26,7 @@ type MedalRow = {
   bonus_points: number;
   image_url: string | null;
   unlock_rule: { target_km?: number } | null;
+  sort_order: number;
 };
 
 const tierLabel: Record<string, string> = {
@@ -59,6 +61,8 @@ export default async function EventDashboardPage({
     package_saved?: string;
     medal_added?: string;
     medal_saved?: string;
+    medal_deleted?: string;
+    tab?: string;
   }>;
 }) {
   const { id } = await params;
@@ -68,14 +72,19 @@ export default async function EventDashboardPage({
   const { data: event } = await db
     .from("events")
     .select(
-      "id, title, description, cover_image, poster_image, pricing, start_date, end_date, status, packages(id, name, target_distance_km, price, activity_types, has_physical_medal), medals(id, name, tier, bonus_points, image_url, unlock_rule)",
+      "id, title, description, cover_image, cover_position_x, cover_position_y, poster_image, pricing, start_date, end_date, status, packages(id, name, target_distance_km, price, activity_types, has_physical_medal), medals(id, name, tier, bonus_points, image_url, unlock_rule, sort_order)",
     )
     .eq("id", id)
     .single();
 
   if (!event) notFound();
   const packages = (event.packages ?? []) as PackageRow[];
-  const medals = (event.medals ?? []) as MedalRow[];
+  const medals = [...((event.medals ?? []) as MedalRow[])].sort(
+    (a, b) =>
+      a.sort_order - b.sort_order ||
+      Number(a.unlock_rule?.target_km ?? 0) - Number(b.unlock_rule?.target_km ?? 0) ||
+      a.name.localeCompare(b.name, "th"),
+  );
 
   const [{ data: regs }, { data: subs }, { data: paidPayments }, { count: medalsUnlocked }] =
     await Promise.all([
@@ -162,6 +171,8 @@ export default async function EventDashboardPage({
             title: event.title,
             description: event.description,
             cover_image: event.cover_image,
+            cover_position_x: event.cover_position_x,
+            cover_position_y: event.cover_position_y,
             poster_image: event.poster_image,
             pricing: event.pricing,
             status: event.status,
@@ -172,8 +183,10 @@ export default async function EventDashboardPage({
       </div>
 
       <Tabs
+        defaultTab={sp.tab}
         tabs={[
           {
+            id: "overview",
             label: "ภาพรวม",
             content: (
               <div className="space-y-6">
@@ -189,6 +202,10 @@ export default async function EventDashboardPage({
                           src={event.cover_image}
                           alt=""
                           className="h-40 w-full rounded-xl border border-lane object-cover"
+                          style={{
+                            objectPosition:
+                              [event.cover_position_x, event.cover_position_y].join("% ") + "%",
+                          }}
                         />
                       ) : (
                         <div className="flex h-40 w-full items-center justify-center rounded-xl border border-dashed border-lane text-sm text-ink/30">
@@ -237,6 +254,7 @@ export default async function EventDashboardPage({
             ),
           },
           {
+            id: "packages",
             label: `แพ็กเกจ (${packages.length})`,
             content: (
               <div>
@@ -356,6 +374,7 @@ export default async function EventDashboardPage({
             ),
           },
           {
+            id: "medals",
             label: `เหรียญดิจิทัล (${medals.length})`,
             content: (
               <div>
@@ -364,6 +383,7 @@ export default async function EventDashboardPage({
                 </p>
                 {sp.medal_added && <p className="mt-1 text-sm text-primary-dark">เพิ่มเหรียญแล้ว</p>}
                 {sp.medal_saved && <p className="mt-1 text-sm text-primary-dark">บันทึกเหรียญแล้ว</p>}
+                {sp.medal_deleted && <p className="mt-1 text-sm text-primary-dark">ลบเหรียญแล้ว</p>}
 
         <div className="mt-3 space-y-3">
           {medals.map((m) => (
@@ -375,6 +395,7 @@ export default async function EventDashboardPage({
                 <div className="flex items-center gap-2">
                   <span className="font-display font-bold">{m.name}</span>
                   <Badge className="bg-medal-soft text-medal">{tierLabel[m.tier] ?? m.tier}</Badge>
+                  <Badge className="bg-lane text-muted">ลำดับ {m.sort_order}</Badge>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -391,7 +412,7 @@ export default async function EventDashboardPage({
                     </Select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div>
                     <Label>ระยะสะสมที่ต้องถึง (km)</Label>
                     <Input
@@ -407,15 +428,22 @@ export default async function EventDashboardPage({
                     <Label>แต้มโบนัส</Label>
                     <Input name="bonus_points" type="number" min="0" defaultValue={m.bonus_points} />
                   </div>
+                  <div>
+                    <Label>ลำดับการแสดง</Label>
+                    <Input name="sort_order" type="number" min="0" defaultValue={m.sort_order} />
+                  </div>
                 </div>
                 <ImageUploadField
                   name="image_url_file"
                   label="รูปเหรียญ"
                   defaultImageUrl={m.image_url}
                 />
-                <Button variant="ghost" type="submit">
-                  บันทึกเหรียญนี้
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="ghost" type="submit">
+                    บันทึกเหรียญนี้
+                  </Button>
+                  <MedalDeleteButton medalName={m.name} />
+                </div>
               </Card>
             </form>
           ))}
@@ -440,7 +468,7 @@ export default async function EventDashboardPage({
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div>
                 <Label>ระยะสะสมที่ต้องถึง (km)</Label>
                 <Input name="target_km" type="number" min="0.1" step="0.1" required />
@@ -448,6 +476,10 @@ export default async function EventDashboardPage({
               <div>
                 <Label>แต้มโบนัส</Label>
                 <Input name="bonus_points" type="number" min="0" defaultValue={0} />
+              </div>
+              <div>
+                <Label>ลำดับการแสดง</Label>
+                <Input name="sort_order" type="number" min="0" defaultValue={medals.length + 1} />
               </div>
             </div>
             <ImageUploadField name="image_url_file" label="รูปเหรียญ" />

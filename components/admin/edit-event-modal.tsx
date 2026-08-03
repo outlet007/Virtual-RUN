@@ -11,6 +11,8 @@ type EventForModal = {
   title: string;
   description: string | null;
   cover_image: string | null;
+  cover_position_x: number;
+  cover_position_y: number;
   poster_image: string | null;
   pricing: string;
   status: string;
@@ -69,11 +71,15 @@ export function EditEventModal({ event }: { event: EventForModal }) {
                   <Label>รายละเอียด</Label>
                   <RichTextEditor name="description" defaultValue={event.description} />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-4">
                   <ImageUploadField
                     name="cover_image_file"
-                    label="รูปปกงาน (banner)"
+                    label="รูปปกงาน (hero banner)"
                     defaultImageUrl={event.cover_image}
+                    positionXName="cover_position_x"
+                    positionYName="cover_position_y"
+                    defaultPositionX={event.cover_position_x}
+                    defaultPositionY={event.cover_position_y}
                   />
                   <ImageUploadField
                     name="poster_image_file"

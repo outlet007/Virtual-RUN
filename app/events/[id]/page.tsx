@@ -21,7 +21,7 @@ export default async function EventDetailPage({
   const { data: event } = await supabase
     .from("events")
     .select(
-      "id, title, description, cover_image, poster_image, pricing, start_date, end_date, packages(id, name, target_distance_km, price, has_physical_medal)",
+      "id, title, description, cover_image, cover_position_x, cover_position_y, poster_image, pricing, start_date, end_date, packages(id, name, target_distance_km, price, has_physical_medal)",
     )
     .eq("id", id)
     .single();
@@ -49,29 +49,41 @@ export default async function EventDetailPage({
             src={event.cover_image}
             alt=""
             className="absolute inset-0 h-full w-full object-cover"
+            style={{
+              objectPosition: [event.cover_position_x, event.cover_position_y].join("% ") + "%",
+            }}
           />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/45 to-ink/10" />
-        <div className="relative mx-auto flex min-h-[240px] max-w-[1500px] flex-col justify-end px-4 py-6 sm:min-h-[320px] sm:px-8 sm:py-8">
-          <Badge
-            className={
-              event.pricing === "free"
-                ? "w-fit text-sm bg-[rgb(10,164,57)] text-white"
-                : "w-fit text-sm bg-[rgb(255,93,0)] text-white"
-            }
-          >
-            {event.pricing === "free" ? "ฟรี" : "มีค่าสมัคร"}
-          </Badge>
-          <h1 className="mt-3 font-display text-3xl font-bold text-paper">{event.title}</h1>
-          <p className="mt-3 inline-flex items-center gap-1 font-mono text-sm text-paper/70 tnum">
-            <CalendarDays className="h-4 w-4" /> {formatDate(event.start_date)} –{" "}
-            {formatDate(event.end_date)}
-          </p>
-          {event.description && (
-            <p className="mt-2 line-clamp-2 max-w-2xl text-sm text-paper/80">
-              {stripHtml(event.description)}
+        {/* Fixed black overlays keep contrast stable when the admin changes theme colors. */}
+        <div className="absolute inset-0 bg-black/25" aria-hidden="true" />
+        <div
+          className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-black/15"
+          aria-hidden="true"
+        />
+        <div className="relative mx-auto flex min-h-[240px] max-w-[1500px] flex-col justify-end px-0 py-6 sm:min-h-[320px] sm:py-8">
+          <div className="max-w-3xl">
+            <Badge
+              className={
+                event.pricing === "free"
+                  ? "w-fit text-sm bg-[rgb(10,164,57)] text-white shadow-sm"
+                  : "w-fit text-sm bg-[rgb(255,93,0)] text-white shadow-sm"
+              }
+            >
+              {event.pricing === "free" ? "ฟรี" : "มีค่าสมัคร"}
+            </Badge>
+            <h1 className="mt-3 font-display text-3xl font-bold leading-tight text-white drop-shadow-md sm:text-4xl">
+              {event.title}
+            </h1>
+            <p className="mt-3 inline-flex items-center gap-1.5 font-mono text-sm font-medium text-white/90 drop-shadow-sm tnum">
+              <CalendarDays className="h-4 w-4 shrink-0" aria-hidden="true" />{" "}
+              {formatDate(event.start_date)} – {formatDate(event.end_date)}
             </p>
-          )}
+            {event.description && (
+              <p className="mt-2 line-clamp-2 max-w-2xl text-sm leading-relaxed text-white/85 drop-shadow-sm sm:text-base">
+                {stripHtml(event.description)}
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
@@ -104,7 +116,7 @@ export default async function EventDetailPage({
         </div>
 
         {/* ขวา: เลือกแพ็กเกจ */}
-        <div className="space-y-3">
+        <div id="packages" className="scroll-mt-24 space-y-3">
           <h2 className="font-display text-xl font-bold">เลือกแพ็กเกจ</h2>
           {event.packages.map((p) => (
             <Card key={p.id} className="flex items-center justify-between">

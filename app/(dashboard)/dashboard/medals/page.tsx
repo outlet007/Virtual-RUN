@@ -12,10 +12,19 @@ type MedalRow = {
   tier: string;
   image_url: string | null;
   unlock_rule: { target_km?: number } | null;
+  sort_order: number;
 };
 type RegRow = {
   id: string;
-  events: { title: string; medals: MedalRow[] } | null;
+  event_id: string;
+  status: string;
+};
+type EventRow = {
+  id: string;
+  title: string;
+  status: string;
+  medals: MedalRow[];
+  packages: { id: string }[];
 };
 type Sub = {
   registration_id: string;
@@ -30,26 +39,40 @@ export default async function MedalsPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // เหรียญผูกกับ event ที่สมัครไว้เท่านั้น (ต้องมี registration ถึงจะเริ่มสะสมระยะเทียบกับเหรียญของงานนั้นได้)
-  const { data: regsRaw } = await supabase
-    .from("registrations")
-    .select("id, events(title, medals(id, name, tier, image_url, unlock_rule))")
-    .eq("user_id", user.id)
-    .eq("status", "confirmed");
+  const [{ data: eventsRaw }, { data: regsRaw }, { data: subsRaw }, { data: earnedRaw }] =
+    await Promise.all([
+      supabase
+        .from("events")
+        .select(
+          "id, title, status, medals(id, name, tier, image_url, unlock_rule, sort_order), packages(id)",
+        ),
+      supabase
+        .from("registrations")
+        .select("id, event_id, status")
+        .eq("user_id", user.id)
+        .neq("status", "cancelled"),
+      supabase
+        .from("submissions")
+        .select("registration_id, distance_km, status")
+        .eq("user_id", user.id),
+      supabase
+        .from("user_medals")
+        .select("medal_id, unlocked_at")
+        .eq("user_id", user.id),
+    ]);
 
-  const { data: subsRaw } = await supabase
-    .from("submissions")
-    .select("registration_id, distance_km, status")
-    .eq("user_id", user.id);
-
-  const { data: earnedRaw } = await supabase
-    .from("user_medals")
-    .select("medal_id, unlocked_at")
-    .eq("user_id", user.id);
-
-  const regs = (regsRaw ?? []) as unknown as RegRow[];
+  const events = (eventsRaw ?? []) as unknown as EventRow[];
+  const regs = (regsRaw ?? []) as RegRow[];
   const subs = (subsRaw ?? []) as Sub[];
   const earnedMap = new Map((earnedRaw ?? []).map((e) => [e.medal_id, e.unlocked_at]));
+
+  const registrationByEvent = new Map<string, RegRow>();
+  for (const registration of regs) {
+    const current = registrationByEvent.get(registration.event_id);
+    if (!current || registration.status === "confirmed") {
+      registrationByEvent.set(registration.event_id, registration);
+    }
+  }
 
   const approvedByReg = new Map<string, number>();
   for (const s of subs) {
@@ -61,19 +84,41 @@ export default async function MedalsPage() {
     }
   }
 
-  const entries: MedalEntry[] = regs.flatMap((r) =>
-    (r.events?.medals ?? []).map((m) => ({
-      key: `${r.id}-${m.id}`,
-      name: m.name,
-      tier: m.tier,
-      imageUrl: m.image_url,
-      earned: earnedMap.has(m.id),
-      unlockedAt: earnedMap.get(m.id) ?? null,
-      progressKm: approvedByReg.get(r.id) ?? 0,
-      targetKm: m.unlock_rule?.target_km ?? 0,
-      eventTitle: r.events?.title ?? "",
-    })),
-  );
+  const entries: MedalEntry[] = events
+    .filter(
+      (event) =>
+        (event.status === "open" && event.packages.length > 0) ||
+        registrationByEvent.has(event.id) ||
+        event.medals.some((medal) => earnedMap.has(medal.id)),
+    )
+    .flatMap((event) => {
+      const registration = registrationByEvent.get(event.id);
+
+      return [...event.medals]
+        .sort(
+          (a, b) =>
+            a.sort_order - b.sort_order ||
+            Number(a.unlock_rule?.target_km ?? 0) - Number(b.unlock_rule?.target_km ?? 0) ||
+            a.name.localeCompare(b.name, "th"),
+        )
+        .map((m) => ({
+          key: `${event.id}-${m.id}`,
+          name: m.name,
+          tier: m.tier,
+          imageUrl: m.image_url,
+          earned: earnedMap.has(m.id),
+          unlockedAt: earnedMap.get(m.id) ?? null,
+          progressKm: registration ? approvedByReg.get(registration.id) ?? 0 : 0,
+          targetKm: m.unlock_rule?.target_km ?? 0,
+          eventId: event.id,
+          eventTitle: event.title,
+          registrationStatus: registration?.status ?? null,
+          registrationHref:
+            event.packages.length === 1
+              ? `/events/${event.id}/register?package=${event.packages[0].id}`
+              : `/events/${event.id}#packages`,
+        }));
+    });
 
   const earnedCount = entries.filter((e) => e.earned).length;
 
@@ -99,7 +144,7 @@ export default async function MedalsPage() {
 
       {entries.length === 0 ? (
         <p className="text-center text-sm text-ink/40">
-          ยังไม่มีเหรียญให้สะสม — สมัครงานที่มีเหรียญดิจิทัลก่อนเริ่มสะสมได้เลย
+          ยังไม่มีงานที่เปิดให้สะสมเหรียญดิจิทัลในขณะนี้
         </p>
       ) : (
         <MedalFilterGrid entries={entries} />

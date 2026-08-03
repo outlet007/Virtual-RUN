@@ -1,10 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
-export function Tabs({ tabs }: { tabs: { label: string; content: React.ReactNode }[] }) {
-  const [active, setActive] = useState(0);
+type TabItem = {
+  id: string;
+  label: string;
+  content: React.ReactNode;
+};
+
+export function Tabs({ tabs, defaultTab }: { tabs: TabItem[]; defaultTab?: string }) {
+  const getActiveIndex = () => Math.max(0, tabs.findIndex((tab) => tab.id === defaultTab));
+  const [active, setActive] = useState(getActiveIndex);
+
+  useEffect(() => {
+    setActive(getActiveIndex());
+  }, [defaultTab]);
+
+  function selectTab(index: number) {
+    setActive(index);
+
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", tabs[index].id);
+    window.history.replaceState({}, "", url);
+  }
 
   return (
     <div>
@@ -15,7 +34,7 @@ export function Tabs({ tabs }: { tabs: { label: string; content: React.ReactNode
             type="button"
             role="tab"
             aria-selected={active === i}
-            onClick={() => setActive(i)}
+            onClick={() => selectTab(i)}
             className={cn(
               "border-b-2 px-4 py-2.5 text-sm font-medium transition",
               active === i

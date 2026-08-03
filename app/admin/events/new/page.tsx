@@ -33,7 +33,14 @@ export default async function NewEventPage({
             <Label>รายละเอียด</Label>
             <RichTextEditor name="description" />
           </div>
-          <ImageUploadField name="cover_image_file" label="รูปปกงาน (banner)" />
+          <ImageUploadField
+            name="cover_image_file"
+            label="รูปปกงาน (hero banner)"
+            positionXName="cover_position_x"
+            positionYName="cover_position_y"
+            defaultPositionX={50}
+            defaultPositionY={50}
+          />
           <ImageUploadField name="poster_image_file" label="รูป poster" />
           <div className="grid grid-cols-2 gap-3">
             <div>

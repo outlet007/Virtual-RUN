@@ -11,8 +11,14 @@ const tierLabel: Record<string, string> = {
   legendary: "ตำนาน",
 };
 
+const tierOrder = ["bronze", "silver", "gold", "legendary"];
+
 export function MedalFilterGrid({ entries }: { entries: MedalEntry[] }) {
-  const tiersPresent = Array.from(new Set(entries.map((e) => e.tier)));
+  const presentTiers = new Set(entries.map((entry) => entry.tier));
+  const tiersPresent = [
+    ...tierOrder.filter((tier) => presentTiers.has(tier)),
+    ...Array.from(presentTiers).filter((tier) => !tierOrder.includes(tier)).sort(),
+  ];
   const [filter, setFilter] = useState<string>("all");
 
   const filtered = filter === "all" ? entries : entries.filter((e) => e.tier === filter);

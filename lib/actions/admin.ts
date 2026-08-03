@@ -10,7 +10,8 @@ import { awardForApprovedSubmission } from "@/lib/gamification";
 import { notifyUser } from "@/lib/notifications";
 
 function err(path: string, message: string): never {
-  redirect(`${path}?error=${encodeURIComponent(message)}`);
+  const separator = path.includes("?") ? "&" : "?";
+  redirect(`${path}${separator}error=${encodeURIComponent(message)}`);
 }
 
 // รายละเอียดงานเป็น rich text (HTML) จาก RichTextEditor — admin เขียนได้เอง แต่ต้องแสดง
@@ -37,6 +38,12 @@ function sanitizeDescription(html: string): string {
       "player.vimeo.com",
     ],
   });
+}
+
+function parseCoverPosition(value: FormDataEntryValue | null): number {
+  const position = Number(value ?? 50);
+  if (!Number.isFinite(position)) return 50;
+  return Math.min(100, Math.max(0, Math.round(position)));
 }
 
 // อัปโหลดรูปปกงาน/รูปเหรียญเข้า bucket สาธารณะ "event-images" แล้วคืน public URL
@@ -94,6 +101,8 @@ export async function createEvent(formData: FormData) {
   const start_date = String(formData.get("start_date") ?? "");
   const end_date = String(formData.get("end_date") ?? "");
   const status = String(formData.get("status") ?? "draft");
+  const cover_position_x = parseCoverPosition(formData.get("cover_position_x"));
+  const cover_position_y = parseCoverPosition(formData.get("cover_position_y"));
 
   if (!title || !start_date || !end_date) {
     err("/admin/events/new", "กรอกชื่องานและวันที่ให้ครบ");
@@ -114,6 +123,8 @@ export async function createEvent(formData: FormData) {
       title,
       description: description || null,
       cover_image,
+      cover_position_x,
+      cover_position_y,
       poster_image,
       pricing,
       start_date,
@@ -141,6 +152,8 @@ export async function updateEvent(formData: FormData) {
   const start_date = String(formData.get("start_date") ?? "");
   const end_date = String(formData.get("end_date") ?? "");
   const status = String(formData.get("status") ?? "draft");
+  const cover_position_x = parseCoverPosition(formData.get("cover_position_x"));
+  const cover_position_y = parseCoverPosition(formData.get("cover_position_y"));
 
   if (!id || !title || !start_date || !end_date) {
     err(`/admin/events/${id}`, "กรอกชื่องานและวันที่ให้ครบ");
@@ -164,6 +177,8 @@ export async function updateEvent(formData: FormData) {
       title,
       description: description || null,
       cover_image,
+      cover_position_x,
+      cover_position_y,
       poster_image,
       pricing,
       start_date,
@@ -176,6 +191,7 @@ export async function updateEvent(formData: FormData) {
 
   revalidatePath("/admin/events");
   revalidatePath(`/admin/events/${id}`);
+  revalidatePath("/events/" + id);
   revalidatePath("/");
   redirect(`/admin/events/${id}?saved=1`);
 }
@@ -194,7 +210,7 @@ export async function createPackage(formData: FormData) {
   const has_physical_medal = formData.get("has_physical_medal") === "on";
 
   if (!event_id || !name || target_distance_km <= 0) {
-    err(`/admin/events/${event_id}`, "กรอกชื่อแพ็กเกจและระยะเป้าหมายให้ถูกต้อง");
+    err(`/admin/events/${event_id}?tab=packages`, "กรอกชื่อแพ็กเกจและระยะเป้าหมายให้ถูกต้อง");
   }
 
   const { error } = await db.from("packages").insert({
@@ -206,11 +222,11 @@ export async function createPackage(formData: FormData) {
     has_physical_medal,
   });
 
-  if (error) err(`/admin/events/${event_id}`, error.message);
+  if (error) err(`/admin/events/${event_id}?tab=packages`, error.message);
 
   revalidatePath(`/admin/events/${event_id}`);
   revalidatePath("/");
-  redirect(`/admin/events/${event_id}?package_added=1`);
+  redirect(`/admin/events/${event_id}?tab=packages&package_added=1`);
 }
 
 export async function updatePackage(formData: FormData) {
@@ -226,7 +242,7 @@ export async function updatePackage(formData: FormData) {
   const has_physical_medal = formData.get("has_physical_medal") === "on";
 
   if (!id || !event_id || !name || target_distance_km <= 0) {
-    err(`/admin/events/${event_id}`, "กรอกชื่อแพ็กเกจและระยะเป้าหมายให้ถูกต้อง");
+    err(`/admin/events/${event_id}?tab=packages`, "กรอกชื่อแพ็กเกจและระยะเป้าหมายให้ถูกต้อง");
   }
 
   const { error } = await db
@@ -240,11 +256,11 @@ export async function updatePackage(formData: FormData) {
     })
     .eq("id", id);
 
-  if (error) err(`/admin/events/${event_id}`, error.message);
+  if (error) err(`/admin/events/${event_id}?tab=packages`, error.message);
 
   revalidatePath(`/admin/events/${event_id}`);
   revalidatePath("/");
-  redirect(`/admin/events/${event_id}?package_saved=1`);
+  redirect(`/admin/events/${event_id}?tab=packages&package_saved=1`);
 }
 
 // ---------- Submissions ----------
@@ -458,16 +474,17 @@ export async function createMedal(formData: FormData) {
   const tier = String(formData.get("tier") ?? "bronze");
   const targetKm = Number(formData.get("target_km") ?? 0);
   const bonusPoints = Number(formData.get("bonus_points") ?? 0);
+  const sortOrder = Math.max(0, Math.round(Number(formData.get("sort_order") ?? 0) || 0));
 
   if (!eventId || !name || targetKm <= 0) {
-    err(`/admin/events/${eventId}`, "กรอกชื่อเหรียญและระยะเป้าหมายให้ถูกต้อง");
+    err(`/admin/events/${eventId}?tab=medals`, "กรอกชื่อเหรียญและระยะเป้าหมายให้ถูกต้อง");
   }
 
   let imageUrl: string | null = null;
   try {
     imageUrl = await uploadEventImage(db, formData.get("image_url_file"), "medals");
   } catch (e) {
-    err(`/admin/events/${eventId}`, (e as Error).message);
+    err(`/admin/events/${eventId}?tab=medals`, (e as Error).message);
   }
 
   const { error } = await db.from("medals").insert({
@@ -477,11 +494,12 @@ export async function createMedal(formData: FormData) {
     unlock_rule: { type: "distance", target_km: targetKm },
     bonus_points: bonusPoints,
     image_url: imageUrl,
+    sort_order: sortOrder,
   });
-  if (error) err(`/admin/events/${eventId}`, error.message);
+  if (error) err(`/admin/events/${eventId}?tab=medals`, error.message);
 
   revalidatePath(`/admin/events/${eventId}`);
-  redirect(`/admin/events/${eventId}?medal_added=1`);
+  redirect(`/admin/events/${eventId}?tab=medals&medal_added=1`);
 }
 
 export async function updateMedal(formData: FormData) {
@@ -494,9 +512,10 @@ export async function updateMedal(formData: FormData) {
   const tier = String(formData.get("tier") ?? "bronze");
   const targetKm = Number(formData.get("target_km") ?? 0);
   const bonusPoints = Number(formData.get("bonus_points") ?? 0);
+  const sortOrder = Math.max(0, Math.round(Number(formData.get("sort_order") ?? 0) || 0));
 
   if (!id || !eventId || !name || targetKm <= 0) {
-    err(`/admin/events/${eventId}`, "กรอกชื่อเหรียญและระยะเป้าหมายให้ถูกต้อง");
+    err(`/admin/events/${eventId}?tab=medals`, "กรอกชื่อเหรียญและระยะเป้าหมายให้ถูกต้อง");
   }
 
   let imageUrl = String(formData.get("existing_image_url") ?? "").trim() || null;
@@ -504,7 +523,7 @@ export async function updateMedal(formData: FormData) {
     const uploaded = await uploadEventImage(db, formData.get("image_url_file"), "medals");
     if (uploaded) imageUrl = uploaded;
   } catch (e) {
-    err(`/admin/events/${eventId}`, (e as Error).message);
+    err(`/admin/events/${eventId}?tab=medals`, (e as Error).message);
   }
 
   const { error } = await db
@@ -515,12 +534,36 @@ export async function updateMedal(formData: FormData) {
       unlock_rule: { type: "distance", target_km: targetKm },
       bonus_points: bonusPoints,
       image_url: imageUrl,
+      sort_order: sortOrder,
     })
     .eq("id", id);
-  if (error) err(`/admin/events/${eventId}`, error.message);
+  if (error) err(`/admin/events/${eventId}?tab=medals`, error.message);
 
   revalidatePath(`/admin/events/${eventId}`);
-  redirect(`/admin/events/${eventId}?medal_saved=1`);
+  redirect(`/admin/events/${eventId}?tab=medals&medal_saved=1`);
+}
+
+export async function deleteMedal(formData: FormData) {
+  await requireAdmin();
+  const db = createAdminClient();
+
+  const id = String(formData.get("id") ?? "");
+  const eventId = String(formData.get("event_id") ?? "");
+
+  if (!id || !eventId) {
+    err("/admin/events/" + eventId + "?tab=medals", "ไม่พบเหรียญที่ต้องการลบ");
+  }
+
+  const { error } = await db
+    .from("medals")
+    .delete()
+    .eq("id", id)
+    .eq("event_id", eventId);
+  if (error) err("/admin/events/" + eventId + "?tab=medals", error.message);
+
+  revalidatePath("/admin/events/" + eventId);
+  revalidatePath("/dashboard/medals");
+  redirect("/admin/events/" + eventId + "?tab=medals&medal_deleted=1");
 }
 
 // ---------- Rewards ----------
