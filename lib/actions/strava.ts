@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { basicRuleCheck } from "@/lib/rules";
 import { awardForApprovedSubmission } from "@/lib/gamification";
 
@@ -41,8 +42,20 @@ export async function assignPendingActivity(formData: FormData) {
     redirect("/dashboard?error=" + encodeURIComponent("ไม่พบกิจกรรมหรือใบสมัคร"));
   }
 
+  const { data: registration } = await supabase
+    .from("registrations")
+    .select("id")
+    .eq("id", registrationId)
+    .eq("user_id", user.id)
+    .eq("status", "confirmed")
+    .maybeSingle();
+  if (!registration) {
+    redirect("/dashboard?error=" + encodeURIComponent("ใบสมัครไม่ถูกต้อง"));
+  }
+
   const status = basicRuleCheck(Number(pending!.distance_km), pending!.duration_sec);
-  const { data: submission, error } = await supabase
+  const db = createAdminClient();
+  const { data: submission, error } = await db
     .from("submissions")
     .insert({
       registration_id: registrationId,

@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Card, Button, Input, Label, Badge } from "@/components/ui";
+import { Card, Button, Input, Label, Badge, ImageUploadField, Textarea } from "@/components/ui";
 import { createReward, updateReward, fulfillRedemption } from "@/lib/actions/admin";
 
 export const dynamic = "force-dynamic";
@@ -7,6 +7,8 @@ export const dynamic = "force-dynamic";
 type RewardRow = {
   id: string;
   name: string;
+  description: string | null;
+  image_url: string | null;
   cost_points: number;
   stock: number;
 };
@@ -33,7 +35,7 @@ export default async function AdminRewardsPage({
   const db = createAdminClient();
 
   const [{ data: rewardsRaw }, { data: redemptionsRaw }] = await Promise.all([
-    db.from("rewards").select("id, name, cost_points, stock").order("cost_points"),
+    db.from("rewards").select("id, name, description, image_url, cost_points, stock").order("cost_points"),
     db
       .from("redemptions")
       .select("id, points_spent, status, users(name, email), rewards(name)")
@@ -73,7 +75,7 @@ export default async function AdminRewardsPage({
                 </div>
                 <form action={fulfillRedemption}>
                   <input type="hidden" name="id" value={r.id} />
-                  <Button type="submit">ส่งมอบแล้ว</Button>
+                  <Button type="submit" icon="success">ส่งมอบแล้ว</Button>
                 </form>
               </Card>
             ))}
@@ -87,6 +89,7 @@ export default async function AdminRewardsPage({
           {rewards.map((rw) => (
             <form key={rw.id} action={updateReward}>
               <input type="hidden" name="id" value={rw.id} />
+              <input type="hidden" name="existing_image_url" value={rw.image_url ?? ""} />
               <Card className="space-y-3">
                 <div className="flex items-center gap-2">
                   <span className="font-display font-bold">{rw.name}</span>
@@ -94,6 +97,11 @@ export default async function AdminRewardsPage({
                     คงเหลือ {rw.stock}
                   </Badge>
                 </div>
+                <ImageUploadField
+                  name="image_file"
+                  label="รูปรางวัล"
+                  defaultImageUrl={rw.image_url}
+                />
                 <div className="grid grid-cols-3 gap-3">
                   <div className="col-span-2">
                     <Label>ชื่อรางวัล</Label>
@@ -105,10 +113,19 @@ export default async function AdminRewardsPage({
                   </div>
                 </div>
                 <div>
+                  <Label>รายละเอียดรางวัล</Label>
+                  <Textarea
+                    name="description"
+                    rows={3}
+                    defaultValue={rw.description ?? ""}
+                    placeholder="อธิบายรายละเอียด เงื่อนไข หรือสิ่งที่ผู้ใช้จะได้รับ"
+                  />
+                </div>
+                <div>
                   <Label>จำนวนคงเหลือ</Label>
                   <Input name="stock" type="number" min="0" defaultValue={rw.stock} />
                 </div>
-                <Button variant="ghost" type="submit">
+                <Button variant="ghost" type="submit" icon="save">
                   บันทึกรางวัลนี้
                 </Button>
               </Card>
@@ -119,6 +136,7 @@ export default async function AdminRewardsPage({
         <form action={createReward} className="mt-4">
           <Card className="space-y-3">
             <p className="text-sm font-semibold">+ เพิ่มรางวัลใหม่</p>
+            <ImageUploadField name="image_file" label="รูปรางวัล" />
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2">
                 <Label>ชื่อรางวัล</Label>
@@ -130,10 +148,18 @@ export default async function AdminRewardsPage({
               </div>
             </div>
             <div>
+              <Label>รายละเอียดรางวัล</Label>
+              <Textarea
+                name="description"
+                rows={3}
+                placeholder="อธิบายรายละเอียด เงื่อนไข หรือสิ่งที่ผู้ใช้จะได้รับ"
+              />
+            </div>
+            <div>
               <Label>จำนวนคงเหลือ</Label>
               <Input name="stock" type="number" min="0" defaultValue={0} />
             </div>
-            <Button type="submit">เพิ่มรางวัล</Button>
+            <Button type="submit" icon="add">เพิ่มรางวัล</Button>
           </Card>
         </form>
       </div>

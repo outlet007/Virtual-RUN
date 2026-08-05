@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { verifyTurnstileToken } from "@/lib/turnstile";
 
 const POLICY_VERSION = "2026-01";
 
@@ -70,12 +71,20 @@ export async function acceptConsent(formData: FormData) {
 export async function logIn(formData: FormData) {
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
+  const turnstileToken = String(formData.get("cf-turnstile-response") ?? "");
+
+  if (!(await verifyTurnstileToken(turnstileToken))) {
+    redirect(
+      "/login?error=" +
+        encodeURIComponent("กรุณายืนยันการตรวจสอบความปลอดภัยแล้วลองใหม่"),
+    );
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    redirect("/login?error=" + encodeURIComponent(error.message));
+    redirect("/login?error=" + encodeURIComponent("อีเมลหรือรหัสผ่านไม่ถูกต้อง"));
   }
   redirect("/dashboard");
 }

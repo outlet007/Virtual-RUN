@@ -52,7 +52,7 @@ export default async function ConsentPage({
             <span>ข้าพเจ้าได้อ่านและยอมรับการยินยอมเปิดเผยข้อมูลแล้ว</span>
           </label>
 
-          <Button className="w-full" type="submit">
+          <Button className="w-full" type="submit" icon="shield">
             ยืนยัน
           </Button>
         </Card>

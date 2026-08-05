@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Search, Footprints, CalendarDays, ChevronRight } from "lucide-react";
+import { Search, Footprints, CalendarDays, ChevronRight, ChevronLeft, RotateCcw } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, Badge, LinkButton, Input, Select } from "@/components/ui";
 import { formatDate, stripHtml } from "@/lib/utils";
@@ -69,7 +69,7 @@ export default async function AdminEventsPage({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-xl font-bold">งานทั้งหมด</h2>
-        <LinkButton href="/admin/events/new">+ สร้างงาน</LinkButton>
+        <LinkButton href="/admin/events/new" icon="add">สร้างงาน</LinkButton>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
@@ -115,12 +115,13 @@ export default async function AdminEventsPage({
           <div className="flex items-center gap-3">
             <button
               type="submit"
-              className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-semibold text-ink transition hover:bg-primary-dark"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-ink transition hover:bg-primary-dark"
             >
-              กรอง
+              <Search className="size-4" aria-hidden="true" />
+              ค้นหา
             </button>
             {(q || statusFilter) && (
-              <Link href="/admin/events" className="text-sm font-medium text-ink/50 hover:text-ink">
+              <Link href="/admin/events" className="inline-flex items-center gap-1.5 text-sm font-medium text-ink/50 hover:text-ink">
                 ล้าง
               </Link>
             )}
@@ -169,7 +170,7 @@ export default async function AdminEventsPage({
                         <p className="line-clamp-2 text-sm text-muted">{stripHtml(ev.description)}</p>
                       )}
                       <span className="mt-auto inline-flex w-fit items-center gap-1 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-ink transition group-hover:bg-primary-dark">
-                        ดูรายละเอียด <ChevronRight className="h-4 w-4" />
+                        <ChevronRight className="h-4 w-4" aria-hidden="true" /> ดูรายละเอียด
                       </span>
                     </div>
                   </Card>
@@ -182,7 +183,7 @@ export default async function AdminEventsPage({
             <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
               <Link
                 href={buildPageHref(Math.max(1, page - 1))}
-                className={`rounded-lg px-3 py-2 text-sm font-medium ${
+                className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium ${
                   page === 1 ? "pointer-events-none text-ink/30" : "text-muted hover:bg-lane/60"
                 }`}
               >
@@ -201,7 +202,7 @@ export default async function AdminEventsPage({
               ))}
               <Link
                 href={buildPageHref(Math.min(totalPages, page + 1))}
-                className={`rounded-lg px-3 py-2 text-sm font-medium ${
+                className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium ${
                   page === totalPages
                     ? "pointer-events-none text-ink/30"
                     : "text-muted hover:bg-lane/60"

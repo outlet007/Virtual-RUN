@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createSiteUrl } from "@/lib/site-url";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
-  const redirectTo = new URL("/auth/callback", request.url).toString();
+  const redirectTo = createSiteUrl(request, "/auth/callback").toString();
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
@@ -12,7 +13,7 @@ export async function GET(request: Request) {
 
   if (error || !data.url) {
     return NextResponse.redirect(
-      new URL(`/login?error=${encodeURIComponent("เข้าสู่ระบบด้วย Google ไม่สำเร็จ")}`, request.url),
+      createSiteUrl(request, `/login?error=${encodeURIComponent("เข้าสู่ระบบด้วย Google ไม่สำเร็จ")}`),
     );
   }
 

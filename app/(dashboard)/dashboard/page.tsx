@@ -33,12 +33,13 @@ export default async function DashboardPage({
   searchParams: Promise<{
     welcome?: string;
     submitted?: string;
+    ocr?: string;
     pending?: string;
     assigned?: string;
     error?: string;
   }>;
 }) {
-  const { welcome, submitted, assigned, error } = await searchParams;
+  const { welcome, submitted, ocr, assigned, error } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -96,7 +97,14 @@ export default async function DashboardPage({
             </>
           ) : (
             <>
-              <FileText className="h-4 w-4 shrink-0" /> บันทึกผลแล้ว — รอผู้จัดงานตรวจสอบ
+              <FileText className="h-4 w-4 shrink-0" />{" "}
+              {ocr === "mismatch"
+                ? "บันทึกผลแล้ว — ระยะที่ OCR อ่านได้ไม่ตรงกับค่าที่กรอก รอเจ้าหน้าที่ตรวจสอบ"
+                : ocr === "unreadable"
+                  ? "บันทึกผลแล้ว — OCR อ่านระยะจากภาพไม่ชัด รอเจ้าหน้าที่ตรวจสอบ"
+                  : ocr === "error"
+                    ? "บันทึกผลแล้ว — ระบบ OCR ประมวลผลภาพไม่สำเร็จ รอเจ้าหน้าที่ตรวจสอบ"
+                    : "บันทึกผลแล้ว — รอผู้จัดงานตรวจสอบ"}
             </>
           )}
         </div>
@@ -133,7 +141,7 @@ export default async function DashboardPage({
             )}
           </div>
         </div>
-        <LinkButton href="/profile" variant="ghost">
+        <LinkButton href="/profile" variant="ghost" icon="edit">
           แก้ไขโปรไฟล์
         </LinkButton>
       </Card>
@@ -175,7 +183,7 @@ export default async function DashboardPage({
                       </option>
                     ))}
                   </Select>
-                  <Button type="submit">เลือก</Button>
+                  <Button type="submit" icon="confirm">เลือก</Button>
                 </form>
               </Card>
             ))}
@@ -213,7 +221,7 @@ export default async function DashboardPage({
       </section>
 
       <div className="flex justify-end">
-        <LinkButton href="/dashboard/submit">+ บันทึกผลวิ่ง</LinkButton>
+        <LinkButton href="/dashboard/submit" icon="upload">บันทึกผลวิ่ง</LinkButton>
       </div>
     </div>
   );

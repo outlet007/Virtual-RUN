@@ -1,28 +1,13 @@
-"use client";
-
-import { Button } from "@/components/ui";
+import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
 import { deleteMedal } from "@/lib/actions/admin";
 
 export function MedalDeleteButton({ medalName }: { medalName: string }) {
   return (
-    <Button
-      type="submit"
-      variant="ghost"
+    <ConfirmDeleteButton
       formAction={deleteMedal}
-      className="border-red-200 text-red-700 hover:bg-red-50"
-      onClick={(event) => {
-        const confirmed = window.confirm(
-          [
-            "ยืนยันการลบเหรียญ \"",
-            medalName,
-            "\"? ผู้ใช้ที่เคยได้รับเหรียญนี้จะเสียสถานะเหรียญดังกล่าว",
-          ].join(""),
-        );
-
-        if (!confirmed) event.preventDefault();
-      }}
-    >
-      ลบเหรียญ
-    </Button>
+      triggerLabel="ลบเหรียญ"
+      title="ยืนยันการลบเหรียญ"
+      description={`ต้องการลบเหรียญ "${medalName}" ใช่หรือไม่? ผู้ใช้ที่เคยได้รับเหรียญนี้จะเสียสถานะเหรียญดังกล่าว`}
+    />
   );
 }

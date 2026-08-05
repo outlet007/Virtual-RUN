@@ -5,7 +5,16 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, Button, Input, Label, Select, Badge, ImageUploadField, Tabs } from "@/components/ui";
 import { EditEventModal } from "@/components/admin/edit-event-modal";
 import { MedalDeleteButton } from "@/components/admin/medal-delete-button";
-import { createPackage, updatePackage, createMedal, updateMedal } from "@/lib/actions/admin";
+import { PhysicalMedalDeleteButton } from "@/components/admin/physical-medal-delete-button";
+import { PackageMedalFields } from "@/components/admin/package-medal-fields";
+import {
+  createPackage,
+  updatePackage,
+  createMedal,
+  updateMedal,
+  createPhysicalMedal,
+  updatePhysicalMedal,
+} from "@/lib/actions/admin";
 import { formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -17,9 +26,23 @@ type PackageRow = {
   price: number;
   activity_types: string[];
   has_physical_medal: boolean;
+  digital_medal_id: string | null;
+  digital_medal: { id: string; name: string } | null;
+  physical_medal_id: string | null;
+  physical_medal: { id: string; name: string } | null;
 };
 
 type MedalRow = {
+  id: string;
+  name: string;
+  tier: string;
+  bonus_points: number;
+  image_url: string | null;
+  unlock_rule: { target_km?: number } | null;
+  sort_order: number;
+};
+
+type PhysicalMedalRow = {
   id: string;
   name: string;
   tier: string;
@@ -62,6 +85,9 @@ export default async function EventDashboardPage({
     medal_added?: string;
     medal_saved?: string;
     medal_deleted?: string;
+    physical_medal_added?: string;
+    physical_medal_saved?: string;
+    physical_medal_deleted?: string;
     tab?: string;
   }>;
 }) {
@@ -72,14 +98,28 @@ export default async function EventDashboardPage({
   const { data: event } = await db
     .from("events")
     .select(
-      "id, title, description, cover_image, cover_position_x, cover_position_y, poster_image, pricing, start_date, end_date, status, packages(id, name, target_distance_km, price, activity_types, has_physical_medal), medals(id, name, tier, bonus_points, image_url, unlock_rule, sort_order)",
+      "id, title, description, cover_image, cover_position_x, cover_position_y, poster_image, pricing, start_date, end_date, status, packages(id, name, target_distance_km, price, activity_types, has_physical_medal, digital_medal_id, digital_medal:medals!packages_digital_medal_id_fkey(id, name), physical_medal_id, physical_medal:physical_medals!packages_physical_medal_id_fkey(id, name)), medals(id, name, tier, bonus_points, image_url, unlock_rule, sort_order), physical_medals(id, name, tier, bonus_points, image_url, unlock_rule, sort_order)",
     )
     .eq("id", id)
     .single();
 
   if (!event) notFound();
-  const packages = (event.packages ?? []) as PackageRow[];
+  const packages = (event.packages ?? []).map((packageRow) => ({
+    ...packageRow,
+    digital_medal: Array.isArray(packageRow.digital_medal)
+      ? packageRow.digital_medal[0] ?? null
+      : packageRow.digital_medal,
+    physical_medal: Array.isArray(packageRow.physical_medal)
+      ? packageRow.physical_medal[0] ?? null
+      : packageRow.physical_medal,
+  })) as PackageRow[];
   const medals = [...((event.medals ?? []) as MedalRow[])].sort(
+    (a, b) =>
+      a.sort_order - b.sort_order ||
+      Number(a.unlock_rule?.target_km ?? 0) - Number(b.unlock_rule?.target_km ?? 0) ||
+      a.name.localeCompare(b.name, "th"),
+  );
+  const physicalMedals = [...((event.physical_medals ?? []) as PhysicalMedalRow[])].sort(
     (a, b) =>
       a.sort_order - b.sort_order ||
       Number(a.unlock_rule?.target_km ?? 0) - Number(b.unlock_rule?.target_km ?? 0) ||
@@ -273,9 +313,15 @@ export default async function EventDashboardPage({
               <Card className="space-y-3">
                 <div className="flex items-center gap-2">
                   <span className="font-display font-bold text-charcoal">{p.name}</span>
+                  {p.digital_medal && (
+                    <Badge className="gap-1 bg-sky-100 text-sky-700">
+                      <Medal className="h-3 w-3" /> เหรียญดิจิทัล: {p.digital_medal.name}
+                    </Badge>
+                  )}
                   {p.has_physical_medal && (
-                    <Badge className="gap-1 bg-medal-soft text-medal">
+                    <Badge className="gap-1 bg-orange-100 text-orange-700">
                       <Medal className="h-3 w-3" /> เหรียญจริง
+                      {p.physical_medal ? `: ${p.physical_medal.name}` : ""}
                     </Badge>
                   )}
                 </div>
@@ -295,10 +341,12 @@ export default async function EventDashboardPage({
                     />
                   </div>
                 </div>
-                <div>
-                  <Label>ราคา (บาท)</Label>
-                  <Input name="price" type="number" min="0" defaultValue={p.price} />
-                </div>
+                {event.pricing === "paid" && (
+                  <div>
+                    <Label>ราคา (บาท)</Label>
+                    <Input name="price" type="number" min="0" defaultValue={p.price} />
+                  </div>
+                )}
                 <div className="flex flex-wrap items-center gap-4 text-sm">
                   <label className="flex items-center gap-1.5">
                     <input
@@ -318,16 +366,15 @@ export default async function EventDashboardPage({
                     />
                     เดิน
                   </label>
-                  <label className="flex items-center gap-1.5">
-                    <input
-                      type="checkbox"
-                      name="has_physical_medal"
-                      defaultChecked={p.has_physical_medal}
-                    />
-                    มีเหรียญกายภาพ
-                  </label>
                 </div>
-                <Button variant="ghost" type="submit">
+                <PackageMedalFields
+                  digitalMedals={medals}
+                  physicalMedals={physicalMedals}
+                  defaultDigitalMedalId={p.digital_medal_id}
+                  defaultPhysicalMedalId={p.physical_medal_id}
+                  defaultHasPhysicalMedal={p.has_physical_medal}
+                />
+                <Button variant="ghost" type="submit" icon="save">
                   บันทึกแพ็กเกจนี้
                 </Button>
               </Card>
@@ -349,10 +396,12 @@ export default async function EventDashboardPage({
                 <Input name="target_distance_km" type="number" min="1" required />
               </div>
             </div>
-            <div>
-              <Label>ราคา (บาท)</Label>
-              <Input name="price" type="number" min="0" defaultValue={0} />
-            </div>
+            {event.pricing === "paid" && (
+              <div>
+                <Label>ราคา (บาท)</Label>
+                <Input name="price" type="number" min="0" defaultValue={0} />
+              </div>
+            )}
             <div className="flex flex-wrap items-center gap-4 text-sm">
               <label className="flex items-center gap-1.5">
                 <input type="checkbox" name="activity_types" value="run" defaultChecked />
@@ -362,12 +411,9 @@ export default async function EventDashboardPage({
                 <input type="checkbox" name="activity_types" value="walk" defaultChecked />
                 เดิน
               </label>
-              <label className="flex items-center gap-1.5">
-                <input type="checkbox" name="has_physical_medal" />
-                มีเหรียญกายภาพ
-              </label>
             </div>
-            <Button type="submit">เพิ่มแพ็กเกจ</Button>
+            <PackageMedalFields digitalMedals={medals} physicalMedals={physicalMedals} />
+            <Button type="submit" icon="add">เพิ่มแพ็กเกจ</Button>
           </Card>
         </form>
               </div>
@@ -392,58 +438,71 @@ export default async function EventDashboardPage({
               <input type="hidden" name="event_id" value={event.id} />
               <input type="hidden" name="existing_image_url" value={m.image_url ?? ""} />
               <Card className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="font-display font-bold">{m.name}</span>
-                  <Badge className="bg-medal-soft text-medal">{tierLabel[m.tier] ?? m.tier}</Badge>
-                  <Badge className="bg-lane text-muted">ลำดับ {m.sort_order}</Badge>
+                <div className="grid gap-3 sm:grid-cols-[12rem_minmax(0,1fr)]">
+                  <ImageUploadField
+                    name="image_url_file"
+                    label="รูปเหรียญ"
+                    defaultImageUrl={m.image_url}
+                    compact
+                    compactSize="fill"
+                    className="h-full min-h-32"
+                  />
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-display font-bold">{m.name}</span>
+                        <Badge className="bg-medal-soft text-medal">
+                          {tierLabel[m.tier] ?? m.tier}
+                        </Badge>
+                        <Badge className="bg-lane text-muted">ลำดับ {m.sort_order}</Badge>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="ghost" type="submit" icon="save">
+                          บันทึกเหรียญนี้
+                        </Button>
+                        <MedalDeleteButton medalName={m.name} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label>ชื่อเหรียญ</Label>
+                        <Input name="name" defaultValue={m.name} required />
+                      </div>
+                      <div>
+                        <Label>ระยะสะสมที่ต้องถึง (km)</Label>
+                        <Input
+                          name="target_km"
+                          type="number"
+                          min="0.1"
+                          step="0.1"
+                          defaultValue={m.unlock_rule?.target_km ?? 0}
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <div>
+                        <Label>ระดับ</Label>
+                        <Select name="tier" defaultValue={m.tier}>
+                          <option value="bronze">บรอนซ์</option>
+                          <option value="silver">เงิน</option>
+                          <option value="gold">ทอง</option>
+                          <option value="legendary">ตำนาน</option>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>แต้มโบนัส</Label>
+                        <Input name="bonus_points" type="number" min="0" defaultValue={m.bonus_points} />
+                      </div>
+                      <div>
+                        <Label>ลำดับการแสดง</Label>
+                        <Input name="sort_order" type="number" min="0" defaultValue={m.sort_order} />
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>ชื่อเหรียญ</Label>
-                    <Input name="name" defaultValue={m.name} required />
-                  </div>
-                  <div>
-                    <Label>ระดับ</Label>
-                    <Select name="tier" defaultValue={m.tier}>
-                      <option value="bronze">บรอนซ์</option>
-                      <option value="silver">เงิน</option>
-                      <option value="gold">ทอง</option>
-                      <option value="legendary">ตำนาน</option>
-                    </Select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <div>
-                    <Label>ระยะสะสมที่ต้องถึง (km)</Label>
-                    <Input
-                      name="target_km"
-                      type="number"
-                      min="0.1"
-                      step="0.1"
-                      defaultValue={m.unlock_rule?.target_km ?? 0}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label>แต้มโบนัส</Label>
-                    <Input name="bonus_points" type="number" min="0" defaultValue={m.bonus_points} />
-                  </div>
-                  <div>
-                    <Label>ลำดับการแสดง</Label>
-                    <Input name="sort_order" type="number" min="0" defaultValue={m.sort_order} />
-                  </div>
-                </div>
-                <ImageUploadField
-                  name="image_url_file"
-                  label="รูปเหรียญ"
-                  defaultImageUrl={m.image_url}
-                />
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="ghost" type="submit">
-                    บันทึกเหรียญนี้
-                  </Button>
-                  <MedalDeleteButton medalName={m.name} />
-                </div>
+
+
               </Card>
             </form>
           ))}
@@ -483,13 +542,168 @@ export default async function EventDashboardPage({
               </div>
             </div>
             <ImageUploadField name="image_url_file" label="รูปเหรียญ" />
-            <Button type="submit">เพิ่มเหรียญ</Button>
+            <Button type="submit" icon="add">เพิ่มเหรียญ</Button>
           </Card>
         </form>
               </div>
             ),
           },
-        ]}
+          {
+            id: "physical-medals",
+            label: `เหรียญจริง (${physicalMedals.length})`,
+            content: (
+              <div>
+                <p className="mb-3 text-sm text-ink/50">
+                  กำหนดข้อมูลเหรียญจริงด้วยรูปแบบเดียวกับเหรียญดิจิทัล และเลือกผูกกับแพ็กเกจที่มีการจัดส่งเหรียญ
+                </p>
+                {sp.physical_medal_added && (
+                  <p className="mt-1 text-sm text-primary-dark">เพิ่มเหรียญจริงแล้ว</p>
+                )}
+                {sp.physical_medal_saved && (
+                  <p className="mt-1 text-sm text-primary-dark">บันทึกเหรียญจริงแล้ว</p>
+                )}
+                {sp.physical_medal_deleted && (
+                  <p className="mt-1 text-sm text-primary-dark">ลบเหรียญจริงแล้ว</p>
+                )}
+
+                <div className="mt-3 space-y-3">
+                  {physicalMedals.map((medal) => (
+                    <form key={medal.id} action={updatePhysicalMedal}>
+                      <input type="hidden" name="id" value={medal.id} />
+                      <input type="hidden" name="event_id" value={event.id} />
+                      <input
+                        type="hidden"
+                        name="existing_image_url"
+                        value={medal.image_url ?? ""}
+                      />
+                      <Card className="space-y-3">
+                        <div className="grid gap-3 sm:grid-cols-[12rem_minmax(0,1fr)]">
+                          <ImageUploadField
+                            name="image_url_file"
+                            label="รูปเหรียญ"
+                            defaultImageUrl={medal.image_url}
+                            compact
+                            compactSize="fill"
+                            className="h-full min-h-32"
+                          />
+                          <div className="space-y-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-display font-bold">{medal.name}</span>
+                                <Badge className="bg-medal-soft text-medal">
+                                  {tierLabel[medal.tier] ?? medal.tier}
+                                </Badge>
+                                <Badge className="bg-lane text-muted">
+                                  ลำดับ {medal.sort_order}
+                                </Badge>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                <Button variant="ghost" type="submit" icon="save">
+                                  บันทึกเหรียญนี้
+                                </Button>
+                                <PhysicalMedalDeleteButton medalName={medal.name} />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <Label>ชื่อเหรียญ</Label>
+                                <Input name="name" defaultValue={medal.name} required />
+                              </div>
+                              <div>
+                                <Label>ระยะสะสมที่ต้องถึง (km)</Label>
+                                <Input
+                                  name="target_km"
+                                  type="number"
+                                  min="0.1"
+                                  step="0.1"
+                                  defaultValue={medal.unlock_rule?.target_km ?? 0}
+                                  required
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                              <div>
+                                <Label>ระดับ</Label>
+                                <Select name="tier" defaultValue={medal.tier}>
+                                  <option value="bronze">บรอนซ์</option>
+                                  <option value="silver">เงิน</option>
+                                  <option value="gold">ทอง</option>
+                                  <option value="legendary">ตำนาน</option>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label>แต้มโบนัส</Label>
+                                <Input
+                                  name="bonus_points"
+                                  type="number"
+                                  min="0"
+                                  defaultValue={medal.bonus_points}
+                                />
+                              </div>
+                              <div>
+                                <Label>ลำดับการแสดง</Label>
+                                <Input
+                                  name="sort_order"
+                                  type="number"
+                                  min="0"
+                                  defaultValue={medal.sort_order}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+
+                      </Card>
+                    </form>
+                  ))}
+                </div>
+
+                <form action={createPhysicalMedal} className="mt-4">
+                  <input type="hidden" name="event_id" value={event.id} />
+                  <Card className="space-y-3">
+                    <p className="text-sm font-semibold">+ เพิ่มเหรียญใหม่</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label>ชื่อเหรียญ</Label>
+                        <Input name="name" required />
+                      </div>
+                      <div>
+                        <Label>ระดับ</Label>
+                        <Select name="tier" defaultValue="bronze">
+                          <option value="bronze">บรอนซ์</option>
+                          <option value="silver">เงิน</option>
+                          <option value="gold">ทอง</option>
+                          <option value="legendary">ตำนาน</option>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <div>
+                        <Label>ระยะสะสมที่ต้องถึง (km)</Label>
+                        <Input name="target_km" type="number" min="0.1" step="0.1" required />
+                      </div>
+                      <div>
+                        <Label>แต้มโบนัส</Label>
+                        <Input name="bonus_points" type="number" min="0" defaultValue={0} />
+                      </div>
+                      <div>
+                        <Label>ลำดับการแสดง</Label>
+                        <Input
+                          name="sort_order"
+                          type="number"
+                          min="0"
+                          defaultValue={physicalMedals.length + 1}
+                        />
+                      </div>
+                    </div>
+                    <ImageUploadField name="image_url_file" label="รูปเหรียญ" />
+                    <Button type="submit" icon="add">เพิ่มเหรียญ</Button>
+                  </Card>
+                </form>
+              </div>
+            ),
+          },        ]}
       />
     </div>
   );

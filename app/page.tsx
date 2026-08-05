@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Search, Footprints, CalendarDays, Road, ChevronRight } from "lucide-react";
+import { Search, Footprints, CalendarDays, Road, ChevronRight, ChevronLeft, RotateCcw } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Badge, LinkButton, Input, Select } from "@/components/ui";
 import { HeroCarousel } from "@/components/hero-carousel";
@@ -66,7 +66,7 @@ export default async function HomePage({
 
   const { data: banners } = await supabase
     .from("hero_banners")
-    .select("id, image_url, title, subtitle, link_url")
+    .select("id, image_url, title, subtitle, link_url, position_x, position_y")
     .eq("is_active", true)
     .order("sort_order", { ascending: true });
 
@@ -89,13 +89,13 @@ export default async function HomePage({
             ครบเป้าเมื่อไหร่ ปลดล็อกเหรียญเมื่อนั้น
           </p>
           <div className="mt-6 flex gap-3">
-            <LinkButton href="#events" variant="primary">
+            <LinkButton href="#events" variant="primary" icon="view">
               ดูงานวิ่งทั้งหมด
             </LinkButton>
             <LinkButton
               href="/signup"
               className="border border-paper/40 bg-transparent text-paper hover:bg-paper/10"
-            >
+              icon="userPlus">
               สมัครสมาชิก
             </LinkButton>
           </div>
@@ -133,12 +133,14 @@ export default async function HomePage({
             <div className="flex items-center gap-3">
               <button
                 type="submit"
-                className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-semibold text-ink transition hover:bg-primary-dark"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-ink transition hover:bg-primary-dark"
               >
-                กรอง
+                <Search className="size-4" aria-hidden="true" />
+              ค้นหา
               </button>
               {(q || pricingFilter) && (
-                <Link href="/#events" className="text-sm font-medium text-ink/50 hover:text-ink">
+                <Link href="/#events" className="inline-flex items-center gap-1.5 text-sm font-medium text-ink/50 hover:text-ink">
+                  <RotateCcw className="size-4" aria-hidden="true" />
                   ล้าง
                 </Link>
               )}
@@ -170,7 +172,7 @@ export default async function HomePage({
                           <img
                             src={ev.cover_image}
                             alt=""
-                            className="h-full w-full object-cover transition group-hover:scale-105"
+                            className="h-full w-full transform-gpu object-cover transition-transform duration-700 ease-in-out group-hover:scale-110 group-focus-visible:scale-110 motion-reduce:transform-none motion-reduce:transition-none"
                           />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center text-ink/30">
@@ -206,7 +208,7 @@ export default async function HomePage({
                           <p className="line-clamp-2 text-sm text-muted">{stripHtml(ev.description)}</p>
                         )}
                         <span className="mt-auto inline-flex w-fit items-center gap-1 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-ink transition group-hover:bg-primary-dark">
-                          ดูรายละเอียด <ChevronRight className="h-4 w-4" />
+                          <ChevronRight className="h-4 w-4" aria-hidden="true" /> ดูรายละเอียด
                         </span>
                       </div>
                     </Card>
@@ -219,11 +221,12 @@ export default async function HomePage({
               <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
                 <Link
                   href={buildPageHref(Math.max(1, page - 1))}
-                  className={`rounded-lg px-3 py-2 text-sm font-medium ${
+                  className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium ${
                     page === 1 ? "pointer-events-none text-ink/30" : "text-muted hover:bg-lane/60"
                   }`}
                 >
-                  ← ก่อนหน้า
+                  <ChevronLeft className="size-4" aria-hidden="true" />
+                  ก่อนหน้า
                 </Link>
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
                   <Link
@@ -238,13 +241,14 @@ export default async function HomePage({
                 ))}
                 <Link
                   href={buildPageHref(Math.min(totalPages, page + 1))}
-                  className={`rounded-lg px-3 py-2 text-sm font-medium ${
+                  className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium ${
                     page === totalPages
                       ? "pointer-events-none text-ink/30"
                       : "text-muted hover:bg-lane/60"
                   }`}
                 >
-                  ถัดไป →
+                  <ChevronRight className="size-4" aria-hidden="true" />
+                  ถัดไป
                 </Link>
               </div>
             )}

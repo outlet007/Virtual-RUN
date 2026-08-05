@@ -110,7 +110,7 @@ export default async function AdminSettingsPage({
             <ColorField name="color_medal" label="สีเหรียญ (medal)" defaultValue={settings.color_medal} />
           </div>
 
-          <Button className="w-full" type="submit">
+          <Button className="w-full" type="submit" icon="save">
             บันทึกการตั้งค่า
           </Button>
         </Card>
@@ -130,12 +130,12 @@ export default async function AdminSettingsPage({
             </div>
             {stravaConnection ? (
               <form action={disconnectStrava}>
-                <Button variant="ghost" type="submit">
+                <Button variant="ghost" type="submit" icon="unlink">
                   ตัดการเชื่อมต่อ
                 </Button>
               </form>
             ) : (
-              <LinkButton href="/api/strava/connect">เชื่อมต่อ Strava</LinkButton>
+              <LinkButton href="/api/strava/connect" icon="connect">เชื่อมต่อ Strava</LinkButton>
             )}
           </Card>
 
@@ -150,12 +150,12 @@ export default async function AdminSettingsPage({
             </div>
             {lineConnected ? (
               <form action={disconnectLine}>
-                <Button variant="ghost" type="submit">
+                <Button variant="ghost" type="submit" icon="unlink">
                   ตัดการเชื่อมต่อ
                 </Button>
               </form>
             ) : (
-              <LinkButton href="/api/line/connect">เชื่อมต่อ LINE</LinkButton>
+              <LinkButton href="/api/line/connect" icon="connect">เชื่อมต่อ LINE</LinkButton>
             )}
           </Card>
         </div>

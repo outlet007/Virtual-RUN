@@ -1,6 +1,12 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, Button, Input, Label, ImageUploadField } from "@/components/ui";
-import { createHeroBanner, updateHeroBanner, deleteHeroBanner } from "@/lib/actions/admin";
+import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
+import {
+  createHeroBanner,
+  updateHeroBanner,
+  deleteHeroBanner,
+  moveHeroBanner,
+} from "@/lib/actions/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +16,8 @@ type BannerRow = {
   title: string | null;
   subtitle: string | null;
   link_url: string | null;
+  position_x: number;
+  position_y: number;
   sort_order: number;
   is_active: boolean;
 };
@@ -17,14 +25,20 @@ type BannerRow = {
 export default async function AdminHeroBannersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; created?: string; saved?: string; deleted?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    created?: string;
+    saved?: string;
+    deleted?: string;
+    reordered?: string;
+  }>;
 }) {
   const sp = await searchParams;
   const db = createAdminClient();
 
   const { data } = await db
     .from("hero_banners")
-    .select("id, image_url, title, subtitle, link_url, sort_order, is_active")
+    .select("id, image_url, title, subtitle, link_url, position_x, position_y, sort_order, is_active")
     .order("sort_order", { ascending: true });
   const banners = (data ?? []) as BannerRow[];
 
@@ -40,24 +54,50 @@ export default async function AdminHeroBannersPage({
       {sp.error && (
         <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{sp.error}</div>
       )}
-      {(sp.created || sp.saved || sp.deleted) && (
+      {(sp.created || sp.saved || sp.deleted || sp.reordered) && (
         <div className="rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
           {sp.created && "เพิ่ม banner แล้ว"}
           {sp.saved && "บันทึกแล้ว"}
           {sp.deleted && "ลบแล้ว"}
+          {sp.reordered && "ย้ายลำดับ banner แล้ว"}
         </div>
       )}
 
       <div className="space-y-3">
-        {banners.map((b) => (
+        {banners.map((b, index) => (
           <form key={b.id} action={updateHeroBanner}>
             <input type="hidden" name="id" value={b.id} />
             <input type="hidden" name="existing_image_url" value={b.image_url} />
             <Card className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-sm font-medium text-muted">ลำดับ {index + 1}</span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="submit"
+                    variant="ghost"
+                    formAction={moveHeroBanner.bind(null, b.id, "up")}
+                    disabled={index === 0}
+                    icon="up">
+                    เลื่อนขึ้น
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="ghost"
+                    formAction={moveHeroBanner.bind(null, b.id, "down")}
+                    disabled={index === banners.length - 1}
+                    icon="down">
+                    เลื่อนลง
+                  </Button>
+                </div>
+              </div>
               <ImageUploadField
                 name="image_file"
                 label="รูป banner"
                 defaultImageUrl={b.image_url}
+                positionXName="position_x"
+                positionYName="position_y"
+                defaultPositionX={b.position_x}
+                defaultPositionY={b.position_y}
               />
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -69,31 +109,24 @@ export default async function AdminHeroBannersPage({
                   <Input name="subtitle" defaultValue={b.subtitle ?? ""} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>ลิงก์ปุ่ม (ไม่บังคับ)</Label>
-                  <Input name="link_url" defaultValue={b.link_url ?? ""} placeholder="/events/..." />
-                </div>
-                <div>
-                  <Label>ลำดับ</Label>
-                  <Input name="sort_order" type="number" defaultValue={b.sort_order} />
-                </div>
+              <div>
+                <Label>ลิงก์ปุ่ม (ไม่บังคับ)</Label>
+                <Input name="link_url" defaultValue={b.link_url ?? ""} placeholder="/events/..." />
               </div>
               <label className="flex items-center gap-1.5 text-sm">
                 <input type="checkbox" name="is_active" defaultChecked={b.is_active} />
                 แสดงบนหน้าแรก
               </label>
               <div className="flex items-center gap-3">
-                <Button variant="ghost" type="submit">
+                <Button variant="ghost" type="submit" icon="save">
                   บันทึก
                 </Button>
-                <Button
-                  type="submit"
+                <ConfirmDeleteButton
                   formAction={deleteHeroBanner}
-                  className="bg-red-50 text-red-700 hover:bg-red-100"
-                >
-                  ลบ
-                </Button>
+                  triggerLabel="ลบ Banner"
+                  title="ยืนยันการลบ Banner"
+                  description={`ต้องการลบ Banner "${b.title || `ลำดับ ${index + 1}`}" ใช่หรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้`}
+                />
               </div>
             </Card>
           </form>
@@ -103,7 +136,14 @@ export default async function AdminHeroBannersPage({
       <form action={createHeroBanner} className="mt-4">
         <Card className="space-y-3">
           <p className="text-sm font-semibold">+ เพิ่ม banner ใหม่</p>
-          <ImageUploadField name="image_file" label="รูป banner" />
+          <ImageUploadField
+            name="image_file"
+            label="รูป banner"
+            positionXName="position_x"
+            positionYName="position_y"
+            defaultPositionX={50}
+            defaultPositionY={50}
+          />
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>หัวข้อ (ไม่บังคับ)</Label>
@@ -114,21 +154,15 @@ export default async function AdminHeroBannersPage({
               <Input name="subtitle" />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>ลิงก์ปุ่ม (ไม่บังคับ)</Label>
-              <Input name="link_url" placeholder="/events/..." />
-            </div>
-            <div>
-              <Label>ลำดับ</Label>
-              <Input name="sort_order" type="number" defaultValue={banners.length} />
-            </div>
+          <div>
+            <Label>ลิงก์ปุ่ม (ไม่บังคับ)</Label>
+            <Input name="link_url" placeholder="/events/..." />
           </div>
           <label className="flex items-center gap-1.5 text-sm">
             <input type="checkbox" name="is_active" defaultChecked />
             แสดงบนหน้าแรก
           </label>
-          <Button type="submit">เพิ่ม banner</Button>
+          <Button type="submit" icon="add">เพิ่ม banner</Button>
         </Card>
       </form>
     </div>

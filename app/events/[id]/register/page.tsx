@@ -99,7 +99,7 @@ export default async function RegisterPage({
           </div>
         )}
 
-        <Button className="w-full" type="submit">
+        <Button className="w-full" type="submit" icon="userPlus">
           {isFree ? "ยืนยันสมัคร (รับ BIB)" : "สมัคร (รอชำระเงิน)"}
         </Button>
       </form>

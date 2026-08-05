@@ -1,35 +1,42 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, Button, Input, Label } from "@/components/ui";
-import { promoteAdmin, demoteAdmin } from "@/lib/actions/admin";
+import { removeAdminRole, setAdminRole } from "@/lib/actions/admin";
+import { ADMIN_ROLES, ADMIN_ROLE_LABELS, requireSuperAdmin } from "@/lib/auth/admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminAdminsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; promoted?: string; demoted?: string }>;
+  searchParams: Promise<{ error?: string; saved?: string; demoted?: string }>;
 }) {
-  const { error, promoted, demoted } = await searchParams;
+  await requireSuperAdmin();
+  const { error, saved, demoted } = await searchParams;
   const db = createAdminClient();
 
   const { data } = await db
     .from("users")
-    .select("id, name, email")
-    .eq("role", "admin")
+    .select("id, name, email, role")
+    .in("role", [...ADMIN_ROLES])
     .order("created_at", { ascending: true });
 
   const admins = data ?? [];
 
   return (
-    <div className="mx-auto max-w-lg space-y-6">
-      <h2 className="font-display text-xl font-bold">ผู้ดูแลระบบ</h2>
+    <div className="w-full max-w-none space-y-6">
+      <div>
+        <h2 className="font-display text-xl font-bold">กำหนดระดับสิทธิ์</h2>
+        <p className="mt-1 text-sm text-ink/60">
+          ผู้ดูแลระบบสูงสุดจัดการสิทธิ์ได้ทั้งหมด ผู้ดูแลระบบจัดการเนื้อหา และเจ้าหน้าที่ดูแลงานประจำวัน
+        </p>
+      </div>
 
       {error && (
         <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       )}
-      {promoted && (
+      {saved && (
         <div className="rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
-          เพิ่มผู้ดูแลระบบแล้ว
+          บันทึกระดับสิทธิ์แล้ว
         </div>
       )}
       {demoted && (
@@ -38,33 +45,53 @@ export default async function AdminAdminsPage({
         </div>
       )}
 
-      <form action={promoteAdmin}>
-        <Card className="space-y-3">
-          <p className="text-sm font-semibold">เพิ่มผู้ดูแลระบบ</p>
+      <form action={setAdminRole}>
+        <Card className="max-w-xl space-y-3">
+          <p className="text-sm font-semibold">เพิ่มผู้ดูแลระบบหรือเจ้าหน้าที่</p>
           <div>
             <Label>อีเมลของผู้ใช้ที่สมัครสมาชิกแล้ว</Label>
             <Input name="email" type="email" required placeholder="user@example.com" />
           </div>
-          <Button type="submit">เพิ่มเป็นผู้ดูแลระบบ</Button>
+          <div>
+            <Label>เลือกระดับผู้ดูแลระบบ</Label>
+            <select name="role" defaultValue="staff" className="w-full rounded-xl border border-lane bg-paper px-3 py-2.5 text-sm">
+              {ADMIN_ROLES.map((role) => (
+                <option key={role} value={role}>{ADMIN_ROLE_LABELS[role]}</option>
+              ))}
+            </select>
+          </div>
+          <Button type="submit" icon="userCheck">บันทึกสิทธิ์</Button>
         </Card>
       </form>
 
       <div className="space-y-3">
-        <p className="text-sm font-semibold">ผู้ดูแลระบบปัจจุบัน ({admins.length})</p>
-        {admins.map((a) => (
-          <Card key={a.id} className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">{a.name || "ไม่ระบุชื่อ"}</p>
-              <p className="text-sm text-ink/50">{a.email}</p>
-            </div>
-            <form action={demoteAdmin}>
-              <input type="hidden" name="id" value={a.id} />
-              <Button variant="ghost" type="submit">
-                ถอดสิทธิ์
-              </Button>
-            </form>
-          </Card>
-        ))}
+        <p className="text-sm font-semibold">บัญชีหลังบ้านปัจจุบัน ({admins.length})</p>
+        <div className="grid gap-3 md:grid-cols-3">
+          {admins.map((a) => (
+            <Card key={a.id} className="space-y-4">
+              <div>
+                <p className="font-medium">{a.name || "ไม่ระบุชื่อ"}</p>
+                <p className="text-sm text-ink/50">{a.email}</p>
+              </div>
+              <form action={setAdminRole} className="space-y-2">
+                <input type="hidden" name="id" value={a.id} />
+                <Label>เลือกระดับผู้ดูแลระบบ</Label>
+                <div className="flex items-center gap-2">
+                  <select name="role" defaultValue={a.role} className="min-w-0 flex-1 rounded-xl border border-lane bg-paper px-3 py-2.5 text-sm">
+                    {ADMIN_ROLES.map((role) => (
+                      <option key={role} value={role}>{ADMIN_ROLE_LABELS[role]}</option>
+                    ))}
+                  </select>
+                  <Button type="submit" icon="save">บันทึก</Button>
+                </div>
+              </form>
+              <form action={removeAdminRole}>
+                <input type="hidden" name="id" value={a.id} />
+                <Button variant="ghost" type="submit" icon="unlink">ถอดสิทธิ์</Button>
+              </form>
+            </Card>
+          ))}
+        </div>
       </div>
     </div>
   );

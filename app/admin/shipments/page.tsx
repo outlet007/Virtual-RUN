@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { RotateCcw, Search } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, Badge, Button, Input, Label, Select } from "@/components/ui";
 import { upsertShipment } from "@/lib/actions/admin";
@@ -37,12 +39,20 @@ const statusClass: Record<string, string> = {
   delivered: "bg-primary text-ink",
 };
 
+function normalizeSearchValue(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .toLocaleLowerCase("th-TH")
+    .trim();
+}
+
 export default async function AdminShipmentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string; error?: string }>;
+  searchParams: Promise<{ saved?: string; error?: string; q?: string }>;
 }) {
-  const { saved, error } = await searchParams;
+  const { saved, error, q: rawQuery } = await searchParams;
+  const q = (rawQuery ?? "").trim();
   const db = createAdminClient();
 
   const { data } = await db
@@ -54,7 +64,34 @@ export default async function AdminShipmentsPage({
     .eq("packages.has_physical_medal", true)
     .order("registered_at", { ascending: true });
 
-  const regs = (data ?? []) as unknown as RegRow[];
+  const registrationRows = (data ?? []) as unknown as RegRow[];
+  const searchNeedle = normalizeSearchValue(q);
+  const regs = searchNeedle
+    ? registrationRows.filter((registration) => {
+        const shipment = Array.isArray(registration.shipments)
+          ? registration.shipments[0]
+          : registration.shipments;
+        const address = registration.shipping_address;
+        const shipmentStatus = shipment?.status ?? "pending";
+
+        return [
+          registration.users?.name,
+          registration.users?.email,
+          registration.events?.title,
+          registration.packages?.name,
+          registration.bib_number,
+          address?.recipient,
+          address?.phone,
+          address?.address,
+          address?.province,
+          address?.postal_code,
+          shipment?.carrier,
+          shipment?.tracking_no,
+          shipmentStatus,
+          statusLabel[shipmentStatus],
+        ].some((value) => normalizeSearchValue(value).includes(searchNeedle));
+      })
+    : registrationRows;
 
   return (
     <div className="space-y-4">
@@ -72,8 +109,47 @@ export default async function AdminShipmentsPage({
         </div>
       )}
 
+      <Card>
+        <form method="get" className="space-y-4">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-ink/70">
+              ค้นหารายการจัดส่งเหรียญ
+            </label>
+            <div className="flex items-center gap-2">
+              <div className="relative min-w-0 flex-1">
+                <Search
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/40"
+                  aria-hidden="true"
+                />
+                <Input
+                  name="q"
+                  defaultValue={q}
+                  placeholder="ชื่อ อีเมล งาน BIB ผู้รับ ที่อยู่ ผู้ขนส่ง หรือเลขพัสดุ"
+                  className="pl-9"
+                />
+              </div>
+              <Button type="submit" className="shrink-0" icon="search">ค้นหา</Button>
+            </div>
+          </div>
+          {q && (
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href="/admin/shipments"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-lane px-4 text-sm font-semibold transition hover:bg-lane/50"
+              >
+                <RotateCcw className="size-4" aria-hidden="true" />
+
+                ล้างการค้นหา
+              </Link>
+            </div>
+          )}
+        </form>
+      </Card>
+
       {regs.length === 0 ? (
-        <Card className="text-center text-ink/50">ยังไม่มีใบสมัครที่ต้องจัดส่งเหรียญ</Card>
+        <Card className="text-center text-ink/50">
+          {q ? "ไม่พบรายการจัดส่งที่ตรงกับการค้นหา" : "ยังไม่มีใบสมัครที่ต้องจัดส่งเหรียญ"}
+        </Card>
       ) : (
         <div className="space-y-3">
           {regs.map((r) => {
@@ -130,7 +206,7 @@ export default async function AdminShipmentsPage({
                     </Select>
                   </div>
                   <div className="flex items-end">
-                    <Button type="submit" className="w-full">
+                    <Button type="submit" className="w-full" icon="save">
                       บันทึก
                     </Button>
                   </div>

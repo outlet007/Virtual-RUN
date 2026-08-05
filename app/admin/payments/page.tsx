@@ -1,5 +1,7 @@
+import Link from "next/link";
+import { RotateCcw, Search } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Card, Badge, Button } from "@/components/ui";
+import { Card, Badge, Button, Input } from "@/components/ui";
 import { formatBaht } from "@/lib/utils";
 import { confirmPayment, rejectPayment } from "@/lib/actions/admin";
 
@@ -26,15 +28,23 @@ const statusLabel: Record<string, string> = {
 const statusClass: Record<string, string> = {
   pending: "bg-medal-soft text-medal",
   paid: "bg-primary-soft text-primary-dark",
-  failed: "bg-lane text-muted",
+  failed: "bg-red-100 text-red-700",
 };
+
+function normalizeSearchValue(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .toLocaleLowerCase("th-TH")
+    .trim();
+}
 
 export default async function AdminPaymentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ confirmed?: string; rejected?: string }>;
+  searchParams: Promise<{ confirmed?: string; rejected?: string; q?: string }>;
 }) {
-  const { confirmed, rejected } = await searchParams;
+  const { confirmed, rejected, q: rawQuery } = await searchParams;
+  const q = (rawQuery ?? "").trim();
   const db = createAdminClient();
 
   const { data } = await db
@@ -45,7 +55,22 @@ export default async function AdminPaymentsPage({
     .eq("status", "pending")
     .order("id", { ascending: true });
 
-  const payments = (data ?? []) as unknown as PaymentRow[];
+  const paymentRows = (data ?? []) as unknown as PaymentRow[];
+  const searchNeedle = normalizeSearchValue(q);
+  const payments = searchNeedle
+    ? paymentRows.filter((payment) =>
+        [
+          payment.registrations?.users?.name,
+          payment.registrations?.users?.email,
+          payment.registrations?.events?.title,
+          payment.registrations?.packages?.name,
+          payment.amount,
+          formatBaht(Number(payment.amount)),
+          payment.charge_ref,
+          statusLabel[payment.status],
+        ].some((value) => normalizeSearchValue(value).includes(searchNeedle)),
+      )
+    : paymentRows;
 
   return (
     <div className="space-y-4">
@@ -65,8 +90,47 @@ export default async function AdminPaymentsPage({
         </div>
       )}
 
+      <Card>
+        <form method="get" className="space-y-4">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-ink/70">
+              ค้นหารายการชำระเงิน
+            </label>
+            <div className="flex items-center gap-2">
+              <div className="relative min-w-0 flex-1">
+                <Search
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/40"
+                  aria-hidden="true"
+                />
+                <Input
+                  name="q"
+                  defaultValue={q}
+                  placeholder="ชื่อผู้ใช้ อีเมล งาน แพ็กเกจ ยอดเงิน หรือเลขอ้างอิง"
+                  className="pl-9"
+                />
+              </div>
+              <Button type="submit" className="shrink-0" icon="search">ค้นหา</Button>
+            </div>
+          </div>
+          {q && (
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href="/admin/payments"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-lane px-4 text-sm font-semibold transition hover:bg-lane/50"
+              >
+                <RotateCcw className="size-4" aria-hidden="true" />
+
+                ล้างการค้นหา
+              </Link>
+            </div>
+          )}
+        </form>
+      </Card>
+
       {payments.length === 0 ? (
-        <Card className="text-center text-ink/50">ไม่มีรายการรอตรวจสอบ</Card>
+        <Card className="text-center text-ink/50">
+          {q ? "ไม่พบรายการชำระเงินที่ตรงกับการค้นหา" : "ไม่มีรายการรอตรวจสอบ"}
+        </Card>
       ) : (
         <div className="space-y-3">
           {payments.map((p) => (
@@ -93,12 +157,12 @@ export default async function AdminPaymentsPage({
                 <form action={confirmPayment}>
                   <input type="hidden" name="payment_id" value={p.id} />
                   <input type="hidden" name="registration_id" value={p.registrations?.id ?? ""} />
-                  <Button type="submit">ยืนยันการชำระเงิน</Button>
+                  <Button type="submit" icon="confirm">ยืนยันการชำระเงิน</Button>
                 </form>
                 <form action={rejectPayment}>
                   <input type="hidden" name="payment_id" value={p.id} />
                   <input type="hidden" name="registration_id" value={p.registrations?.id ?? ""} />
-                  <Button variant="ghost" type="submit">
+                  <Button variant="ghost" type="submit" icon="reject">
                     ปฏิเสธ
                   </Button>
                 </form>

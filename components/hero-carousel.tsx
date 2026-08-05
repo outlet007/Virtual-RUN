@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 type Slide = {
   id: string;
   image_url: string;
   title: string | null;
+  position_x: number;
+  position_y: number;
 };
 
 export function HeroCarousel({
@@ -39,7 +42,12 @@ export function HeroCarousel({
           aria-hidden={i !== active}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={s.image_url} alt={s.title ?? ""} className="h-full w-full object-cover" />
+          <img
+            src={s.image_url}
+            alt={s.title ?? ""}
+            className="h-full w-full object-cover"
+            style={{ objectPosition: `${s.position_x}% ${s.position_y}%` }}
+          />
         </div>
       ))}
 
@@ -57,17 +65,17 @@ export function HeroCarousel({
             type="button"
             onClick={() => goTo(active - 1)}
             aria-label="ก่อนหน้า"
-            className="absolute left-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-ink/40 p-2 text-paper transition hover:bg-ink/60"
+            className="absolute left-3 top-1/2 z-10 inline-flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-ink/40 text-paper transition hover:bg-ink/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:left-6"
           >
-            ←
+            <ChevronLeft className="h-8 w-8" strokeWidth={2.25} aria-hidden="true" />
           </button>
           <button
             type="button"
             onClick={() => goTo(active + 1)}
             aria-label="ถัดไป"
-            className="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-ink/40 p-2 text-paper transition hover:bg-ink/60"
+            className="absolute right-3 top-1/2 z-10 inline-flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-ink/40 text-paper transition hover:bg-ink/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:right-6"
           >
-            →
+            <ChevronRight className="h-8 w-8" strokeWidth={2.25} aria-hidden="true" />
           </button>
           <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-2">
             {slides.map((s, i) => (

@@ -54,7 +54,7 @@ export default async function SignupPage({
             </label>
           </div>
 
-          <Button className="w-full" type="submit">
+          <Button className="w-full" type="submit" icon="userPlus">
             สมัครสมาชิก
           </Button>
 
@@ -65,10 +65,10 @@ export default async function SignupPage({
           </div>
 
           <div className="space-y-2">
-            <LinkButton href="/auth/google" variant="ghost" className="w-full">
+            <LinkButton href="/auth/google" variant="ghost" className="w-full" icon="userPlus">
               สมัครสมาชิกด้วย Google
             </LinkButton>
-            <LinkButton href="/auth/facebook" variant="ghost" className="w-full">
+            <LinkButton href="/auth/facebook" variant="ghost" className="w-full" icon="userPlus">
               สมัครสมาชิกด้วย Facebook
             </LinkButton>
           </div>

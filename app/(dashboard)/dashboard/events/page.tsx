@@ -60,7 +60,7 @@ export default async function MyEventsPage() {
           <h2 className="font-display text-xl font-bold">งานของฉัน</h2>
           <p className="mt-1 text-sm text-muted">งานที่สมัครไว้ทั้งหมด พร้อมความคืบหน้าสะสมระยะ</p>
         </div>
-        <LinkButton href="/dashboard/submit">+ บันทึกผลวิ่ง</LinkButton>
+        <LinkButton href="/dashboard/submit" icon="upload">บันทึกผลวิ่ง</LinkButton>
       </div>
 
       {regs.length === 0 ? (

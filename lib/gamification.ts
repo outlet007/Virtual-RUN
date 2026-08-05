@@ -10,6 +10,45 @@ type MedalRow = {
   unlock_rule: { type?: string; target_km?: number } | null;
 };
 
+async function syncSubmissionDistancePoints(
+  userId: string,
+  distanceKm: number,
+  submissionId: string,
+  approved: boolean,
+) {
+  const db = createAdminClient();
+  const { data: existing } = await db
+    .from("points_ledger")
+    .select("delta")
+    .eq("user_id", userId)
+    .eq("ref_type", "submission")
+    .eq("ref_id", submissionId);
+  const currentPoints = (existing ?? []).reduce(
+    (sum, entry) => sum + Number(entry.delta),
+    0,
+  );
+  const targetPoints = approved ? Math.round(distanceKm * POINTS_PER_KM) : 0;
+  const adjustment = targetPoints - currentPoints;
+
+  if (adjustment !== 0) {
+    await db.from("points_ledger").insert({
+      user_id: userId,
+      delta: adjustment,
+      reason: adjustment > 0 ? "distance" : "distance_reversal",
+      ref_type: "submission",
+      ref_id: submissionId,
+    });
+  }
+}
+
+export async function revokeApprovedSubmissionPoints(
+  userId: string,
+  distanceKm: number,
+  submissionId: string,
+) {
+  await syncSubmissionDistancePoints(userId, distanceKm, submissionId, false);
+}
+
 // เรียกทุกครั้งที่ submission กลายเป็น approved (ไม่ว่าจะ auto-approve, admin approve, หรือ sync จาก Strava)
 // เขียนผ่าน service-role เสมอ — points/medals เป็นข้อมูลที่ระบบคำนวณให้ ไม่ใช่ user เขียนเอง
 export async function awardForApprovedSubmission(
@@ -20,13 +59,17 @@ export async function awardForApprovedSubmission(
 ) {
   const db = createAdminClient();
 
-  await db.from("points_ledger").insert({
-    user_id: userId,
-    delta: Math.round(distanceKm * POINTS_PER_KM),
-    reason: "distance",
-    ref_type: "submission",
-    ref_id: submissionId,
-  });
+  if (submissionId) {
+    await syncSubmissionDistancePoints(userId, distanceKm, submissionId, true);
+  } else {
+    await db.from("points_ledger").insert({
+      user_id: userId,
+      delta: Math.round(distanceKm * POINTS_PER_KM),
+      reason: "distance",
+      ref_type: "submission",
+      ref_id: null,
+    });
+  }
 
   const { data: reg } = await db
     .from("registrations")

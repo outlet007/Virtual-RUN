@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Medal as MedalIcon, Lock } from "lucide-react";
+import { Medal as MedalIcon, Lock, Upload, UserPlus } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
 export type MedalEntry = {
@@ -70,15 +70,17 @@ export function MedalHexagon({ entry }: { entry: MedalEntry }) {
           {!entry.registrationStatus ? (
             <Link
               href={entry.registrationHref}
-              className="mt-3 inline-flex min-h-9 items-center justify-center rounded-full bg-primary px-4 py-2 text-xs font-semibold text-ink transition hover:bg-primary-dark"
+              className="mt-3 inline-flex min-h-9 items-center justify-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-ink transition hover:bg-primary-dark"
             >
+              <UserPlus className="size-4" aria-hidden="true" />
               สมัครเพื่อปลดล็อก
             </Link>
           ) : entry.registrationStatus === "confirmed" ? (
             <Link
               href="/dashboard/submit"
-              className="mt-3 inline-flex min-h-9 items-center justify-center rounded-full border border-primary-dark/20 bg-primary-soft px-4 py-2 text-xs font-semibold text-primary-dark transition hover:bg-primary/30"
+              className="mt-3 inline-flex min-h-9 items-center justify-center gap-2 rounded-full border border-primary-dark/20 bg-primary-soft px-4 py-2 text-xs font-semibold text-primary-dark transition hover:bg-primary/30"
             >
+              <Upload className="size-4" aria-hidden="true" />
               ส่งผลวิ่งเพื่อปลดล็อก
             </Link>
           ) : (

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { createSiteUrl } from "@/lib/site-url";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -13,7 +14,7 @@ export async function GET(request: Request) {
 
   if (error || !code || !state || state !== expectedState) {
     return NextResponse.redirect(
-      new URL(`/admin/settings?error=${encodeURIComponent("เชื่อมต่อ LINE ไม่สำเร็จ")}`, request.url),
+      createSiteUrl(request, `/admin/settings?error=${encodeURIComponent("เชื่อมต่อ LINE ไม่สำเร็จ")}`),
     );
   }
 
@@ -21,9 +22,9 @@ export async function GET(request: Request) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return NextResponse.redirect(new URL("/login", request.url));
+  if (!user) return NextResponse.redirect(createSiteUrl(request, "/login"));
 
-  const redirectUri = new URL("/api/line/callback", request.url).toString();
+  const redirectUri = createSiteUrl(request, "/api/line/callback").toString();
 
   const tokenRes = await fetch("https://api.line.me/oauth2/v2.1/token", {
     method: "POST",
@@ -39,7 +40,7 @@ export async function GET(request: Request) {
 
   if (!tokenRes.ok) {
     return NextResponse.redirect(
-      new URL(`/admin/settings?error=${encodeURIComponent("เชื่อมต่อ LINE ไม่สำเร็จ")}`, request.url),
+      createSiteUrl(request, `/admin/settings?error=${encodeURIComponent("เชื่อมต่อ LINE ไม่สำเร็จ")}`),
     );
   }
 
@@ -52,7 +53,7 @@ export async function GET(request: Request) {
 
   await supabase.from("users").update({ line_user_id: profile.userId }).eq("id", user.id);
 
-  const response = NextResponse.redirect(new URL("/admin/settings?line=connected", request.url));
+  const response = NextResponse.redirect(createSiteUrl(request, "/admin/settings?line=connected"));
   response.cookies.delete("line_oauth_state");
   return response;
 }

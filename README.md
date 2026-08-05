@@ -48,7 +48,15 @@ docker compose -f docker-compose.dev.yml up
 ```
 mount โค้ดเป็น volume แล้วรัน `next dev` ในคอนเทนเนอร์ — แก้โค้ดแล้ว hot-reload ทันทีเหมือนรันตรง ไม่ต้อง build ใหม่ทุกครั้ง (ฝั่ง container เรียก Supabase ผ่าน `host.docker.internal` แทน `127.0.0.1` โดยอัตโนมัติผ่าน `SUPABASE_URL` ใน `docker-compose.dev.yml`)
 
-**แบบ Docker (production build):** `docker compose up` (ใช้ `Dockerfile`/`docker-compose.yml` เดิม — build เต็มรูปแบบทุกครั้งที่แก้โค้ด เหมาะกับ deploy ไม่ใช่ dev)
+**แบบ Docker (production build — วิธีหลักสำหรับเปิดดูระบบ):**
+```bash
+docker compose up -d --build
+```
+คำสั่งนี้ build image ล่าสุดและรัน container แบบ background เปิดระบบที่
+http://localhost:3000 โดยไม่ต้องรัน `npm run dev` เพิ่ม
+
+หลังแก้ไขหรือเขียนโค้ดเสร็จทุกครั้ง ให้รันคำสั่งนี้และตรวจว่า container
+มีสถานะ running พร้อมเปิดหน้าเว็บได้จริงก่อนถือว่างานเสร็จ
 
 เปิด http://localhost:3000
 

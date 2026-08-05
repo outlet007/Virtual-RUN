@@ -38,7 +38,8 @@ export async function registerForEvent(formData: FormData) {
   }
 
   // งานฟรี → confirmed ทันที + ออก BIB | งานเสียเงิน → pending (Phase 4 ต่อ payment)
-  const isFree = Number(pkg.price) === 0;
+  const eventPricing = pkg.events[0]?.pricing;
+  const isFree = eventPricing === "free" || Number(pkg.price) === 0;
 
   const { data: reg, error } = await supabase
     .from("registrations")

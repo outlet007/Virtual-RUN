@@ -1,16 +1,83 @@
 import * as React from "react";
 import Link from "next/link";
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  Check,
+  CheckCircle2,
+  CircleX,
+  ExternalLink,
+  Eye,
+  Gift,
+  Link2,
+  LogIn,
+  LogOut,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Save,
+  Search,
+  Send,
+  ShieldCheck,
+  Trash2,
+  Unlink,
+  Upload,
+  UserCheck,
+  UserPlus,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export { ImageUploadField } from "./image-upload-field";
 export { Tabs } from "./tabs";
 
+const buttonIcons = {
+  add: Plus,
+  back: ArrowLeft,
+  confirm: Check,
+  connect: Link2,
+  delete: Trash2,
+  down: ArrowDown,
+  edit: Pencil,
+  external: ExternalLink,
+  gift: Gift,
+  login: LogIn,
+  logout: LogOut,
+  next: ArrowRight,
+  refresh: RefreshCw,
+  reject: CircleX,
+  save: Save,
+  search: Search,
+  send: Send,
+  shield: ShieldCheck,
+  success: CheckCircle2,
+  unlink: Unlink,
+  up: ArrowUp,
+  upload: Upload,
+  userCheck: UserCheck,
+  userPlus: UserPlus,
+  view: Eye,
+} satisfies Record<string, LucideIcon>;
+
+export type ButtonIconName = keyof typeof buttonIcons;
+
+function ButtonIcon({ name }: { name?: ButtonIconName }) {
+  if (!name) return null;
+  const Icon = buttonIcons[name];
+  return <Icon className="size-4 shrink-0" aria-hidden="true" />;
+}
+
 export function Button({
   className,
   variant = "primary",
+  icon,
+  children,
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "ink" | "ghost";
+  icon?: ButtonIconName;
 }) {
   const styles = {
     primary: "bg-primary text-ink hover:bg-primary-dark",
@@ -20,20 +87,28 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold transition disabled:opacity-50",
+        "inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 text-sm font-semibold transition disabled:opacity-50",
         styles,
         className,
       )}
       {...props}
-    />
+    >
+      <ButtonIcon name={icon} />
+      {children}
+    </button>
   );
 }
 
 export function LinkButton({
   className,
   variant = "primary",
+  icon,
+  children,
   ...props
-}: React.ComponentProps<typeof Link> & { variant?: "primary" | "ink" | "ghost" }) {
+}: React.ComponentProps<typeof Link> & {
+  variant?: "primary" | "ink" | "ghost";
+  icon?: ButtonIconName;
+}) {
   const styles = {
     primary: "bg-primary text-ink hover:bg-primary-dark",
     ink: "bg-ink text-paper hover:bg-ink/90",
@@ -42,12 +117,15 @@ export function LinkButton({
   return (
     <Link
       className={cn(
-        "inline-flex h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold transition",
+        "inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 text-sm font-semibold transition",
         styles,
         className,
       )}
       {...props}
-    />
+    >
+      <ButtonIcon name={icon} />
+      {children}
+    </Link>
   );
 }
 

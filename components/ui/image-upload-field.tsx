@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ChangeEvent, type PointerEvent } from "react";
+import { Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function clampPosition(value: number | null | undefined) {
@@ -17,6 +18,8 @@ export function ImageUploadField({
   positionYName,
   defaultPositionX,
   defaultPositionY,
+  compact = false,
+  compactSize = "default",
 }: {
   name: string;
   label: string;
@@ -26,6 +29,8 @@ export function ImageUploadField({
   positionYName?: string;
   defaultPositionX?: number | null;
   defaultPositionY?: number | null;
+  compact?: boolean;
+  compactSize?: "default" | "large" | "fill";
 }) {
   const [preview, setPreview] = useState<string | null>(defaultImageUrl ?? null);
   const [positionX, setPositionX] = useState(() => clampPosition(defaultPositionX));
@@ -57,8 +62,44 @@ export function ImageUploadField({
 
   return (
     <div className={cn("space-y-3", className)}>
-      <label className="mb-1.5 block text-sm font-medium text-ink/70">{label}</label>
-      {positionable ? (
+      <label
+        className={cn("mb-1.5 block text-sm font-medium text-ink/70", compact && "sr-only")}
+      >
+        {label}
+      </label>
+      {compact && !positionable ? (
+        <label
+          className={cn(
+            "group relative block shrink-0 cursor-pointer overflow-hidden rounded-xl border border-lane bg-lane/40",
+            compactSize === "fill"
+              ? "h-full min-h-32 w-full"
+              : compactSize === "large"
+                ? "h-32 w-32"
+                : "h-16 w-16",
+          )}
+          title={preview ? `เปลี่ยน${label}` : `เพิ่ม${label}`}
+        >
+          {preview ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={preview} alt={label} className="h-full w-full object-cover" />
+          ) : (
+            <span className="flex h-full w-full items-center justify-center text-center text-xs text-ink/40">
+              ไม่มีรูป
+            </span>
+          )}
+          <span className="absolute inset-x-0 bottom-0 inline-flex items-center justify-center gap-1 bg-black/65 py-0.5 text-center text-[10px] font-medium text-white opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
+            <Upload className="size-3" aria-hidden="true" />
+            {preview ? "เปลี่ยนรูป" : "เพิ่มรูป"}
+          </span>
+          <input
+            type="file"
+            name={name}
+            accept="image/*"
+            className="sr-only"
+            onChange={handleFileChange}
+          />
+        </label>
+      ) : positionable ? (
         <>
           <div
             className="relative aspect-[3/1] min-h-40 w-full touch-none overflow-hidden rounded-xl border border-lane bg-lane/40"
@@ -97,8 +138,9 @@ export function ImageUploadField({
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-ink/50">ลากจุดบนภาพ หรือใช้แถบเลื่อนเพื่อกำหนดจุดโฟกัส</p>
-            <label className="inline-flex h-10 cursor-pointer items-center justify-center rounded-xl border border-lane bg-transparent px-4 text-sm font-semibold text-ink/70 transition hover:bg-lane/50">
-              + เลือกรูป
+            <label className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-lane bg-transparent px-4 text-sm font-semibold text-ink/70 transition hover:bg-lane/50">
+              <Upload className="size-4" aria-hidden="true" />
+              เลือกรูป
               <input type="file" name={name} accept="image/*" className="hidden" onChange={handleFileChange} />
             </label>
           </div>
@@ -129,8 +171,9 @@ export function ImageUploadField({
               ไม่มีรูป
             </div>
           )}
-          <label className="inline-flex h-11 cursor-pointer items-center justify-center rounded-xl border border-lane bg-transparent px-4 text-sm font-semibold text-ink/70 transition hover:bg-lane/50">
-            + เพิ่มรูป
+          <label className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-lane bg-transparent px-4 text-sm font-semibold text-ink/70 transition hover:bg-lane/50">
+            <Upload className="size-4" aria-hidden="true" />
+            เพิ่มรูป
             <input type="file" name={name} accept="image/*" className="hidden" onChange={handleFileChange} />
           </label>
         </div>

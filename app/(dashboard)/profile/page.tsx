@@ -64,7 +64,7 @@ export default async function ProfilePage({
             <Label>เบอร์โทร</Label>
             <Input name="phone" type="tel" defaultValue={profile?.phone ?? ""} />
           </div>
-          <Button className="w-full" type="submit">
+          <Button className="w-full" type="submit" icon="save">
             บันทึก
           </Button>
         </Card>
@@ -81,7 +81,7 @@ export default async function ProfilePage({
             <Label>ยืนยันรหัสผ่านใหม่</Label>
             <Input name="confirm_password" type="password" minLength={6} required />
           </div>
-          <Button className="w-full" type="submit">
+          <Button className="w-full" type="submit" icon="shield">
             เปลี่ยนรหัสผ่าน
           </Button>
         </Card>

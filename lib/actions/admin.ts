@@ -3,11 +3,21 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import sanitizeHtml from "sanitize-html";
-import { requireAdmin } from "@/lib/auth/admin";
+import {
+  ADMIN_ROLES,
+  type AdminRole,
+  requireAdmin,
+  requireManager,
+  requireSuperAdmin,
+} from "@/lib/auth/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { genBib } from "@/lib/utils";
-import { awardForApprovedSubmission } from "@/lib/gamification";
+import {
+  awardForApprovedSubmission,
+  revokeApprovedSubmissionPoints,
+} from "@/lib/gamification";
 import { notifyUser } from "@/lib/notifications";
+import { readRunEvidence } from "@/lib/ocr/run-evidence";
 
 function err(path: string, message: string): never {
   const separator = path.includes("?") ? "&" : "?";
@@ -40,7 +50,7 @@ function sanitizeDescription(html: string): string {
   });
 }
 
-function parseCoverPosition(value: FormDataEntryValue | null): number {
+function parseImagePosition(value: FormDataEntryValue | null): number {
   const position = Number(value ?? 50);
   if (!Number.isFinite(position)) return 50;
   return Math.min(100, Math.max(0, Math.round(position)));
@@ -78,13 +88,13 @@ function uploadEventImage(
 // เรียกตรงจาก RichTextEditor (client component) ไม่ใช่ผ่าน <form> — คืนค่า URL ตรงๆ
 // ไม่ redirect เหมือน action อื่นในไฟล์นี้ เพราะ editor ต้องได้ URL กลับไปแทรกรูปทันที
 export async function uploadDescriptionImage(formData: FormData): Promise<string | null> {
-  await requireAdmin();
+  await requireManager();
   const db = createAdminClient();
   return uploadEventImage(db, formData.get("image_file"), "description");
 }
 
 export async function uploadDescriptionVideo(formData: FormData): Promise<string | null> {
-  await requireAdmin();
+  await requireManager();
   const db = createAdminClient();
   return uploadEventFile(db, formData.get("video_file"), "event-videos", "description");
 }
@@ -92,7 +102,7 @@ export async function uploadDescriptionVideo(formData: FormData): Promise<string
 // ---------- Events ----------
 
 export async function createEvent(formData: FormData) {
-  await requireAdmin();
+  await requireManager();
   const db = createAdminClient();
 
   const title = String(formData.get("title") ?? "").trim();
@@ -101,8 +111,8 @@ export async function createEvent(formData: FormData) {
   const start_date = String(formData.get("start_date") ?? "");
   const end_date = String(formData.get("end_date") ?? "");
   const status = String(formData.get("status") ?? "draft");
-  const cover_position_x = parseCoverPosition(formData.get("cover_position_x"));
-  const cover_position_y = parseCoverPosition(formData.get("cover_position_y"));
+  const cover_position_x = parseImagePosition(formData.get("cover_position_x"));
+  const cover_position_y = parseImagePosition(formData.get("cover_position_y"));
 
   if (!title || !start_date || !end_date) {
     err("/admin/events/new", "กรอกชื่องานและวันที่ให้ครบ");
@@ -142,7 +152,7 @@ export async function createEvent(formData: FormData) {
 }
 
 export async function updateEvent(formData: FormData) {
-  await requireAdmin();
+  await requireManager();
   const db = createAdminClient();
 
   const id = String(formData.get("id") ?? "");
@@ -152,8 +162,8 @@ export async function updateEvent(formData: FormData) {
   const start_date = String(formData.get("start_date") ?? "");
   const end_date = String(formData.get("end_date") ?? "");
   const status = String(formData.get("status") ?? "draft");
-  const cover_position_x = parseCoverPosition(formData.get("cover_position_x"));
-  const cover_position_y = parseCoverPosition(formData.get("cover_position_y"));
+  const cover_position_x = parseImagePosition(formData.get("cover_position_x"));
+  const cover_position_y = parseImagePosition(formData.get("cover_position_y"));
 
   if (!id || !title || !start_date || !end_date) {
     err(`/admin/events/${id}`, "กรอกชื่องานและวันที่ให้ครบ");
@@ -198,20 +208,95 @@ export async function updateEvent(formData: FormData) {
 
 // ---------- Packages ----------
 
+async function getPackagePrice(
+  db: ReturnType<typeof createAdminClient>,
+  eventId: string,
+  formData: FormData,
+) {
+  const { data: event, error } = await db
+    .from("events")
+    .select("pricing")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (error) err(`/admin/events/${eventId}?tab=packages`, error.message);
+  if (!event) err(`/admin/events/${eventId}?tab=packages`, "ไม่พบงาน");
+  if (event.pricing === "free") return 0;
+
+  const price = Number(formData.get("price") ?? 0);
+  if (!Number.isFinite(price) || price < 0) {
+    err(`/admin/events/${eventId}?tab=packages`, "กรอกราคาแพ็กเกจให้ถูกต้อง");
+  }
+  return price;
+}
+
+async function getPackageDigitalMedalId(
+  db: ReturnType<typeof createAdminClient>,
+  eventId: string,
+  formData: FormData,
+) {
+  if (formData.get("has_digital_medal") !== "on") return null;
+
+  const medalId = String(formData.get("digital_medal_id") ?? "");
+  if (!medalId) {
+    err(`/admin/events/${eventId}?tab=packages`, "กรุณาเลือกเหรียญดิจิทัล");
+  }
+
+  const { data: medal, error } = await db
+    .from("medals")
+    .select("id")
+    .eq("id", medalId)
+    .eq("event_id", eventId)
+    .maybeSingle();
+  if (error) err(`/admin/events/${eventId}?tab=packages`, error.message);
+  if (!medal) {
+    err(`/admin/events/${eventId}?tab=packages`, "เหรียญดิจิทัลที่เลือกไม่ใช่ของงานนี้");
+  }
+
+  return medal.id;
+}
+
+async function getPackagePhysicalMedalId(
+  db: ReturnType<typeof createAdminClient>,
+  eventId: string,
+  formData: FormData,
+) {
+  if (formData.get("has_physical_medal") !== "on") return null;
+
+  const medalId = String(formData.get("physical_medal_id") ?? "");
+  if (!medalId) {
+    err(`/admin/events/${eventId}?tab=packages`, "กรุณาเลือกเหรียญจริง");
+  }
+
+  const { data: medal, error } = await db
+    .from("physical_medals")
+    .select("id")
+    .eq("id", medalId)
+    .eq("event_id", eventId)
+    .maybeSingle();
+  if (error) err(`/admin/events/${eventId}?tab=packages`, error.message);
+  if (!medal) {
+    err(`/admin/events/${eventId}?tab=packages`, "เหรียญจริงที่เลือกไม่ใช่ของงานนี้");
+  }
+
+  return medal.id;
+}
+
 export async function createPackage(formData: FormData) {
-  await requireAdmin();
+  await requireManager();
   const db = createAdminClient();
 
   const event_id = String(formData.get("event_id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
   const target_distance_km = Number(formData.get("target_distance_km") ?? 0);
-  const price = Number(formData.get("price") ?? 0);
   const activity_types = formData.getAll("activity_types").map(String);
-  const has_physical_medal = formData.get("has_physical_medal") === "on";
 
   if (!event_id || !name || target_distance_km <= 0) {
     err(`/admin/events/${event_id}?tab=packages`, "กรอกชื่อแพ็กเกจและระยะเป้าหมายให้ถูกต้อง");
   }
+  const digital_medal_id = await getPackageDigitalMedalId(db, event_id, formData);
+  const physical_medal_id = await getPackagePhysicalMedalId(db, event_id, formData);
+  const has_physical_medal = Boolean(physical_medal_id);
+  const price = await getPackagePrice(db, event_id, formData);
 
   const { error } = await db.from("packages").insert({
     event_id,
@@ -220,6 +305,8 @@ export async function createPackage(formData: FormData) {
     price,
     activity_types: activity_types.length > 0 ? activity_types : ["run", "walk"],
     has_physical_medal,
+    digital_medal_id,
+    physical_medal_id,
   });
 
   if (error) err(`/admin/events/${event_id}?tab=packages`, error.message);
@@ -230,20 +317,22 @@ export async function createPackage(formData: FormData) {
 }
 
 export async function updatePackage(formData: FormData) {
-  await requireAdmin();
+  await requireManager();
   const db = createAdminClient();
 
   const id = String(formData.get("id") ?? "");
   const event_id = String(formData.get("event_id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
   const target_distance_km = Number(formData.get("target_distance_km") ?? 0);
-  const price = Number(formData.get("price") ?? 0);
   const activity_types = formData.getAll("activity_types").map(String);
-  const has_physical_medal = formData.get("has_physical_medal") === "on";
 
   if (!id || !event_id || !name || target_distance_km <= 0) {
     err(`/admin/events/${event_id}?tab=packages`, "กรอกชื่อแพ็กเกจและระยะเป้าหมายให้ถูกต้อง");
   }
+  const digital_medal_id = await getPackageDigitalMedalId(db, event_id, formData);
+  const physical_medal_id = await getPackagePhysicalMedalId(db, event_id, formData);
+  const has_physical_medal = Boolean(physical_medal_id);
+  const price = await getPackagePrice(db, event_id, formData);
 
   const { error } = await db
     .from("packages")
@@ -253,6 +342,8 @@ export async function updatePackage(formData: FormData) {
       price,
       activity_types: activity_types.length > 0 ? activity_types : ["run", "walk"],
       has_physical_medal,
+      digital_medal_id,
+      physical_medal_id,
     })
     .eq("id", id);
 
@@ -265,17 +356,83 @@ export async function updatePackage(formData: FormData) {
 
 // ---------- Submissions ----------
 
+export async function reprocessSubmissionOcr(formData: FormData) {
+  await requireAdmin();
+  const db = createAdminClient();
+  const id = String(formData.get("id") ?? "");
+
+  if (!id) err("/admin/submissions", "ไม่พบรายการผลวิ่ง");
+
+  const { data: submission, error } = await db
+    .from("submissions")
+    .select("distance_km, evidence_url, source")
+    .eq("id", id)
+    .single();
+  if (error) err("/admin/submissions", error.message);
+  if (!submission.evidence_url || submission.source !== "upload") {
+    err("/admin/submissions", "รายการนี้ไม่มีรูปหลักฐานสำหรับตรวจ OCR");
+  }
+
+  const fileExtension = submission.evidence_url.split(".").pop()?.toLowerCase();
+  const extension = fileExtension === "jpeg" ? "jpg" : fileExtension;
+  if (extension !== "png" && extension !== "jpg" && extension !== "webp") {
+    err("/admin/submissions", "ชนิดไฟล์หลักฐานไม่รองรับ OCR");
+  }
+
+  const { data: evidence, error: downloadError } = await db.storage
+    .from("run-evidence")
+    .download(submission.evidence_url);
+  if (downloadError || !evidence) {
+    err("/admin/submissions", downloadError?.message ?? "ดาวน์โหลดหลักฐานไม่สำเร็จ");
+  }
+
+  const ocr = await readRunEvidence(
+    Buffer.from(await evidence.arrayBuffer()),
+    extension,
+    Number(submission.distance_km),
+  );
+  const { error: updateError } = await db
+    .from("submissions")
+    .update({
+      ocr_status: ocr.status,
+      ocr_distance_km: ocr.distanceKm,
+      ocr_confidence: ocr.confidence,
+      ocr_raw_text: ocr.rawText,
+      ocr_processed_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+  if (updateError) err("/admin/submissions", updateError.message);
+
+  revalidatePath("/admin/submissions");
+  redirect(`/admin/submissions?ocr_reprocessed=${ocr.status}`);
+}
+
 export async function reviewSubmission(formData: FormData) {
   await requireAdmin();
   const db = createAdminClient();
 
   const id = String(formData.get("id") ?? "");
   const decision = String(formData.get("decision") ?? "");
-  const status = decision === "approve" ? "approved" : "rejected";
 
-  if (!id || (decision !== "approve" && decision !== "reject")) {
+  if (
+    !id ||
+    (decision !== "pending" && decision !== "approve" && decision !== "reject")
+  ) {
     err("/admin/submissions", "คำขอไม่ถูกต้อง");
   }
+  const status =
+    decision === "approve"
+      ? "approved"
+      : decision === "reject"
+        ? "rejected"
+        : "pending";
+
+  const { data: previousSubmission, error: previousError } = await db
+    .from("submissions")
+    .select("status, registration_id, user_id, distance_km")
+    .eq("id", id)
+    .single();
+  if (previousError) err("/admin/submissions", previousError.message);
 
   const { data: submission, error } = await db
     .from("submissions")
@@ -285,9 +442,23 @@ export async function reviewSubmission(formData: FormData) {
     .single();
   if (error) err("/admin/submissions", error.message);
 
-  if (status === "approved" && submission) {
+  if (
+    status === "approved" &&
+    previousSubmission.status !== "approved" &&
+    submission
+  ) {
     await awardForApprovedSubmission(
       submission.registration_id,
+      submission.user_id,
+      Number(submission.distance_km),
+      id,
+    );
+  } else if (
+    previousSubmission.status === "approved" &&
+    status !== "approved" &&
+    submission
+  ) {
+    await revokeApprovedSubmissionPoints(
       submission.user_id,
       Number(submission.distance_km),
       id,
@@ -295,12 +466,25 @@ export async function reviewSubmission(formData: FormData) {
   }
 
   if (submission) {
+    const notification =
+      status === "approved"
+        ? {
+            subject: "ผลวิ่งของคุณได้รับการอนุมัติแล้ว",
+            text: `ระยะ ${submission.distance_km} km ได้รับการอนุมัติแล้ว เพิ่มเข้ายอดสะสมของคุณเรียบร้อย`,
+          }
+        : status === "rejected"
+          ? {
+              subject: "ผลวิ่งของคุณถูกปฏิเสธ",
+              text: `ผลวิ่งระยะ ${submission.distance_km} km ที่ส่งมาถูกปฏิเสธ ติดต่อผู้จัดงานถ้าคิดว่าเป็นความผิดพลาด`,
+            }
+          : {
+              subject: "ผลวิ่งของคุณอยู่ระหว่างรอตรวจ",
+              text: `ผลวิ่งระยะ ${submission.distance_km} km ถูกเปลี่ยนเป็นสถานะรอตรวจ เจ้าหน้าที่จะตรวจสอบอีกครั้ง`,
+            };
+
     await notifyUser(submission.user_id, "submission_reviewed", {
-      subject: status === "approved" ? "ผลวิ่งของคุณได้รับการอนุมัติแล้ว" : "ผลวิ่งของคุณถูกปฏิเสธ",
-      text:
-        status === "approved"
-          ? `ระยะ ${submission.distance_km} km ได้รับการอนุมัติแล้ว เพิ่มเข้ายอดสะสมของคุณเรียบร้อย`
-          : `ผลวิ่งระยะ ${submission.distance_km} km ที่ส่งมาถูกปฏิเสธ ติดต่อผู้จัดงานถ้าคิดว่าเป็นความผิดพลาด`,
+      subject: notification.subject,
+      text: notification.text,
     });
   }
 
@@ -357,50 +541,68 @@ export async function upsertShipment(formData: FormData) {
 
 // ---------- Admins ----------
 
-export async function promoteAdmin(formData: FormData) {
-  await requireAdmin();
+export async function setAdminRole(formData: FormData) {
+  const { user } = await requireSuperAdmin();
   const db = createAdminClient();
 
+  const id = String(formData.get("id") ?? "");
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  if (!email) err("/admin/admins", "กรอกอีเมล");
+  const role = String(formData.get("role") ?? "") as AdminRole;
+  if (!ADMIN_ROLES.includes(role)) err("/admin/admins", "ระดับสิทธิ์ไม่ถูกต้อง");
+  if (!id && !email) err("/admin/admins", "กรอกอีเมล");
 
-  const { data: target } = await db
-    .from("users")
-    .select("id")
-    .eq("email", email)
-    .maybeSingle();
+  const query = db.from("users").select("id, role");
+  const { data: target } = id
+    ? await query.eq("id", id).maybeSingle()
+    : await query.eq("email", email).maybeSingle();
 
   if (!target) {
     err("/admin/admins", "ไม่พบผู้ใช้อีเมลนี้ — ต้องให้เขาสมัครสมาชิกก่อน");
   }
 
-  const { error } = await db.from("users").update({ role: "admin" }).eq("id", target!.id);
+  if (target!.id === user.id && target!.role !== role) {
+    err("/admin/admins", "ไม่สามารถเปลี่ยนระดับสิทธิ์ของบัญชีที่กำลังใช้งานได้");
+  }
+
+  const { error } = await db.from("users").update({ role }).eq("id", target!.id);
   if (error) err("/admin/admins", error.message);
 
   revalidatePath("/admin/admins");
-  redirect("/admin/admins?promoted=1");
+  revalidatePath("/", "layout");
+  redirect("/admin/admins?saved=1");
 }
 
-export async function demoteAdmin(formData: FormData) {
-  await requireAdmin();
+export async function removeAdminRole(formData: FormData) {
+  const { user } = await requireSuperAdmin();
   const db = createAdminClient();
 
   const id = String(formData.get("id") ?? "");
   if (!id) err("/admin/admins", "ไม่พบผู้ใช้");
 
-  const { count } = await db
-    .from("users")
-    .select("id", { count: "exact", head: true })
-    .eq("role", "admin");
+  if (id === user.id) {
+    err("/admin/admins", "ไม่สามารถถอดสิทธิ์บัญชีที่กำลังใช้งานได้");
+  }
 
-  if ((count ?? 0) <= 1) {
-    err("/admin/admins", "ต้องมีผู้ดูแลระบบเหลืออย่างน้อย 1 คน");
+  const { data: target } = await db.from("users").select("role").eq("id", id).maybeSingle();
+  if (!target || !ADMIN_ROLES.includes(target.role as AdminRole)) {
+    err("/admin/admins", "ไม่พบผู้ดูแลระบบหรือเจ้าหน้าที่");
+  }
+
+  if (target.role === "super_admin") {
+    const { count } = await db
+      .from("users")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "super_admin");
+    if ((count ?? 0) <= 1) {
+      err("/admin/admins", "ต้องมีผู้ดูแลระบบสูงสุดเหลืออย่างน้อย 1 คน");
+    }
   }
 
   const { error } = await db.from("users").update({ role: "user" }).eq("id", id);
   if (error) err("/admin/admins", error.message);
 
   revalidatePath("/admin/admins");
+  revalidatePath("/", "layout");
   redirect("/admin/admins?demoted=1");
 }
 
@@ -466,7 +668,7 @@ export async function rejectPayment(formData: FormData) {
 // ---------- Medals ----------
 
 export async function createMedal(formData: FormData) {
-  await requireAdmin();
+  await requireManager();
   const db = createAdminClient();
 
   const eventId = String(formData.get("event_id") ?? "");
@@ -503,7 +705,7 @@ export async function createMedal(formData: FormData) {
 }
 
 export async function updateMedal(formData: FormData) {
-  await requireAdmin();
+  await requireManager();
   const db = createAdminClient();
 
   const id = String(formData.get("id") ?? "");
@@ -544,7 +746,7 @@ export async function updateMedal(formData: FormData) {
 }
 
 export async function deleteMedal(formData: FormData) {
-  await requireAdmin();
+  await requireManager();
   const db = createAdminClient();
 
   const id = String(formData.get("id") ?? "");
@@ -566,13 +768,131 @@ export async function deleteMedal(formData: FormData) {
   redirect("/admin/events/" + eventId + "?tab=medals&medal_deleted=1");
 }
 
+// ---------- Physical medals ----------
+
+export async function createPhysicalMedal(formData: FormData) {
+  await requireManager();
+  const db = createAdminClient();
+
+  const eventId = String(formData.get("event_id") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const tier = String(formData.get("tier") ?? "bronze");
+  const targetKm = Number(formData.get("target_km") ?? 0);
+  const bonusPoints = Number(formData.get("bonus_points") ?? 0);
+  const sortOrder = Math.max(0, Math.round(Number(formData.get("sort_order") ?? 0) || 0));
+
+  if (!eventId || !name || targetKm <= 0) {
+    err(
+      `/admin/events/${eventId}?tab=physical-medals`,
+      "กรอกชื่อเหรียญจริงและระยะเป้าหมายให้ถูกต้อง",
+    );
+  }
+
+  let imageUrl: string | null = null;
+  try {
+    imageUrl = await uploadEventImage(db, formData.get("image_url_file"), "physical-medals");
+  } catch (e) {
+    err(`/admin/events/${eventId}?tab=physical-medals`, (e as Error).message);
+  }
+
+  const { error } = await db.from("physical_medals").insert({
+    event_id: eventId,
+    name,
+    tier,
+    unlock_rule: { type: "distance", target_km: targetKm },
+    bonus_points: bonusPoints,
+    image_url: imageUrl,
+    sort_order: sortOrder,
+  });
+  if (error) err(`/admin/events/${eventId}?tab=physical-medals`, error.message);
+
+  revalidatePath(`/admin/events/${eventId}`);
+  redirect(`/admin/events/${eventId}?tab=physical-medals&physical_medal_added=1`);
+}
+
+export async function updatePhysicalMedal(formData: FormData) {
+  await requireManager();
+  const db = createAdminClient();
+
+  const id = String(formData.get("id") ?? "");
+  const eventId = String(formData.get("event_id") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const tier = String(formData.get("tier") ?? "bronze");
+  const targetKm = Number(formData.get("target_km") ?? 0);
+  const bonusPoints = Number(formData.get("bonus_points") ?? 0);
+  const sortOrder = Math.max(0, Math.round(Number(formData.get("sort_order") ?? 0) || 0));
+
+  if (!id || !eventId || !name || targetKm <= 0) {
+    err(
+      `/admin/events/${eventId}?tab=physical-medals`,
+      "กรอกชื่อเหรียญจริงและระยะเป้าหมายให้ถูกต้อง",
+    );
+  }
+
+  let imageUrl = String(formData.get("existing_image_url") ?? "").trim() || null;
+  try {
+    const uploaded = await uploadEventImage(db, formData.get("image_url_file"), "physical-medals");
+    if (uploaded) imageUrl = uploaded;
+  } catch (e) {
+    err(`/admin/events/${eventId}?tab=physical-medals`, (e as Error).message);
+  }
+
+  const { error } = await db
+    .from("physical_medals")
+    .update({
+      name,
+      tier,
+      unlock_rule: { type: "distance", target_km: targetKm },
+      bonus_points: bonusPoints,
+      image_url: imageUrl,
+      sort_order: sortOrder,
+    })
+    .eq("id", id)
+    .eq("event_id", eventId);
+  if (error) err(`/admin/events/${eventId}?tab=physical-medals`, error.message);
+
+  revalidatePath(`/admin/events/${eventId}`);
+  revalidatePath(`/events/${eventId}`);
+  redirect(`/admin/events/${eventId}?tab=physical-medals&physical_medal_saved=1`);
+}
+
+export async function deletePhysicalMedal(formData: FormData) {
+  await requireManager();
+  const db = createAdminClient();
+
+  const id = String(formData.get("id") ?? "");
+  const eventId = String(formData.get("event_id") ?? "");
+  if (!id || !eventId) {
+    err(`/admin/events/${eventId}?tab=physical-medals`, "ไม่พบเหรียญจริงที่ต้องการลบ");
+  }
+
+  const { error: packageError } = await db
+    .from("packages")
+    .update({ has_physical_medal: false, physical_medal_id: null })
+    .eq("physical_medal_id", id)
+    .eq("event_id", eventId);
+  if (packageError) err(`/admin/events/${eventId}?tab=physical-medals`, packageError.message);
+
+  const { error } = await db
+    .from("physical_medals")
+    .delete()
+    .eq("id", id)
+    .eq("event_id", eventId);
+  if (error) err(`/admin/events/${eventId}?tab=physical-medals`, error.message);
+
+  revalidatePath(`/admin/events/${eventId}`);
+  revalidatePath(`/events/${eventId}`);
+  redirect(`/admin/events/${eventId}?tab=physical-medals&physical_medal_deleted=1`);
+}
+
 // ---------- Rewards ----------
 
 export async function createReward(formData: FormData) {
-  await requireAdmin();
+  await requireManager();
   const db = createAdminClient();
 
   const name = String(formData.get("name") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim() || null;
   const costPoints = Number(formData.get("cost_points") ?? 0);
   const stock = Number(formData.get("stock") ?? 0);
 
@@ -580,19 +900,34 @@ export async function createReward(formData: FormData) {
     err("/admin/rewards", "กรอกชื่อรางวัลและแต้มให้ถูกต้อง");
   }
 
-  const { error } = await db.from("rewards").insert({ name, cost_points: costPoints, stock });
+  let imageUrl: string | null = null;
+  try {
+    imageUrl = await uploadEventImage(db, formData.get("image_file"), "rewards");
+  } catch (e) {
+    err("/admin/rewards", (e as Error).message);
+  }
+
+  const { error } = await db.from("rewards").insert({
+    name,
+    description,
+    image_url: imageUrl,
+    cost_points: costPoints,
+    stock,
+  });
   if (error) err("/admin/rewards", error.message);
 
   revalidatePath("/admin/rewards");
+  revalidatePath("/rewards");
   redirect("/admin/rewards?reward_added=1");
 }
 
 export async function updateReward(formData: FormData) {
-  await requireAdmin();
+  await requireManager();
   const db = createAdminClient();
 
   const id = String(formData.get("id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim() || null;
   const costPoints = Number(formData.get("cost_points") ?? 0);
   const stock = Number(formData.get("stock") ?? 0);
 
@@ -600,18 +935,26 @@ export async function updateReward(formData: FormData) {
     err("/admin/rewards", "กรอกชื่อรางวัลและแต้มให้ถูกต้อง");
   }
 
+  let imageUrl = String(formData.get("existing_image_url") ?? "").trim() || null;
+  try {
+    const uploaded = await uploadEventImage(db, formData.get("image_file"), "rewards");
+    if (uploaded) imageUrl = uploaded;
+  } catch (e) {
+    err("/admin/rewards", (e as Error).message);
+  }
+
   const { error } = await db
     .from("rewards")
-    .update({ name, cost_points: costPoints, stock })
+    .update({ name, description, image_url: imageUrl, cost_points: costPoints, stock })
     .eq("id", id);
   if (error) err("/admin/rewards", error.message);
 
   revalidatePath("/admin/rewards");
+  revalidatePath("/rewards");
   redirect("/admin/rewards?reward_saved=1");
 }
-
 export async function fulfillRedemption(formData: FormData) {
-  await requireAdmin();
+  await requireManager();
   const db = createAdminClient();
 
   const id = String(formData.get("id") ?? "");
@@ -641,14 +984,24 @@ export async function fulfillRedemption(formData: FormData) {
 // ---------- Hero Banners ----------
 
 export async function createHeroBanner(formData: FormData) {
-  await requireAdmin();
+  await requireManager();
   const db = createAdminClient();
 
   const title = String(formData.get("title") ?? "").trim();
   const subtitle = String(formData.get("subtitle") ?? "").trim();
   const link_url = String(formData.get("link_url") ?? "").trim();
-  const sort_order = Number(formData.get("sort_order") ?? 0);
   const is_active = formData.get("is_active") === "on";
+  const position_x = parseImagePosition(formData.get("position_x"));
+  const position_y = parseImagePosition(formData.get("position_y"));
+
+  const { data: lastBanner, error: orderError } = await db
+    .from("hero_banners")
+    .select("sort_order")
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (orderError) err("/admin/hero-banners", orderError.message);
+  const sort_order = (lastBanner?.sort_order ?? -1) + 1;
 
   let image_url: string | null = null;
   try {
@@ -665,6 +1018,8 @@ export async function createHeroBanner(formData: FormData) {
     title: title || null,
     subtitle: subtitle || null,
     link_url: link_url || null,
+    position_x,
+    position_y,
     sort_order,
     is_active,
   });
@@ -676,15 +1031,16 @@ export async function createHeroBanner(formData: FormData) {
 }
 
 export async function updateHeroBanner(formData: FormData) {
-  await requireAdmin();
+  await requireManager();
   const db = createAdminClient();
 
   const id = String(formData.get("id") ?? "");
   const title = String(formData.get("title") ?? "").trim();
   const subtitle = String(formData.get("subtitle") ?? "").trim();
   const link_url = String(formData.get("link_url") ?? "").trim();
-  const sort_order = Number(formData.get("sort_order") ?? 0);
   const is_active = formData.get("is_active") === "on";
+  const position_x = parseImagePosition(formData.get("position_x"));
+  const position_y = parseImagePosition(formData.get("position_y"));
 
   if (!id) err("/admin/hero-banners", "ไม่พบ banner");
 
@@ -704,7 +1060,8 @@ export async function updateHeroBanner(formData: FormData) {
       title: title || null,
       subtitle: subtitle || null,
       link_url: link_url || null,
-      sort_order,
+      position_x,
+      position_y,
       is_active,
     })
     .eq("id", id);
@@ -715,8 +1072,39 @@ export async function updateHeroBanner(formData: FormData) {
   redirect("/admin/hero-banners?saved=1");
 }
 
+export async function moveHeroBanner(
+  id: string,
+  direction: "up" | "down",
+  _formData: FormData,
+) {
+  await requireManager();
+  const db = createAdminClient();
+  if (!id) {
+    err("/admin/hero-banners", "ข้อมูลการย้ายลำดับไม่ถูกต้อง");
+  }
+  const { data, error } = await db
+    .from("hero_banners")
+    .select("id, sort_order, created_at")
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+  if (error) err("/admin/hero-banners", error.message);
+  const banners = data ?? [];
+  const currentIndex = banners.findIndex((banner) => banner.id === id);
+  const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+  if (currentIndex >= 0 && targetIndex >= 0 && targetIndex < banners.length) {
+    [banners[currentIndex], banners[targetIndex]] = [banners[targetIndex], banners[currentIndex]];
+    for (const [index, banner] of banners.entries()) {
+      if (banner.sort_order === index) continue;
+      const { error: updateError } = await db.from("hero_banners").update({ sort_order: index }).eq("id", banner.id);
+      if (updateError) err("/admin/hero-banners", updateError.message);
+    }
+  }
+  revalidatePath("/admin/hero-banners");
+  revalidatePath("/");
+  redirect("/admin/hero-banners?reordered=1");
+}
 export async function deleteHeroBanner(formData: FormData) {
-  await requireAdmin();
+  await requireManager();
   const db = createAdminClient();
 
   const id = String(formData.get("id") ?? "");
@@ -735,7 +1123,7 @@ export async function deleteHeroBanner(formData: FormData) {
 const HEX_COLOR = /^#[0-9A-Fa-f]{6}$/;
 
 export async function updateSystemSettings(formData: FormData) {
-  await requireAdmin();
+  await requireSuperAdmin();
   const db = createAdminClient();
 
   const site_name = String(formData.get("site_name") ?? "").trim();

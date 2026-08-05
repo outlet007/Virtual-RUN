@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ListFilter, Medal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MedalHexagon, type MedalEntry } from "./medal-hexagon";
 
@@ -30,10 +31,11 @@ export function MedalFilterGrid({ entries }: { entries: MedalEntry[] }) {
           type="button"
           onClick={() => setFilter("all")}
           className={cn(
-            "rounded-full px-4 py-2 text-sm font-medium transition",
+            "inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition",
             filter === "all" ? "bg-ink text-paper" : "bg-lane/60 text-ink/60 hover:bg-lane",
           )}
         >
+          <ListFilter className="size-4" aria-hidden="true" />
           ทั้งหมด
         </button>
         {tiersPresent.map((t) => (
@@ -42,10 +44,11 @@ export function MedalFilterGrid({ entries }: { entries: MedalEntry[] }) {
             type="button"
             onClick={() => setFilter(t)}
             className={cn(
-              "rounded-full px-4 py-2 text-sm font-medium transition",
+              "inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition",
               filter === t ? "bg-ink text-paper" : "bg-lane/60 text-ink/60 hover:bg-lane",
             )}
           >
+            <Medal className="size-4" aria-hidden="true" />
             {tierLabel[t] ?? t}
           </button>
         ))}

@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createSiteUrl } from "@/lib/site-url";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return NextResponse.redirect(new URL("/login?next=/admin/settings", request.url));
+  if (!user) return NextResponse.redirect(createSiteUrl(request, "/login?next=/admin/settings"));
 
   const state = crypto.randomUUID();
-  const redirectUri = new URL("/api/line/callback", request.url).toString();
+  const redirectUri = createSiteUrl(request, "/api/line/callback").toString();
 
   const authorizeUrl = new URL("https://access.line.me/oauth2/v2.1/authorize");
   authorizeUrl.searchParams.set("client_id", process.env.LINE_LOGIN_CHANNEL_ID ?? "");

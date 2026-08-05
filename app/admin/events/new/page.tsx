@@ -69,7 +69,7 @@ export default async function NewEventPage({
               <Input name="end_date" type="date" required />
             </div>
           </div>
-          <Button className="w-full" type="submit">
+          <Button className="w-full" type="submit" icon="add">
             สร้างงาน
           </Button>
         </Card>

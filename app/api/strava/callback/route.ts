@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { exchangeCodeForToken, listActivities } from "@/lib/strava/api";
 import { syncActivityForUser } from "@/lib/strava/sync";
+import { createSiteUrl } from "@/lib/site-url";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -16,9 +17,9 @@ export async function GET(request: Request) {
 
   if (error || !code || !state || state !== expectedState) {
     return NextResponse.redirect(
-      new URL(
+      createSiteUrl(
+        request,
         `/admin/settings?error=${encodeURIComponent("เชื่อมต่อ Strava ไม่สำเร็จ")}`,
-        request.url,
       ),
     );
   }
@@ -27,7 +28,7 @@ export async function GET(request: Request) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return NextResponse.redirect(new URL("/login", request.url));
+  if (!user) return NextResponse.redirect(createSiteUrl(request, "/login"));
 
   const token = await exchangeCodeForToken(code);
 
@@ -65,7 +66,7 @@ export async function GET(request: Request) {
     }
   }
 
-  const response = NextResponse.redirect(new URL("/admin/settings?strava=connected", request.url));
+  const response = NextResponse.redirect(createSiteUrl(request, "/admin/settings?strava=connected"));
   response.cookies.delete("strava_oauth_state");
   return response;
 }

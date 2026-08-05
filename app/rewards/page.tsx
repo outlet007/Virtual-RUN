@@ -10,6 +10,8 @@ export const dynamic = "force-dynamic";
 type RewardRow = {
   id: string;
   name: string;
+  description: string | null;
+  image_url: string | null;
   cost_points: number;
   stock: number;
 };
@@ -28,7 +30,7 @@ export default async function RewardsPage({
 
   const { data: rewardsRaw } = await supabase
     .from("rewards")
-    .select("id, name, cost_points, stock")
+    .select("id, name, description, image_url, cost_points, stock")
     .order("cost_points", { ascending: true });
   const rewards = (rewardsRaw ?? []) as RewardRow[];
 
@@ -64,21 +66,40 @@ export default async function RewardsPage({
           {rewards.map((r) => {
             const canRedeem = balance >= r.cost_points && r.stock > 0;
             return (
-              <Card key={r.id} className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="font-semibold">{r.name}</p>
-                  <p className="font-mono text-sm text-ink/50 tnum">{r.cost_points} แต้ม</p>
-                  <Badge
-                    className={
-                      r.stock > 0 ? "mt-1 bg-primary-soft text-primary-dark" : "mt-1 bg-lane text-muted"
-                    }
-                  >
-                    {r.stock > 0 ? `คงเหลือ ${r.stock}` : "หมดแล้ว"}
-                  </Badge>
+              <Card key={r.id} className="space-y-4">
+                <div className="flex items-start gap-4">
+                  {r.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={r.image_url}
+                      alt={r.name}
+                      className="h-24 w-24 shrink-0 rounded-xl border border-lane object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-xl border border-dashed border-lane bg-lane/30 text-ink/35">
+                      <Gift className="h-8 w-8" aria-hidden="true" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold">{r.name}</p>
+                    <p className="font-mono text-sm text-ink/50 tnum">{r.cost_points} แต้ม</p>
+                    {r.description && (
+                      <p className="mt-2 whitespace-pre-line text-sm leading-6 text-ink/65">
+                        {r.description}
+                      </p>
+                    )}
+                    <Badge
+                      className={
+                        r.stock > 0 ? "mt-2 bg-primary-soft text-primary-dark" : "mt-2 bg-lane text-muted"
+                      }
+                    >
+                      {r.stock > 0 ? `คงเหลือ ${r.stock}` : "หมดแล้ว"}
+                    </Badge>
+                  </div>
                 </div>
-                <form action={redeemReward}>
+                <form action={redeemReward} className="flex justify-end">
                   <input type="hidden" name="reward_id" value={r.id} />
-                  <Button type="submit" disabled={!canRedeem}>
+                  <Button type="submit" disabled={!canRedeem} icon="gift">
                     แลก
                   </Button>
                 </form>

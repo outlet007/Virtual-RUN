@@ -34,7 +34,7 @@ export function EditEventModal({ event }: { event: EventForModal }) {
 
   return (
     <>
-      <Button variant="ghost" type="button" onClick={() => setOpen(true)}>
+      <Button variant="ghost" type="button" icon="edit" onClick={() => setOpen(true)}>
         แก้ไขงาน
       </Button>
 
@@ -114,7 +114,7 @@ export function EditEventModal({ event }: { event: EventForModal }) {
                     <Input name="end_date" type="date" defaultValue={event.end_date} required />
                   </div>
                 </div>
-                <Button className="w-full" type="submit">
+                <Button className="w-full" type="submit" icon="save">
                   บันทึกงาน
                 </Button>
               </Card>

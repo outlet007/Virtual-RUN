@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { Card, Button, Input, Label } from "@/components/ui";
+import { Card, Input, Label } from "@/components/ui";
 import { createSubmission } from "@/lib/actions/submission";
+import { SubmissionSubmitButton } from "@/components/submission-submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -82,28 +83,61 @@ export default async function SubmitPage({
               </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>ระยะ (km)</Label>
+            <div>
+              <Label>ระยะ (km)</Label>
+              <Input
+                name="distance_km"
+                type="number"
+                step="0.01"
+                min="0.1"
+                inputMode="decimal"
+                required
+              />
+            </div>
+
+            <div>
+              <Label>เวลา (ชั่วโมง : นาที : วินาที)</Label>
+              <div className="grid grid-cols-3 gap-3">
                 <Input
-                  name="distance_km"
+                  name="duration_hours"
                   type="number"
-                  step="0.01"
-                  min="0.1"
-                  inputMode="decimal"
+                  step="1"
+                  min="0"
+                  max="99"
+                  inputMode="numeric"
+                  defaultValue="0"
+                  aria-label="ชั่วโมง"
+                  placeholder="ชม."
+                  required
+                />
+                <Input
+                  name="duration_minutes"
+                  type="number"
+                  step="1"
+                  min="0"
+                  max="59"
+                  inputMode="numeric"
+                  defaultValue="0"
+                  aria-label="นาที"
+                  placeholder="นาที"
+                  required
+                />
+                <Input
+                  name="duration_seconds"
+                  type="number"
+                  step="1"
+                  min="0"
+                  max="59"
+                  inputMode="numeric"
+                  defaultValue="0"
+                  aria-label="วินาที"
+                  placeholder="วินาที"
                   required
                 />
               </div>
-              <div>
-                <Label>เวลา (นาที)</Label>
-                <Input
-                  name="duration_min"
-                  type="number"
-                  step="1"
-                  min="1"
-                  inputMode="numeric"
-                />
-              </div>
+              <p className="mt-1 text-xs text-ink/40">
+                ตัวอย่าง 1 ชั่วโมง 30 นาที กรอก 01 : 30 : 00
+              </p>
             </div>
 
             <div>
@@ -116,18 +150,16 @@ export default async function SubmitPage({
               <input
                 name="evidence_file"
                 type="file"
-                accept="image/png,image/jpeg,image/webp,image/heic"
+                accept="image/png,image/jpeg,image/webp"
                 required
                 className="block w-full text-sm text-ink/70 file:mr-3 file:rounded-lg file:border-0 file:bg-lane file:px-3 file:py-2 file:text-sm file:font-medium hover:file:bg-lane/70"
               />
               <p className="mt-1 text-xs text-ink/40">
-                ต้องแนบรูปทุกครั้ง — ระบบตรวจ pace อัตโนมัติ ถ้าผิดปกติจะส่งให้ผู้จัดตรวจก่อน
+                รองรับ PNG, JPG และ WebP — ระบบ OCR จะอ่านระยะจากภาพและเปรียบเทียบกับค่าที่กรอก
               </p>
             </div>
 
-            <Button className="w-full" type="submit">
-              บันทึกผล
-            </Button>
+            <SubmissionSubmitButton />
           </Card>
         </form>
       )}

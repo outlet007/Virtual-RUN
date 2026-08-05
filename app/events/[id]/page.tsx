@@ -21,12 +21,21 @@ export default async function EventDetailPage({
   const { data: event } = await supabase
     .from("events")
     .select(
-      "id, title, description, cover_image, cover_position_x, cover_position_y, poster_image, pricing, start_date, end_date, packages(id, name, target_distance_km, price, has_physical_medal)",
+      "id, title, description, cover_image, cover_position_x, cover_position_y, poster_image, pricing, start_date, end_date, packages(id, name, target_distance_km, price, has_physical_medal, digital_medal:medals!packages_digital_medal_id_fkey(id, name), physical_medal:physical_medals!packages_physical_medal_id_fkey(id, name))",
     )
     .eq("id", id)
     .single();
 
   if (!event) notFound();
+  const packages = (event.packages ?? []).map((packageRow) => ({
+    ...packageRow,
+    digital_medal: Array.isArray(packageRow.digital_medal)
+      ? packageRow.digital_medal[0] ?? null
+      : packageRow.digital_medal,
+    physical_medal: Array.isArray(packageRow.physical_medal)
+      ? packageRow.physical_medal[0] ?? null
+      : packageRow.physical_medal,
+  }));
 
   const {
     data: { user },
@@ -42,7 +51,7 @@ export default async function EventDetailPage({
 
       {/* Banner header ของงานนี้ — full-bleed เหมือน hero, ใช้ cover_image ของ event เอง */}
       {/* -mt-8 หักล้าง padding-top ของ <main> (py-8) ให้ banner ชิดกับ header เหมือนหน้าแรก */}
-      <div className="relative left-1/2 right-1/2 -mx-[50vw] -mt-8 min-h-[240px] w-screen overflow-hidden bg-ink sm:min-h-[320px]">
+      <div className="relative left-1/2 right-1/2 -mx-[50vw] -mt-8 min-h-[420px] w-screen overflow-hidden bg-ink sm:min-h-[480px]">
         {event.cover_image && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -60,7 +69,7 @@ export default async function EventDetailPage({
           className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-black/15"
           aria-hidden="true"
         />
-        <div className="relative mx-auto flex min-h-[240px] max-w-[1500px] flex-col justify-end px-0 py-6 sm:min-h-[320px] sm:py-8">
+        <div className="relative mx-auto flex min-h-[420px] max-w-[1500px] flex-col justify-end px-0 py-6 sm:min-h-[480px] sm:py-8">
           <div className="max-w-3xl">
             <Badge
               className={
@@ -118,38 +127,75 @@ export default async function EventDetailPage({
         {/* ขวา: เลือกแพ็กเกจ */}
         <div id="packages" className="scroll-mt-24 space-y-3">
           <h2 className="font-display text-xl font-bold">เลือกแพ็กเกจ</h2>
-          {event.packages.map((p) => (
-            <Card key={p.id} className="flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2">
+          {packages.map((p) => (
+            <Card
+              key={p.id}
+              className="flex flex-col gap-3 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+            >
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="font-display font-bold text-charcoal">{p.name}</span>
-                  {p.has_physical_medal && (
-                    <Badge className="gap-1 bg-medal-soft text-medal">
-                      <Medal className="h-3 w-3" /> เหรียญจริง
-                    </Badge>
-                  )}
+                  <Badge
+                    className={
+                      event.pricing === "free" || Number(p.price) === 0
+                        ? "bg-[rgb(10,164,57)] text-white"
+                        : "bg-[rgb(255,93,0)] text-white"
+                    }
+                  >
+                    {event.pricing === "free" || Number(p.price) === 0
+                      ? "ฟรี"
+                      : "มีค่าสมัคร"}
+                  </Badge>
                 </div>
+                {(p.digital_medal || p.has_physical_medal) && (
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    {p.digital_medal && (
+                      <Badge
+                        className="max-w-full min-w-0 gap-1 bg-sky-100 text-sky-700"
+                        title={`เหรียญดิจิทัล: ${p.digital_medal.name}`}
+                      >
+                        <Medal className="h-3 w-3 shrink-0" />
+                        <span className="truncate">เหรียญดิจิทัล: {p.digital_medal.name}</span>
+                      </Badge>
+                    )}
+                    {p.has_physical_medal && (
+                      <Badge
+                        className="max-w-full min-w-0 gap-1 bg-orange-100 text-orange-700"
+                        title={`เหรียญจริง${p.physical_medal ? `: ${p.physical_medal.name}` : ""}`}
+                      >
+                        <Medal className="h-3 w-3 shrink-0" />
+                        <span className="truncate">
+                          เหรียญจริง{p.physical_medal ? `: ${p.physical_medal.name}` : ""}
+                        </span>
+                      </Badge>
+                    )}
+                  </div>
+                )}
                 <div className="mt-1 flex items-center gap-2 font-mono text-sm text-ink/50">
                   <span className="inline-flex items-center gap-1 tnum">
                     <Road className="h-3.5 w-3.5" /> {p.target_distance_km} km
                   </span>
-                  <span className="text-ink/25">·</span>
-                  {Number(p.price) === 0 ? (
-                    <Badge className="bg-[rgb(10,164,57)] text-white">ฟรี</Badge>
-                  ) : (
-                    formatBaht(Number(p.price))
+                  {event.pricing !== "free" && Number(p.price) > 0 && (
+                    <>
+                      <span className="text-ink/25">·</span>
+                      {formatBaht(Number(p.price))}
+                    </>
                   )}
                 </div>
               </div>
               {user ? (
-                <LinkButton href={`/events/${event.id}/register?package=${p.id}`}>
+                <LinkButton
+                  href={`/events/${event.id}/register?package=${p.id}`}
+                  className="w-full shrink-0 whitespace-nowrap sm:w-auto sm:px-3"
+                  icon="userPlus">
                   สมัคร
                 </LinkButton>
               ) : (
                 <LinkButton
                   href={`/login?next=/events/${event.id}`}
                   variant="ghost"
-                >
+                  className="w-full shrink-0 whitespace-nowrap sm:w-auto sm:px-3"
+                  icon="login">
                   เข้าสู่ระบบเพื่อสมัคร
                 </LinkButton>
               )}

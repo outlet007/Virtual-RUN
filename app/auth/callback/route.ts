@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createSiteUrl } from "@/lib/site-url";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -7,7 +8,7 @@ export async function GET(request: Request) {
 
   if (!code) {
     return NextResponse.redirect(
-      new URL(`/login?error=${encodeURIComponent("เข้าสู่ระบบไม่สำเร็จ")}`, request.url),
+      createSiteUrl(request, `/login?error=${encodeURIComponent("เข้าสู่ระบบไม่สำเร็จ")}`),
     );
   }
 
@@ -15,14 +16,14 @@ export async function GET(request: Request) {
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) {
     return NextResponse.redirect(
-      new URL(`/login?error=${encodeURIComponent("เข้าสู่ระบบไม่สำเร็จ")}`, request.url),
+      createSiteUrl(request, `/login?error=${encodeURIComponent("เข้าสู่ระบบไม่สำเร็จ")}`),
     );
   }
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return NextResponse.redirect(new URL("/login", request.url));
+  if (!user) return NextResponse.redirect(createSiteUrl(request, "/login"));
 
   // ผู้ใช้ social login ครั้งแรกยังไม่เคยยอมรับ PDPA (ข้ามฟอร์มสมัครสมาชิกปกติมา) ต้องให้ยอมรับก่อน
   const { data: consent } = await supabase
@@ -33,8 +34,8 @@ export async function GET(request: Request) {
     .maybeSingle();
 
   if (!consent) {
-    return NextResponse.redirect(new URL("/consent", request.url));
+    return NextResponse.redirect(createSiteUrl(request, "/consent"));
   }
 
-  return NextResponse.redirect(new URL("/dashboard", request.url));
+  return NextResponse.redirect(createSiteUrl(request, "/dashboard"));
 }

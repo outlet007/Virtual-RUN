@@ -1,10 +1,16 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Card } from "@/components/ui";
+import { requireAdmin } from "@/lib/auth/admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminOverviewPage() {
+  const { role } = await requireAdmin();
+  if (role === "admin") redirect("/admin/events");
+  if (role === "staff") redirect("/admin/submissions");
+
   const db = createAdminClient();
 
   const [

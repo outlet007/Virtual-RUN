@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { Noto_Sans_Thai } from "next/font/google";
 import Link from "next/link";
+import { LogIn, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getSystemSettings } from "@/lib/system-settings";
 import { lighten, darken } from "@/lib/color";
+import { getAdminHome, isAdminRole, type AdminRole } from "@/lib/auth/admin";
 import "./globals.css";
 
 // Noto Sans Thai เป็น font เดียวของทั้งระบบ (แทน Space Grotesk/Inter/Space Mono เดิม)
@@ -32,14 +34,14 @@ export default async function RootLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
-  let isAdmin = false;
+  let adminRole: AdminRole | null = null;
   if (user) {
     const { data: profile } = await supabase
       .from("users")
       .select("role")
       .eq("id", user.id)
       .single();
-    isAdmin = profile?.role === "admin";
+    adminRole = isAdminRole(profile?.role) ? profile.role : null;
   }
 
   const settings = await getSystemSettings();
@@ -88,24 +90,19 @@ export default async function RootLayout({
                   >
                     แดชบอร์ด
                   </Link>
-                  {isAdmin && (
+                  {adminRole && (
                     <>
                       <Link
-                        href="/admin"
+                        href={getAdminHome(adminRole)}
                         className="rounded-lg px-3 py-2 font-medium hover:bg-lane/60"
                       >
                         แผงควบคุม
                       </Link>
-                      <Link
-                        href="/admin/settings"
-                        className="rounded-lg px-3 py-2 font-medium hover:bg-lane/60"
-                      >
-                        จัดการระบบ
-                      </Link>
                     </>
                   )}
                   <form action="/auth/signout" method="post">
-                    <button className="rounded-lg px-3 py-2 font-medium text-muted hover:bg-lane/60">
+                    <button className="inline-flex items-center gap-2 rounded-lg px-3 py-2 font-medium text-muted hover:bg-lane/60">
+                      <LogOut className="size-4" aria-hidden="true" />
                       ออกจากระบบ
                     </button>
                   </form>
@@ -113,8 +110,9 @@ export default async function RootLayout({
               ) : (
                 <Link
                   href="/login"
-                  className="rounded-lg bg-ink px-4 py-2 font-semibold text-paper hover:bg-ink/90"
+                  className="inline-flex items-center gap-2 rounded-lg bg-ink px-4 py-2 font-semibold text-paper hover:bg-ink/90"
                 >
+                  <LogIn className="size-4" aria-hidden="true" />
                   เข้าสู่ระบบ
                 </Link>
               )}
