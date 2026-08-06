@@ -1,8 +1,9 @@
 import { Link2 } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { Card, Button, Input, Label, LinkButton, ImageUploadField } from "@/components/ui";
+import { Card, Button, Input, Label, LinkButton, ImageUploadField, Select, Textarea } from "@/components/ui";
 import { ColorField } from "@/components/admin/color-field";
+import { OpacityField } from "@/components/admin/opacity-field";
 import { updateSystemSettings } from "@/lib/actions/admin";
 import { disconnectStrava } from "@/lib/actions/strava";
 import { disconnectLine } from "@/lib/actions/line";
@@ -20,7 +21,9 @@ export default async function AdminSettingsPage({
 
   const { data: settingsRow } = await db
     .from("system_settings")
-    .select("site_name, logo_url, favicon_url, color_ink, color_primary, color_accent, color_medal")
+    .select(
+      "site_name, logo_url, favicon_url, color_ink, color_primary, color_accent, color_medal, cookie_consent_enabled, cookie_consent_message, cookie_policy_url, cookie_consent_button_label, content_background_url, content_background_position_x, content_background_position_y, content_background_display, content_background_inset_top, content_background_inset_bottom, content_overlay_color, content_overlay_opacity",
+    )
     .eq("id", 1)
     .single();
   const settings = settingsRow ?? DEFAULT_SETTINGS;
@@ -89,7 +92,7 @@ export default async function AdminSettingsPage({
             <Label>ชื่อระบบ</Label>
             <Input name="site_name" defaultValue={settings.site_name} required />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <ImageUploadField name="logo_file" label="โลโก้" defaultImageUrl={settings.logo_url} />
             <ImageUploadField
               name="favicon_file"
@@ -99,7 +102,7 @@ export default async function AdminSettingsPage({
           </div>
 
           <h3 className="font-display font-bold">สีธีม</h3>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <ColorField name="color_ink" label="สีหลัก (ink)" defaultValue={settings.color_ink} />
             <ColorField
               name="color_primary"
@@ -108,6 +111,141 @@ export default async function AdminSettingsPage({
             />
             <ColorField name="color_accent" label="สี accent" defaultValue={settings.color_accent} />
             <ColorField name="color_medal" label="สีเหรียญ (medal)" defaultValue={settings.color_medal} />
+          </div>
+
+          <div className="space-y-4 border-t border-lane pt-5">
+            <div>
+              <h3 className="font-display font-bold">พื้นหลังพื้นที่เนื้อหา</h3>
+              <p className="mt-1 text-sm text-ink/50">
+                รูปและ Overlay จะใช้กับพื้นที่แสดงเนื้อหาระหว่าง Header และ Footer โดยไม่ทับ Hero Banner
+              </p>
+            </div>
+            <ImageUploadField
+              name="content_background_file"
+              label="รูปพื้นหลัง"
+              defaultImageUrl={settings.content_background_url}
+              positionXName="content_background_position_x"
+              positionYName="content_background_position_y"
+              defaultPositionX={settings.content_background_position_x}
+              defaultPositionY={settings.content_background_position_y}
+            />
+            {settings.content_background_url && (
+              <label className="flex items-start gap-2 text-sm font-medium text-red-700">
+                <input
+                  type="checkbox"
+                  name="remove_content_background"
+                  className="mt-0.5 h-4 w-4 rounded border-lane accent-red-600"
+                />
+                นำรูปพื้นหลังปัจจุบันออก
+              </label>
+            )}
+            <div>
+              <Label>รูปแบบการแสดงผล</Label>
+              <Select
+                name="content_background_display"
+                defaultValue={settings.content_background_display}
+              >
+                <option value="cover">Cover — เต็มพื้นที่โดยรักษาสัดส่วน</option>
+                <option value="contain">Contain — เห็นภาพครบโดยรักษาสัดส่วน</option>
+                <option value="stretch">Stretch — ยืดเต็มพื้นที่</option>
+                <option value="auto">ขนาดจริง — ไม่ย่อหรือขยาย</option>
+                <option value="repeat">Repeat — วางภาพซ้ำทุกทิศทาง</option>
+                <option value="repeat-x">Repeat แนวนอน</option>
+                <option value="repeat-y">Repeat แนวตั้ง</option>
+              </Select>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <Label>ระยะเว้นด้านบน (px)</Label>
+                <Input
+                  type="number"
+                  name="content_background_inset_top"
+                  min={0}
+                  max={2000}
+                  step={1}
+                  defaultValue={settings.content_background_inset_top}
+                />
+              </div>
+              <div>
+                <Label>ระยะเว้นด้านล่าง (px)</Label>
+                <Input
+                  type="number"
+                  name="content_background_inset_bottom"
+                  min={0}
+                  max={2000}
+                  step={1}
+                  defaultValue={settings.content_background_inset_bottom}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-ink/40">
+              กำหนดระยะที่รูปพื้นหลังและ Overlay เว้นจากขอบบนและขอบล่างของพื้นที่เนื้อหา
+            </p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <ColorField
+                name="content_overlay_color"
+                label="สี Overlay"
+                defaultValue={settings.content_overlay_color}
+              />
+              <OpacityField
+                name="content_overlay_opacity"
+                label="Opacity ของ Overlay"
+                defaultValue={settings.content_overlay_opacity}
+              />
+            </div>
+            <p className="text-xs text-ink/40">
+              0% คือโปร่งใสทั้งหมด และ 100% คือแสดงสี Overlay เต็มพื้นที่
+            </p>
+          </div>
+
+          <div className="space-y-4 border-t border-lane pt-5">
+            <div>
+              <h3 className="font-display font-bold">Cookie Consent</h3>
+              <p className="mt-1 text-sm text-ink/50">
+                แสดงแถบแจ้งการใช้ Cookie ที่ด้านล่างของทุกหน้า ผู้ใช้ที่กดยอมรับแล้วจะไม่เห็นซ้ำเป็นเวลา 180 วัน
+              </p>
+            </div>
+            <label className="flex items-start gap-2 text-sm font-medium text-ink/70">
+              <input
+                type="checkbox"
+                name="cookie_consent_enabled"
+                defaultChecked={settings.cookie_consent_enabled}
+                className="mt-0.5 h-4 w-4 rounded border-lane accent-ink"
+              />
+              เปิดใช้งาน Cookie Consent
+            </label>
+            <div>
+              <Label>ข้อความแจ้งการใช้ Cookie</Label>
+              <Textarea
+                name="cookie_consent_message"
+                rows={3}
+                maxLength={1000}
+                defaultValue={settings.cookie_consent_message}
+                required
+              />
+              <p className="mt-1 text-xs text-ink/40">
+                รองรับ HTML สำหรับจัดรูปแบบ เช่น &lt;strong&gt;, &lt;em&gt;, &lt;u&gt;, &lt;br&gt; และ &lt;a&gt;
+              </p>
+            </div>
+            <div>
+              <Label>URL นโยบาย Cookie</Label>
+              <Input
+                name="cookie_policy_url"
+                maxLength={2048}
+                defaultValue={settings.cookie_policy_url}
+                placeholder="/cookie-policy หรือ https://example.com/cookie-policy"
+              />
+              <p className="mt-1 text-xs text-ink/40">เว้นว่างได้ หากยังไม่มีหน้านโยบาย Cookie</p>
+            </div>
+            <div>
+              <Label>ข้อความบนปุ่มยอมรับ</Label>
+              <Input
+                name="cookie_consent_button_label"
+                maxLength={50}
+                defaultValue={settings.cookie_consent_button_label}
+                required
+              />
+            </div>
           </div>
 
           <Button className="w-full" type="submit" icon="save">
@@ -119,8 +257,8 @@ export default async function AdminSettingsPage({
       <div>
         <h3 className="mb-3 font-display font-bold">เชื่อมต่อบัญชีของฉัน</h3>
         <div className="space-y-3">
-          <Card className="flex items-center justify-between">
-            <div>
+          <Card className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
               <p className="font-display font-bold">Strava</p>
               <p className="text-sm text-ink/50">
                 {stravaConnection
@@ -139,8 +277,8 @@ export default async function AdminSettingsPage({
             )}
           </Card>
 
-          <Card className="flex items-center justify-between">
-            <div>
+          <Card className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
               <p className="font-display font-bold">LINE</p>
               <p className="text-sm text-ink/50">
                 {lineConnected

@@ -72,14 +72,14 @@ export default async function AdminOverviewPage() {
     { label: "งานที่เปิดรับสมัคร", value: openEvents ?? 0, href: "/admin/events" },
     { label: "ผลวิ่งรอตรวจ", value: pendingSubs ?? 0, href: "/admin/submissions" },
     { label: "การชำระเงินรอตรวจสอบ", value: pendingPayments ?? 0, href: "/admin/payments" },
-    { label: "ใบสมัครรอจัดส่งเหรียญ", value: pendingShipments, href: "/admin/shipments" },
+    { label: "ผู้สมัครรอจัดส่งเหรียญ", value: pendingShipments, href: "/admin/shipments" },
   ];
 
   const overviewStats = [
     { label: "สมาชิกทั้งหมด", value: (totalMembers ?? 0).toLocaleString() },
     { label: "งานทั้งหมด", value: (totalEvents ?? 0).toLocaleString() },
     { label: "ผู้สมัครทั้งหมด", value: (totalRegistrations ?? 0).toLocaleString() },
-    { label: "ใบสมัครยืนยันแล้ว", value: (confirmedRegistrations ?? 0).toLocaleString() },
+    { label: "ผู้สมัครยืนยันแล้ว", value: (confirmedRegistrations ?? 0).toLocaleString() },
     { label: "ผลวิ่งที่อนุมัติแล้ว", value: (approvedSubmissions ?? 0).toLocaleString() },
     { label: "ระยะสะสมทั้งระบบ (km)", value: totalDistanceKm.toLocaleString(undefined, { maximumFractionDigits: 1 }) },
     { label: "แต้มที่แจกไปแล้ว", value: totalPointsAwarded.toLocaleString() },

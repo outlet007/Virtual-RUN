@@ -45,7 +45,7 @@ export default async function HistoryPage() {
       ) : (
         <Card className="divide-y divide-lane p-0">
           {subs.map((s) => (
-            <div key={s.id} className="flex items-center justify-between gap-4 px-5 py-3">
+            <div key={s.id} className="flex flex-col items-start gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
               <div className="flex min-w-0 items-center gap-3">
                 <span className="shrink-0 text-ink/60">
                   {s.activity_type === "walk" ? (

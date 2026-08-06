@@ -1,8 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Gift } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { Card, Badge, Button } from "@/components/ui";
+import { Card, Badge, Button, LinkButton } from "@/components/ui";
 import { redeemReward } from "@/lib/actions/rewards";
 
 export const dynamic = "force-dynamic";
@@ -39,12 +38,12 @@ export default async function RewardsPage({
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
-      <Link href="/dashboard" className="text-sm text-ink/50 hover:text-ink">
-        ← แดชบอร์ด
-      </Link>
+      <LinkButton href="/dashboard" variant="ghost" icon="back">
+        แดชบอร์ด
+      </LinkButton>
 
       <Card className="bg-ink text-paper">
-        <p className="text-xs uppercase tracking-wider text-paper/50">แต้มสะสมของฉัน</p>
+        <p className="text-xs uppercase tracking-wider text-paper">แต้มสะสมของฉัน</p>
         <p className="mt-1 font-mono text-4xl font-bold text-primary tnum">{balance}</p>
       </Card>
 

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, Button, Input, Label, Badge } from "@/components/ui";
 import { registerForEvent } from "@/lib/actions/registration";
 import { formatBaht } from "@/lib/utils";
+import { isEventRegistrationOpen } from "@/lib/event-registration";
 
 export const dynamic = "force-dynamic";
 
@@ -26,17 +27,22 @@ export default async function RegisterPage({
   if (!packageId) notFound();
   const { data: pkg } = await supabase
     .from("packages")
-    .select("id, name, target_distance_km, price, has_physical_medal, events(title)")
+    .select("id, event_id, name, target_distance_km, price, has_physical_medal, events(title, status, end_date)")
     .eq("id", packageId)
     .single();
 
-  if (!pkg) notFound();
+  if (!pkg || pkg.event_id !== id) notFound();
   // relation อาจกลับมาเป็น object หรือ array แล้วแต่กรณี
   const ev = pkg.events as unknown as
-    | { title: string }
-    | { title: string }[]
+    | { title: string; status: string | null; end_date: string | null }
+    | { title: string; status: string | null; end_date: string | null }[]
     | null;
-  const eventTitle = (Array.isArray(ev) ? ev[0]?.title : ev?.title) ?? "";
+  const eventData = Array.isArray(ev) ? ev[0] ?? null : ev;
+  if (!eventData) notFound();
+  if (!isEventRegistrationOpen(eventData)) {
+    redirect(`/events/${id}?error=${encodeURIComponent("งานนี้สิ้นสุดแล้วและไม่เปิดรับสมัคร")}`);
+  }
+  const eventTitle = eventData.title;
   const isFree = Number(pkg.price) === 0;
 
   return (
@@ -79,7 +85,7 @@ export default async function RegisterPage({
               <Label>ที่อยู่</Label>
               <Input name="address" required />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <Label>จังหวัด</Label>
                 <Input name="province" required />

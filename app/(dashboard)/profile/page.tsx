@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { Card, Button, Input, Label, ImageUploadField } from "@/components/ui";
+import { Card, Button, Input, Label, ImageUploadField, Textarea } from "@/components/ui";
 import { updateProfile, changePassword } from "@/lib/actions/profile";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +19,7 @@ export default async function ProfilePage({
 
   const { data: profile } = await supabase
     .from("users")
-    .select("name, email, phone, avatar_url")
+    .select("name, email, phone, avatar_url, address, province, postal_code")
     .eq("id", user.id)
     .single();
 
@@ -63,6 +63,34 @@ export default async function ProfilePage({
           <div>
             <Label>เบอร์โทร</Label>
             <Input name="phone" type="tel" defaultValue={profile?.phone ?? ""} />
+          </div>
+          <div className="border-t border-border pt-4">
+            <h3 className="font-display font-bold">ข้อมูลที่อยู่</h3>
+          </div>
+          <div>
+            <Label>ที่อยู่</Label>
+            <Textarea
+              name="address"
+              defaultValue={profile?.address ?? ""}
+              maxLength={500}
+              placeholder="บ้านเลขที่ หมู่ ถนน แขวง/ตำบล เขต/อำเภอ"
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <Label>จังหวัด</Label>
+              <Input name="province" defaultValue={profile?.province ?? ""} maxLength={100} />
+            </div>
+            <div>
+              <Label>รหัสไปรษณีย์</Label>
+              <Input
+                name="postal_code"
+                defaultValue={profile?.postal_code ?? ""}
+                inputMode="numeric"
+                maxLength={5}
+                pattern="[0-9]{5}"
+              />
+            </div>
           </div>
           <Button className="w-full" type="submit" icon="save">
             บันทึก

@@ -7,7 +7,9 @@ import {
   ArrowUp,
   Check,
   CheckCircle2,
+  ChevronLeft,
   CircleX,
+  Download,
   ExternalLink,
   Eye,
   Gift,
@@ -36,9 +38,11 @@ export { Tabs } from "./tabs";
 const buttonIcons = {
   add: Plus,
   back: ArrowLeft,
+  chevronLeft: ChevronLeft,
   confirm: Check,
   connect: Link2,
   delete: Trash2,
+  download: Download,
   down: ArrowDown,
   edit: Pencil,
   external: ExternalLink,
@@ -87,7 +91,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 text-sm font-semibold transition disabled:opacity-50",
+        "inline-flex min-h-11 max-w-full items-center justify-center gap-2 rounded-xl px-5 py-2 text-center text-sm font-semibold leading-snug transition disabled:opacity-50",
         styles,
         className,
       )}
@@ -117,7 +121,7 @@ export function LinkButton({
   return (
     <Link
       className={cn(
-        "inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 text-sm font-semibold transition",
+        "inline-flex min-h-11 max-w-full items-center justify-center gap-2 rounded-xl px-5 py-2 text-center text-sm font-semibold leading-snug transition",
         styles,
         className,
       )}
@@ -136,7 +140,7 @@ export function Card({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-lane bg-white p-5 shadow-[0_1px_2px_rgba(12,17,29,0.04)]",
+        "min-w-0 rounded-2xl border border-lane bg-white p-4 shadow-[0_1px_2px_rgba(12,17,29,0.04)] sm:p-5",
         className,
       )}
       {...props}
@@ -151,7 +155,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold",
+        "inline-flex max-w-full items-center rounded-full px-2.5 py-0.5 text-xs font-semibold",
         className,
       )}
       {...props}
@@ -166,7 +170,7 @@ export function Input({
   return (
     <input
       className={cn(
-        "h-11 w-full rounded-xl border border-lane bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20",
+        "h-11 min-w-0 w-full rounded-xl border border-lane bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20",
         className,
       )}
       {...props}
@@ -181,7 +185,7 @@ export function Textarea({
   return (
     <textarea
       className={cn(
-        "w-full rounded-xl border border-lane bg-white px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20",
+        "min-w-0 w-full rounded-xl border border-lane bg-white px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20",
         className,
       )}
       {...props}
@@ -196,7 +200,7 @@ export function Select({
   return (
     <select
       className={cn(
-        "h-11 w-full rounded-xl border border-lane bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20",
+        "h-11 min-w-0 w-full rounded-xl border border-lane bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20",
         className,
       )}
       {...props}

@@ -30,6 +30,19 @@ export default async function NewEventPage({
             <Input name="title" required />
           </div>
           <div>
+            <Label>คำนำหน้า BIB</Label>
+            <Input
+              name="bib_prefix"
+              defaultValue="VR"
+              minLength={2}
+              maxLength={8}
+              pattern="[A-Za-z0-9]{2,8}"
+              className="uppercase"
+              required
+            />
+            <p className="mt-1 text-xs text-ink/45">ตัวอักษรอังกฤษหรือตัวเลข 2–8 ตัว</p>
+          </div>
+          <div>
             <Label>รายละเอียด</Label>
             <RichTextEditor name="description" />
           </div>
@@ -42,7 +55,7 @@ export default async function NewEventPage({
             defaultPositionY={50}
           />
           <ImageUploadField name="poster_image_file" label="รูป poster" />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <Label>ประเภทค่าสมัคร</Label>
               <Select name="pricing" defaultValue="free">
@@ -59,7 +72,7 @@ export default async function NewEventPage({
               </Select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <Label>วันที่เริ่ม</Label>
               <Input name="start_date" type="date" required />

@@ -19,7 +19,7 @@ export async function redeemReward(formData: FormData) {
   if (!user) redirect("/login");
 
   const rewardId = String(formData.get("reward_id") ?? "");
-  if (!rewardId) redirect("/rewards?error=" + encodeURIComponent("ไม่พบรางวัล"));
+  if (!rewardId) redirect("/dashboard/rewards?error=" + encodeURIComponent("ไม่พบรางวัล"));
 
   // ทำทุกอย่าง (เช็ค stock/แต้ม + insert redemption/ledger + ลด stock) ใน Postgres function
   // เดียวกันแบบ atomic กัน race condition ตอนสอง request แลกของพร้อมกัน (ดู 0007_redeem_reward_function.sql)
@@ -27,10 +27,11 @@ export async function redeemReward(formData: FormData) {
 
   if (error) {
     const message = REDEEM_ERROR_MESSAGES[error.message] ?? error.message;
-    redirect("/rewards?error=" + encodeURIComponent(message));
+    redirect("/dashboard/rewards?error=" + encodeURIComponent(message));
   }
 
   revalidatePath("/rewards");
+  revalidatePath("/dashboard/rewards");
   revalidatePath("/dashboard");
-  redirect("/rewards?redeemed=1");
+  redirect("/dashboard/rewards?redeemed=1");
 }

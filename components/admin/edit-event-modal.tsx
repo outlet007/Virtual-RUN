@@ -9,6 +9,7 @@ import { updateEvent } from "@/lib/actions/admin";
 type EventForModal = {
   id: string;
   title: string;
+  bib_prefix: string;
   description: string | null;
   cover_image: string | null;
   cover_position_x: number;
@@ -40,11 +41,11 @@ export function EditEventModal({ event }: { event: EventForModal }) {
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4"
           onClick={() => setOpen(false)}
         >
           <div
-            className="max-h-[95vh] w-full max-w-3xl overflow-y-auto"
+            className="max-h-[calc(100vh-1rem)] w-full max-w-3xl overflow-y-auto sm:max-h-[calc(100vh-2rem)]"
             onClick={(e) => e.stopPropagation()}
           >
             <form action={updateEvent}>
@@ -68,6 +69,19 @@ export function EditEventModal({ event }: { event: EventForModal }) {
                   <Input name="title" defaultValue={event.title} required />
                 </div>
                 <div>
+                  <Label>คำนำหน้า BIB</Label>
+                  <Input
+                    name="bib_prefix"
+                    defaultValue={event.bib_prefix}
+                    minLength={2}
+                    maxLength={8}
+                    pattern="[A-Za-z0-9]{2,8}"
+                    className="uppercase"
+                    required
+                  />
+                  <p className="mt-1 text-xs text-ink/45">ตัวอักษรอังกฤษหรือตัวเลข 2–8 ตัว</p>
+                </div>
+                <div>
                   <Label>รายละเอียด</Label>
                   <RichTextEditor name="description" defaultValue={event.description} />
                 </div>
@@ -87,7 +101,7 @@ export function EditEventModal({ event }: { event: EventForModal }) {
                     defaultImageUrl={event.poster_image}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <Label>ประเภทค่าสมัคร</Label>
                     <Select name="pricing" defaultValue={event.pricing}>
@@ -104,7 +118,7 @@ export function EditEventModal({ event }: { event: EventForModal }) {
                     </Select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <Label>วันที่เริ่ม</Label>
                     <Input name="start_date" type="date" defaultValue={event.start_date} required />

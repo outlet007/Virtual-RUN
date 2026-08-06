@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { genBib } from "@/lib/utils";
+import { isEventRegistrationOpen } from "@/lib/event-registration";
 
 export async function registerForEvent(formData: FormData) {
   const packageId = String(formData.get("package_id") ?? "");
@@ -17,12 +17,19 @@ export async function registerForEvent(formData: FormData) {
   // ดึงข้อมูลแพ็กเกจ + งาน
   const { data: pkg } = await supabase
     .from("packages")
-    .select("id, event_id, price, has_physical_medal, events(pricing)")
+    .select("id, event_id, price, has_physical_medal, events(pricing, status, end_date)")
     .eq("id", packageId)
     .single();
 
   if (!pkg) {
     redirect("/?error=" + encodeURIComponent("ไม่พบแพ็กเกจ"));
+  }
+
+  const eventData = Array.isArray(pkg.events) ? pkg.events[0] ?? null : pkg.events;
+  if (!eventData || !isEventRegistrationOpen(eventData)) {
+    redirect(
+      `/events/${pkg.event_id}?error=${encodeURIComponent("งานนี้สิ้นสุดแล้วและไม่เปิดรับสมัคร")}`,
+    );
   }
 
   // ที่อยู่จัดส่ง (เฉพาะแพ็กเกจที่มีเหรียญกายภาพ)
@@ -38,7 +45,7 @@ export async function registerForEvent(formData: FormData) {
   }
 
   // งานฟรี → confirmed ทันที + ออก BIB | งานเสียเงิน → pending (Phase 4 ต่อ payment)
-  const eventPricing = pkg.events[0]?.pricing;
+  const eventPricing = eventData.pricing;
   const isFree = eventPricing === "free" || Number(pkg.price) === 0;
 
   const { data: reg, error } = await supabase
@@ -48,7 +55,6 @@ export async function registerForEvent(formData: FormData) {
       package_id: pkg.id,
       event_id: pkg.event_id,
       shipping_address: shipping,
-      bib_number: isFree ? genBib() : null,
       status: isFree ? "confirmed" : "pending",
     })
     .select("id")
@@ -58,6 +64,8 @@ export async function registerForEvent(formData: FormData) {
     const msg =
       error.code === "23505"
         ? "คุณลงทะเบียนแพ็กเกจนี้ไปแล้ว"
+        : error.code === "23514"
+          ? "งานนี้สิ้นสุดแล้วและไม่เปิดรับสมัคร"
         : error.message;
     redirect(`/events/${pkg.event_id}?error=${encodeURIComponent(msg)}`);
   }

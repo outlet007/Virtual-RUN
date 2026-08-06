@@ -206,7 +206,7 @@ export default async function AdminSubmissionsPage({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-display text-xl font-bold">ตรวจผลวิ่ง</h2>
         <span className="font-mono text-sm text-ink/40 tnum">{subs.length} รายการ</span>
       </div>

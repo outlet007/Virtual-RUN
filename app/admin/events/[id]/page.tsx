@@ -7,14 +7,19 @@ import { EditEventModal } from "@/components/admin/edit-event-modal";
 import { MedalDeleteButton } from "@/components/admin/medal-delete-button";
 import { PhysicalMedalDeleteButton } from "@/components/admin/physical-medal-delete-button";
 import { PackageMedalFields } from "@/components/admin/package-medal-fields";
+import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
 import {
   createPackage,
   updatePackage,
+  deletePackage,
+  deleteEvent,
   createMedal,
   updateMedal,
   createPhysicalMedal,
   updatePhysicalMedal,
 } from "@/lib/actions/admin";
+import { manuallyApproveRegistration } from "@/lib/actions/admin-registrations";
+import { registrationStatusLabel, type ShippingAddress } from "@/lib/admin/registrations";
 import { formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -52,6 +57,16 @@ type PhysicalMedalRow = {
   sort_order: number;
 };
 
+type EventRegistrationRow = {
+  id: string;
+  bib_number: string | null;
+  shipping_address: ShippingAddress;
+  status: string;
+  registered_at: string;
+  users: { name: string | null; email: string | null } | null;
+  packages: { name: string } | null;
+};
+
 const tierLabel: Record<string, string> = {
   bronze: "บรอนซ์",
   silver: "เงิน",
@@ -66,10 +81,15 @@ const statusLabel: Record<string, string> = {
 };
 const statusClass: Record<string, string> = {
   draft: "bg-lane text-muted",
-  open: "bg-primary-soft text-primary-dark",
-  closed: "bg-medal-soft text-medal",
+  open: "bg-green-100 text-green-700",
+  closed: "bg-red-100 text-red-700",
 };
 const pricingLabel: Record<string, string> = { free: "ฟรี", paid: "มีค่าสมัคร" };
+const registrationStatusClass: Record<string, string> = {
+  pending: "bg-medal-soft text-medal",
+  confirmed: "bg-primary-soft text-primary-dark",
+  cancelled: "bg-red-100 text-red-700",
+};
 
 export default async function EventDashboardPage({
   params,
@@ -82,12 +102,14 @@ export default async function EventDashboardPage({
     created?: string;
     package_added?: string;
     package_saved?: string;
+    package_deleted?: string;
     medal_added?: string;
     medal_saved?: string;
     medal_deleted?: string;
     physical_medal_added?: string;
     physical_medal_saved?: string;
     physical_medal_deleted?: string;
+    registration_approved?: string;
     tab?: string;
   }>;
 }) {
@@ -98,7 +120,7 @@ export default async function EventDashboardPage({
   const { data: event } = await db
     .from("events")
     .select(
-      "id, title, description, cover_image, cover_position_x, cover_position_y, poster_image, pricing, start_date, end_date, status, packages(id, name, target_distance_km, price, activity_types, has_physical_medal, digital_medal_id, digital_medal:medals!packages_digital_medal_id_fkey(id, name), physical_medal_id, physical_medal:physical_medals!packages_physical_medal_id_fkey(id, name)), medals(id, name, tier, bonus_points, image_url, unlock_rule, sort_order), physical_medals(id, name, tier, bonus_points, image_url, unlock_rule, sort_order)",
+      "id, title, bib_prefix, description, cover_image, cover_position_x, cover_position_y, poster_image, pricing, start_date, end_date, status, packages(id, name, target_distance_km, price, activity_types, has_physical_medal, digital_medal_id, digital_medal:medals!packages_digital_medal_id_fkey(id, name), physical_medal_id, physical_medal:physical_medals!packages_physical_medal_id_fkey(id, name)), medals(id, name, tier, bonus_points, image_url, unlock_rule, sort_order), physical_medals(id, name, tier, bonus_points, image_url, unlock_rule, sort_order)",
     )
     .eq("id", id)
     .single();
@@ -128,7 +150,13 @@ export default async function EventDashboardPage({
 
   const [{ data: regs }, { data: subs }, { data: paidPayments }, { count: medalsUnlocked }] =
     await Promise.all([
-      db.from("registrations").select("id, status").eq("event_id", id),
+      db
+        .from("registrations")
+        .select(
+          "id, bib_number, shipping_address, status, registered_at, users(name, email), packages(name)",
+        )
+        .eq("event_id", id)
+        .order("registered_at", { ascending: false }),
       db
         .from("submissions")
         .select("id, status, registrations!inner(event_id)")
@@ -144,7 +172,7 @@ export default async function EventDashboardPage({
         .eq("medals.event_id", id),
     ]);
 
-  const regList = regs ?? [];
+  const regList = (regs ?? []) as unknown as EventRegistrationRow[];
   const subList = subs ?? [];
   const confirmedCount = regList.filter((r) => r.status === "confirmed").length;
   const pendingRegCount = regList.filter((r) => r.status === "pending").length;
@@ -179,7 +207,7 @@ export default async function EventDashboardPage({
         </div>
       )}
 
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
             <h2 className="font-display text-xl font-bold">{event.title}</h2>
@@ -205,21 +233,33 @@ export default async function EventDashboardPage({
             <span>| {pricingLabel[event.pricing]}</span>
           </p>
         </div>
-        <EditEventModal
-          event={{
-            id: event.id,
-            title: event.title,
-            description: event.description,
-            cover_image: event.cover_image,
-            cover_position_x: event.cover_position_x,
-            cover_position_y: event.cover_position_y,
-            poster_image: event.poster_image,
-            pricing: event.pricing,
-            status: event.status,
-            start_date: event.start_date,
-            end_date: event.end_date,
-          }}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <EditEventModal
+            event={{
+              id: event.id,
+              title: event.title,
+              bib_prefix: event.bib_prefix,
+              description: event.description,
+              cover_image: event.cover_image,
+              cover_position_x: event.cover_position_x,
+              cover_position_y: event.cover_position_y,
+              poster_image: event.poster_image,
+              pricing: event.pricing,
+              status: event.status,
+              start_date: event.start_date,
+              end_date: event.end_date,
+            }}
+          />
+          <form action={deleteEvent}>
+            <input type="hidden" name="id" value={event.id} />
+            <ConfirmDeleteButton
+              formAction={deleteEvent}
+              triggerLabel="ลบงาน"
+              title="ยืนยันการลบงาน"
+              description={`ต้องการลบงาน "${event.title}" ใช่หรือไม่? งานที่มีผู้สมัครแล้วจะไม่สามารถลบได้`}
+            />
+          </form>
+        </div>
       </div>
 
       <Tabs
@@ -304,6 +344,9 @@ export default async function EventDashboardPage({
         {sp.package_saved && (
           <p className="mt-1 text-sm text-primary-dark">บันทึกแพ็กเกจแล้ว</p>
         )}
+        {sp.package_deleted && (
+          <p className="mt-1 text-sm text-primary-dark">ลบแพ็กเกจแล้ว</p>
+        )}
 
         <div className="mt-3 space-y-3">
           {packages.map((p) => (
@@ -325,7 +368,7 @@ export default async function EventDashboardPage({
                     </Badge>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <Label>ชื่อแพ็กเกจ</Label>
                     <Input name="name" defaultValue={p.name} required />
@@ -374,9 +417,17 @@ export default async function EventDashboardPage({
                   defaultPhysicalMedalId={p.physical_medal_id}
                   defaultHasPhysicalMedal={p.has_physical_medal}
                 />
-                <Button variant="ghost" type="submit" icon="save">
-                  บันทึกแพ็กเกจนี้
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button variant="ghost" type="submit" icon="save">
+                    บันทึกแพ็กเกจนี้
+                  </Button>
+                  <ConfirmDeleteButton
+                    formAction={deletePackage}
+                    triggerLabel="ลบแพ็กเกจ"
+                    title="ยืนยันการลบแพ็กเกจ"
+                    description={`ต้องการลบแพ็กเกจ "${p.name}" ใช่หรือไม่? แพ็กเกจที่มีผู้สมัครแล้วจะไม่สามารถลบได้`}
+                  />
+                </div>
               </Card>
             </form>
           ))}
@@ -386,7 +437,7 @@ export default async function EventDashboardPage({
           <input type="hidden" name="event_id" value={event.id} />
           <Card className="space-y-3">
             <p className="text-sm font-semibold">+ เพิ่มแพ็กเกจใหม่</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <Label>ชื่อแพ็กเกจ</Label>
                 <Input name="name" required />
@@ -425,7 +476,7 @@ export default async function EventDashboardPage({
             content: (
               <div>
                 <p className="mb-3 text-sm text-ink/50">
-                  ปลดล็อกอัตโนมัติเมื่อระยะสะสมที่อนุมัติแล้วของใบสมัครถึงเป้าที่ตั้งไว้ (ตั้งได้หลายเหรียญต่องาน)
+                  ปลดล็อกอัตโนมัติเมื่อระยะสะสมที่อนุมัติแล้วของผู้สมัครถึงเป้าที่ตั้งไว้ (ตั้งได้หลายเหรียญต่องาน)
                 </p>
                 {sp.medal_added && <p className="mt-1 text-sm text-primary-dark">เพิ่มเหรียญแล้ว</p>}
                 {sp.medal_saved && <p className="mt-1 text-sm text-primary-dark">บันทึกเหรียญแล้ว</p>}
@@ -463,7 +514,7 @@ export default async function EventDashboardPage({
                         <MedalDeleteButton medalName={m.name} />
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div>
                         <Label>ชื่อเหรียญ</Label>
                         <Input name="name" defaultValue={m.name} required />
@@ -512,7 +563,7 @@ export default async function EventDashboardPage({
           <input type="hidden" name="event_id" value={event.id} />
           <Card className="space-y-3">
             <p className="text-sm font-semibold">+ เพิ่มเหรียญใหม่</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <Label>ชื่อเหรียญ</Label>
                 <Input name="name" required />
@@ -604,7 +655,7 @@ export default async function EventDashboardPage({
                                 <PhysicalMedalDeleteButton medalName={medal.name} />
                               </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                               <div>
                                 <Label>ชื่อเหรียญ</Label>
                                 <Input name="name" defaultValue={medal.name} required />
@@ -663,7 +714,7 @@ export default async function EventDashboardPage({
                   <input type="hidden" name="event_id" value={event.id} />
                   <Card className="space-y-3">
                     <p className="text-sm font-semibold">+ เพิ่มเหรียญใหม่</p>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div>
                         <Label>ชื่อเหรียญ</Label>
                         <Input name="name" required />
@@ -703,7 +754,92 @@ export default async function EventDashboardPage({
                 </form>
               </div>
             ),
-          },        ]}
+          },
+          {
+            id: "registrations",
+            label: `ผู้สมัคร (${regList.length})`,
+            content: (
+              <div className="space-y-3">
+                {sp.registration_approved && (
+                  <p className="text-sm text-primary-dark">
+                    ยืนยันผู้สมัครและออกหมายเลข BIB แล้ว
+                  </p>
+                )}
+
+                {regList.length === 0 ? (
+                  <Card className="text-center text-ink/50">ยังไม่มีผู้สมัครในงานนี้</Card>
+                ) : (
+                  regList.map((registration) => {
+                    const address = registration.shipping_address;
+                    return (
+                      <Card key={registration.id} className="space-y-3">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm text-ink/50">
+                              {registration.packages?.name ?? "ไม่พบข้อมูลแพ็กเกจ"}
+                            </p>
+                            <p className="font-semibold">
+                              {registration.users?.name ||
+                                registration.users?.email ||
+                                "ไม่ทราบชื่อ"}
+                            </p>
+                            {registration.users?.name && registration.users.email && (
+                              <p className="text-sm text-ink/50">{registration.users.email}</p>
+                            )}
+                            <p className="mt-1 font-mono text-xs text-ink/40 tnum">
+                              สมัครเมื่อ{" "}
+                              {new Date(registration.registered_at).toLocaleString("th-TH", {
+                                timeZone: "Asia/Bangkok",
+                              })}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            {registration.bib_number && (
+                              <span className="font-mono text-sm font-bold text-primary-dark tnum">
+                                BIB {registration.bib_number}
+                              </span>
+                            )}
+                            <Badge className={registrationStatusClass[registration.status]}>
+                              {registrationStatusLabel[registration.status] ?? registration.status}
+                            </Badge>
+                          </div>
+                        </div>
+
+                        {address && (
+                          <div className="border-t border-lane pt-3 text-sm text-ink/60">
+                            <p className="font-medium text-ink/70">ที่อยู่จัดส่ง</p>
+                            <p>
+                              {address.recipient} · {address.phone}
+                              <br />
+                              {address.address} {address.province} {address.postal_code}
+                            </p>
+                          </div>
+                        )}
+
+                        {registration.status === "pending" && (
+                          <form
+                            action={manuallyApproveRegistration}
+                            className="border-t border-lane pt-3"
+                          >
+                            <input
+                              type="hidden"
+                              name="registration_id"
+                              value={registration.id}
+                            />
+                            <input type="hidden" name="event_id" value={event.id} />
+                            <Button type="submit" icon="userCheck">
+                              ยืนยันผู้สมัครและออก BIB
+                            </Button>
+                          </form>
+                        )}
+                      </Card>
+                    );
+                  })
+                )}
+              </div>
+            ),
+          },
+        ]}
       />
     </div>
   );

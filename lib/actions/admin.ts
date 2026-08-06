@@ -11,13 +11,18 @@ import {
   requireSuperAdmin,
 } from "@/lib/auth/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { genBib } from "@/lib/utils";
+import { isValidBibPrefix, normalizeBibPrefix } from "@/lib/bib";
 import {
   awardForApprovedSubmission,
   revokeApprovedSubmissionPoints,
 } from "@/lib/gamification";
 import { notifyUser } from "@/lib/notifications";
 import { readRunEvidence } from "@/lib/ocr/run-evidence";
+import {
+  hasCookieConsentText,
+  sanitizeCookieConsentHtml,
+} from "@/lib/cookie-consent-html";
+import { CONTENT_BACKGROUND_DISPLAYS } from "@/lib/system-settings";
 
 function err(path: string, message: string): never {
   const separator = path.includes("?") ? "&" : "?";
@@ -106,6 +111,7 @@ export async function createEvent(formData: FormData) {
   const db = createAdminClient();
 
   const title = String(formData.get("title") ?? "").trim();
+  const bib_prefix = normalizeBibPrefix(formData.get("bib_prefix"));
   const description = sanitizeDescription(String(formData.get("description") ?? "").trim());
   const pricing = String(formData.get("pricing") ?? "free");
   const start_date = String(formData.get("start_date") ?? "");
@@ -116,6 +122,9 @@ export async function createEvent(formData: FormData) {
 
   if (!title || !start_date || !end_date) {
     err("/admin/events/new", "กรอกชื่องานและวันที่ให้ครบ");
+  }
+  if (!isValidBibPrefix(bib_prefix)) {
+    err("/admin/events/new", "คำนำหน้า BIB ต้องเป็นตัวอักษรอังกฤษหรือตัวเลข 2–8 ตัว");
   }
 
   let cover_image: string | null = null;
@@ -131,6 +140,7 @@ export async function createEvent(formData: FormData) {
     .from("events")
     .insert({
       title,
+      bib_prefix,
       description: description || null,
       cover_image,
       cover_position_x,
@@ -157,6 +167,7 @@ export async function updateEvent(formData: FormData) {
 
   const id = String(formData.get("id") ?? "");
   const title = String(formData.get("title") ?? "").trim();
+  const bib_prefix = normalizeBibPrefix(formData.get("bib_prefix"));
   const description = sanitizeDescription(String(formData.get("description") ?? "").trim());
   const pricing = String(formData.get("pricing") ?? "free");
   const start_date = String(formData.get("start_date") ?? "");
@@ -167,6 +178,9 @@ export async function updateEvent(formData: FormData) {
 
   if (!id || !title || !start_date || !end_date) {
     err(`/admin/events/${id}`, "กรอกชื่องานและวันที่ให้ครบ");
+  }
+  if (!isValidBibPrefix(bib_prefix)) {
+    err(`/admin/events/${id}`, "คำนำหน้า BIB ต้องเป็นตัวอักษรอังกฤษหรือตัวเลข 2–8 ตัว");
   }
 
   // ถ้าไม่ได้เลือกไฟล์ใหม่ ใช้รูปเดิมต่อ (ส่งมาจาก hidden field ในฟอร์ม)
@@ -185,6 +199,7 @@ export async function updateEvent(formData: FormData) {
     .from("events")
     .update({
       title,
+      bib_prefix,
       description: description || null,
       cover_image,
       cover_position_x,
@@ -204,6 +219,33 @@ export async function updateEvent(formData: FormData) {
   revalidatePath("/events/" + id);
   revalidatePath("/");
   redirect(`/admin/events/${id}?saved=1`);
+}
+
+export async function deleteEvent(formData: FormData) {
+  await requireManager();
+  const db = createAdminClient();
+  const id = String(formData.get("id") ?? "");
+
+  if (!id) err("/admin/events", "ไม่พบงานที่ต้องการลบ");
+
+  const { count: registrationCount, error: countError } = await db
+    .from("registrations")
+    .select("id", { count: "exact", head: true })
+    .eq("event_id", id);
+  if (countError) err(`/admin/events/${id}`, countError.message);
+  if ((registrationCount ?? 0) > 0) {
+    err(
+      `/admin/events/${id}`,
+      "ไม่สามารถลบงานที่มีผู้สมัครแล้วได้ เพื่อรักษาประวัติการสมัครและผลวิ่ง",
+    );
+  }
+
+  const { error } = await db.from("events").delete().eq("id", id);
+  if (error) err(`/admin/events/${id}`, error.message);
+
+  revalidatePath("/admin/events");
+  revalidatePath("/");
+  redirect("/admin/events?event_deleted=1");
 }
 
 // ---------- Packages ----------
@@ -352,6 +394,40 @@ export async function updatePackage(formData: FormData) {
   revalidatePath(`/admin/events/${event_id}`);
   revalidatePath("/");
   redirect(`/admin/events/${event_id}?tab=packages&package_saved=1`);
+}
+
+export async function deletePackage(formData: FormData) {
+  await requireManager();
+  const db = createAdminClient();
+  const id = String(formData.get("id") ?? "");
+  const eventId = String(formData.get("event_id") ?? "");
+
+  if (!id || !eventId) {
+    err(`/admin/events/${eventId}?tab=packages`, "ไม่พบแพ็กเกจที่ต้องการลบ");
+  }
+
+  const { count: registrationCount, error: countError } = await db
+    .from("registrations")
+    .select("id", { count: "exact", head: true })
+    .eq("package_id", id);
+  if (countError) err(`/admin/events/${eventId}?tab=packages`, countError.message);
+  if ((registrationCount ?? 0) > 0) {
+    err(
+      `/admin/events/${eventId}?tab=packages`,
+      "ไม่สามารถลบแพ็กเกจที่มีผู้สมัครแล้วได้ เพื่อรักษาประวัติการสมัคร",
+    );
+  }
+
+  const { error } = await db
+    .from("packages")
+    .delete()
+    .eq("id", id)
+    .eq("event_id", eventId);
+  if (error) err(`/admin/events/${eventId}?tab=packages`, error.message);
+
+  revalidatePath(`/admin/events/${eventId}`);
+  revalidatePath("/");
+  redirect(`/admin/events/${eventId}?tab=packages&package_deleted=1`);
 }
 
 // ---------- Submissions ----------
@@ -504,7 +580,7 @@ export async function upsertShipment(formData: FormData) {
   const tracking_no = String(formData.get("tracking_no") ?? "").trim();
   const status = String(formData.get("status") ?? "pending");
 
-  if (!registration_id) err("/admin/shipments", "ไม่พบใบสมัคร");
+  if (!registration_id) err("/admin/shipments", "ไม่พบผู้สมัคร");
 
   const { error } = await db.from("shipments").upsert(
     {
@@ -624,7 +700,7 @@ export async function confirmPayment(formData: FormData) {
 
   const { data: reg, error: regError } = await db
     .from("registrations")
-    .update({ status: "confirmed", bib_number: genBib() })
+    .update({ status: "confirmed" })
     .eq("id", registrationId)
     .select("user_id, bib_number")
     .single();
@@ -918,6 +994,7 @@ export async function createReward(formData: FormData) {
 
   revalidatePath("/admin/rewards");
   revalidatePath("/rewards");
+  revalidatePath("/dashboard/rewards");
   redirect("/admin/rewards?reward_added=1");
 }
 
@@ -951,8 +1028,38 @@ export async function updateReward(formData: FormData) {
 
   revalidatePath("/admin/rewards");
   revalidatePath("/rewards");
+  revalidatePath("/dashboard/rewards");
   redirect("/admin/rewards?reward_saved=1");
 }
+
+export async function deleteReward(formData: FormData) {
+  await requireManager();
+  const db = createAdminClient();
+  const id = String(formData.get("id") ?? "");
+
+  if (!id) err("/admin/rewards", "ไม่พบรางวัลที่ต้องการลบ");
+
+  const { count: redemptionCount, error: countError } = await db
+    .from("redemptions")
+    .select("id", { count: "exact", head: true })
+    .eq("reward_id", id);
+  if (countError) err("/admin/rewards", countError.message);
+  if ((redemptionCount ?? 0) > 0) {
+    err(
+      "/admin/rewards",
+      "ไม่สามารถลบรางวัลที่มีประวัติการแลกแล้วได้ กรุณาปรับ stock เป็น 0 เพื่อปิดการแลกแทน",
+    );
+  }
+
+  const { error } = await db.from("rewards").delete().eq("id", id);
+  if (error) err("/admin/rewards", error.message);
+
+  revalidatePath("/admin/rewards");
+  revalidatePath("/rewards");
+  revalidatePath("/dashboard/rewards");
+  redirect("/admin/rewards?reward_deleted=1");
+}
+
 export async function fulfillRedemption(formData: FormData) {
   await requireManager();
   const db = createAdminClient();
@@ -1121,6 +1228,12 @@ export async function deleteHeroBanner(formData: FormData) {
 // ---------- System Settings ----------
 
 const HEX_COLOR = /^#[0-9A-Fa-f]{6}$/;
+const MAX_CONTENT_BACKGROUND_INSET = 2000;
+
+function parseContentBackgroundInset(value: FormDataEntryValue | null): number {
+  const inset = Number(value ?? 0);
+  return Number.isInteger(inset) ? inset : Number.NaN;
+}
 
 export async function updateSystemSettings(formData: FormData) {
   await requireSuperAdmin();
@@ -1131,10 +1244,75 @@ export async function updateSystemSettings(formData: FormData) {
   const color_primary = String(formData.get("color_primary") ?? "").trim();
   const color_accent = String(formData.get("color_accent") ?? "").trim();
   const color_medal = String(formData.get("color_medal") ?? "").trim();
+  const cookie_consent_enabled = formData.get("cookie_consent_enabled") === "on";
+  const cookie_consent_message_input = String(
+    formData.get("cookie_consent_message") ?? "",
+  ).trim();
+  const cookie_consent_message = sanitizeCookieConsentHtml(cookie_consent_message_input);
+  const cookie_policy_url = String(formData.get("cookie_policy_url") ?? "").trim();
+  const cookie_consent_button_label = String(
+    formData.get("cookie_consent_button_label") ?? "",
+  ).trim();
+  const content_overlay_color = String(formData.get("content_overlay_color") ?? "").trim();
+  const content_overlay_opacity = Number(formData.get("content_overlay_opacity"));
+  const content_background_position_x = parseImagePosition(
+    formData.get("content_background_position_x"),
+  );
+  const content_background_position_y = parseImagePosition(
+    formData.get("content_background_position_y"),
+  );
+  const content_background_display = String(
+    formData.get("content_background_display") ?? "cover",
+  );
+  const content_background_inset_top = parseContentBackgroundInset(
+    formData.get("content_background_inset_top"),
+  );
+  const content_background_inset_bottom = parseContentBackgroundInset(
+    formData.get("content_background_inset_bottom"),
+  );
+  const remove_content_background = formData.get("remove_content_background") === "on";
 
   if (!site_name) err("/admin/settings", "กรุณากรอกชื่อระบบ");
   for (const c of [color_ink, color_primary, color_accent, color_medal]) {
     if (!HEX_COLOR.test(c)) err("/admin/settings", "รูปแบบสีไม่ถูกต้อง (ต้องเป็น #RRGGBB)");
+  }
+  if (
+    !hasCookieConsentText(cookie_consent_message) ||
+    cookie_consent_message_input.length > 1000
+  ) {
+    err("/admin/settings", "ข้อความ Cookie Consent ต้องมีความยาว 1–1,000 ตัวอักษร");
+  }
+  if (!cookie_consent_button_label || cookie_consent_button_label.length > 50) {
+    err("/admin/settings", "ข้อความบนปุ่มยอมรับต้องมีความยาว 1–50 ตัวอักษร");
+  }
+  if (cookie_policy_url.length > 2048) {
+    err("/admin/settings", "URL นโยบาย Cookie ยาวเกินไป");
+  }
+  if (
+    cookie_policy_url &&
+    !cookie_policy_url.startsWith("/") &&
+    !cookie_policy_url.startsWith("https://") &&
+    !cookie_policy_url.startsWith("http://")
+  ) {
+    err("/admin/settings", "URL นโยบาย Cookie ต้องขึ้นต้นด้วย /, https:// หรือ http://");
+  }
+  if (!HEX_COLOR.test(content_overlay_color)) {
+    err("/admin/settings", "รูปแบบสี Overlay ไม่ถูกต้อง (ต้องเป็น #RRGGBB)");
+  }
+  if (
+    !Number.isInteger(content_overlay_opacity) ||
+    content_overlay_opacity < 0 ||
+    content_overlay_opacity > 100
+  ) {
+    err("/admin/settings", "Opacity ของ Overlay ต้องอยู่ระหว่าง 0–100");
+  }
+  if (!CONTENT_BACKGROUND_DISPLAYS.some((mode) => mode === content_background_display)) {
+    err("/admin/settings", "รูปแบบการแสดงพื้นหลังไม่ถูกต้อง");
+  }
+  for (const inset of [content_background_inset_top, content_background_inset_bottom]) {
+    if (inset < 0 || inset > MAX_CONTENT_BACKGROUND_INSET || !Number.isInteger(inset)) {
+      err("/admin/settings", "ระยะเว้นด้านบนและด้านล่างต้องเป็นจำนวนเต็มระหว่าง 0–2,000 px");
+    }
   }
 
   const update: Record<string, unknown> = {
@@ -1143,6 +1321,17 @@ export async function updateSystemSettings(formData: FormData) {
     color_primary,
     color_accent,
     color_medal,
+    cookie_consent_enabled,
+    cookie_consent_message,
+    cookie_policy_url,
+    cookie_consent_button_label,
+    content_background_position_x,
+    content_background_position_y,
+    content_background_display,
+    content_background_inset_top,
+    content_background_inset_bottom,
+    content_overlay_color,
+    content_overlay_opacity,
   };
 
   try {
@@ -1155,6 +1344,17 @@ export async function updateSystemSettings(formData: FormData) {
       "branding",
     );
     if (favicon_url) update.favicon_url = favicon_url;
+    if (remove_content_background) {
+      update.content_background_url = null;
+    } else {
+      const content_background_url = await uploadEventFile(
+        db,
+        formData.get("content_background_file"),
+        "system-assets",
+        "backgrounds",
+      );
+      if (content_background_url) update.content_background_url = content_background_url;
+    }
   } catch (e) {
     err("/admin/settings", (e as Error).message);
   }

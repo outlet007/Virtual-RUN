@@ -4,6 +4,7 @@ import { Medal, CalendarDays, ChevronLeft, Road } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Badge, LinkButton } from "@/components/ui";
 import { formatBaht, formatDate, stripHtml } from "@/lib/utils";
+import { isEventRegistrationOpen } from "@/lib/event-registration";
 
 export const dynamic = "force-dynamic";
 
@@ -21,12 +22,13 @@ export default async function EventDetailPage({
   const { data: event } = await supabase
     .from("events")
     .select(
-      "id, title, description, cover_image, cover_position_x, cover_position_y, poster_image, pricing, start_date, end_date, packages(id, name, target_distance_km, price, has_physical_medal, digital_medal:medals!packages_digital_medal_id_fkey(id, name), physical_medal:physical_medals!packages_physical_medal_id_fkey(id, name))",
+      "id, title, description, cover_image, cover_position_x, cover_position_y, poster_image, pricing, start_date, end_date, status, packages(id, name, target_distance_km, price, has_physical_medal, digital_medal:medals!packages_digital_medal_id_fkey(id, name), physical_medal:physical_medals!packages_physical_medal_id_fkey(id, name))",
     )
     .eq("id", id)
     .single();
 
   if (!event) notFound();
+  const registrationOpen = isEventRegistrationOpen(event);
   const packages = (event.packages ?? []).map((packageRow) => ({
     ...packageRow,
     digital_medal: Array.isArray(packageRow.digital_medal)
@@ -51,7 +53,7 @@ export default async function EventDetailPage({
 
       {/* Banner header ของงานนี้ — full-bleed เหมือน hero, ใช้ cover_image ของ event เอง */}
       {/* -mt-8 หักล้าง padding-top ของ <main> (py-8) ให้ banner ชิดกับ header เหมือนหน้าแรก */}
-      <div className="relative left-1/2 right-1/2 -mx-[50vw] -mt-8 min-h-[420px] w-screen overflow-hidden bg-ink sm:min-h-[480px]">
+      <div className="relative left-1/2 right-1/2 -mx-[50vw] -mt-5 min-h-[420px] w-screen overflow-hidden bg-ink sm:-mt-8 sm:min-h-[480px]">
         {event.cover_image && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -69,7 +71,7 @@ export default async function EventDetailPage({
           className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-black/15"
           aria-hidden="true"
         />
-        <div className="relative mx-auto flex min-h-[420px] max-w-[1500px] flex-col justify-end px-0 py-6 sm:min-h-[480px] sm:py-8">
+        <div className="relative mx-auto flex min-h-[420px] max-w-[1500px] flex-col justify-end px-3 py-6 sm:min-h-[480px] sm:px-4 sm:py-8">
           <div className="max-w-3xl">
             <Badge
               className={
@@ -183,22 +185,23 @@ export default async function EventDetailPage({
                   )}
                 </div>
               </div>
-              {user ? (
-                <LinkButton
-                  href={`/events/${event.id}/register?package=${p.id}`}
-                  className="w-full shrink-0 whitespace-nowrap sm:w-auto sm:px-3"
-                  icon="userPlus">
-                  สมัคร
-                </LinkButton>
-              ) : (
-                <LinkButton
-                  href={`/login?next=/events/${event.id}`}
-                  variant="ghost"
-                  className="w-full shrink-0 whitespace-nowrap sm:w-auto sm:px-3"
-                  icon="login">
-                  เข้าสู่ระบบเพื่อสมัคร
-                </LinkButton>
-              )}
+              {registrationOpen &&
+                (user ? (
+                  <LinkButton
+                    href={`/events/${event.id}/register?package=${p.id}`}
+                    className="w-full shrink-0 whitespace-nowrap sm:w-auto sm:px-3"
+                    icon="userPlus">
+                    สมัคร
+                  </LinkButton>
+                ) : (
+                  <LinkButton
+                    href={`/login?next=/events/${event.id}`}
+                    variant="ghost"
+                    className="w-full shrink-0 whitespace-nowrap sm:w-auto sm:px-3"
+                    icon="login">
+                    เข้าสู่ระบบเพื่อสมัคร
+                  </LinkButton>
+                ))}
             </Card>
           ))}
         </div>

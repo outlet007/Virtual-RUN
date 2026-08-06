@@ -3,6 +3,7 @@ import { Medal as MedalIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { MedalFilterGrid } from "@/components/dashboard/medal-filter-grid";
 import type { MedalEntry } from "@/components/dashboard/medal-hexagon";
+import { isEventRegistrationOpen } from "@/lib/event-registration";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,7 @@ type EventRow = {
   id: string;
   title: string;
   status: string;
+  end_date: string;
   medals: MedalRow[];
   packages: { id: string }[];
 };
@@ -44,7 +46,7 @@ export default async function MedalsPage() {
       supabase
         .from("events")
         .select(
-          "id, title, status, medals(id, name, tier, image_url, unlock_rule, sort_order), packages(id)",
+          "id, title, status, end_date, medals(id, name, tier, image_url, unlock_rule, sort_order), packages(id)",
         ),
       supabase
         .from("registrations")
@@ -87,12 +89,13 @@ export default async function MedalsPage() {
   const entries: MedalEntry[] = events
     .filter(
       (event) =>
-        (event.status === "open" && event.packages.length > 0) ||
+        (isEventRegistrationOpen(event) && event.packages.length > 0) ||
         registrationByEvent.has(event.id) ||
         event.medals.some((medal) => earnedMap.has(medal.id)),
     )
     .flatMap((event) => {
       const registration = registrationByEvent.get(event.id);
+      const registrationOpen = isEventRegistrationOpen(event);
 
       return [...event.medals]
         .sort(
@@ -113,6 +116,7 @@ export default async function MedalsPage() {
           eventId: event.id,
           eventTitle: event.title,
           registrationStatus: registration?.status ?? null,
+          registrationOpen,
           registrationHref:
             event.packages.length === 1
               ? `/events/${event.id}/register?package=${event.packages[0].id}`

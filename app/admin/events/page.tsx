@@ -3,6 +3,7 @@ import { Search, Footprints, CalendarDays, ChevronRight, ChevronLeft, RotateCcw 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, Badge, LinkButton, Input, Select } from "@/components/ui";
 import { formatDate, stripHtml } from "@/lib/utils";
+import { getBangkokDate } from "@/lib/event-registration";
 
 export const dynamic = "force-dynamic";
 
@@ -15,17 +16,18 @@ const statusLabel: Record<string, string> = {
 };
 const statusClass: Record<string, string> = {
   draft: "bg-lane text-muted",
-  open: "bg-primary-soft text-primary-dark",
-  closed: "bg-medal-soft text-medal",
+  open: "bg-green-100 text-green-700",
+  closed: "bg-red-100 text-red-700",
 };
 
 export default async function AdminEventsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; q?: string; status?: string }>;
+  searchParams: Promise<{ page?: string; q?: string; status?: string; event_deleted?: string }>;
 }) {
   const sp = await searchParams;
   const db = createAdminClient();
+  const today = getBangkokDate();
   const page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
   const q = (sp.q ?? "").trim();
   const statusFilter = sp.status ?? "";
@@ -67,12 +69,18 @@ export default async function AdminEventsPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="font-display text-xl font-bold">งานทั้งหมด</h2>
         <LinkButton href="/admin/events/new" icon="add">สร้างงาน</LinkButton>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      {sp.event_deleted && (
+        <div className="rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
+          ลบงานแล้ว
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Card>
           <p className="text-xs uppercase tracking-wider text-ink/40">งานทั้งหมด</p>
           <p className="mt-1 font-mono text-2xl font-bold tnum">{totalEventsCount ?? 0}</p>
@@ -136,6 +144,7 @@ export default async function AdminEventsPage({
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {list.map((ev) => {
               const confirmedCount = ev.registrations.filter((r) => r.status === "confirmed").length;
+              const isPast = ev.end_date < today;
               return (
                 <Link key={ev.id} href={`/admin/events/${ev.id}`} className="group">
                   <Card className="flex h-full flex-col overflow-hidden p-0 hover:border-primary/40">
@@ -145,7 +154,7 @@ export default async function AdminEventsPage({
                         <img
                           src={ev.cover_image}
                           alt=""
-                          className="h-full w-full object-cover transition group-hover:scale-105"
+                          className={`h-full w-full object-cover transition group-hover:scale-105 ${isPast ? "grayscale" : ""}`}
                         />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center text-ink/30">

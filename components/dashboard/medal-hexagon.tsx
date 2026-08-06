@@ -14,6 +14,7 @@ export type MedalEntry = {
   eventId: string;
   eventTitle: string;
   registrationStatus: string | null;
+  registrationOpen: boolean;
   registrationHref: string;
 };
 
@@ -58,7 +59,7 @@ export function MedalHexagon({ entry }: { entry: MedalEntry }) {
               {formatDate(entry.unlockedAt)}
             </p>
           )}
-          <span className="mt-2 rounded-full bg-primary-soft px-2.5 py-0.5 text-xs font-semibold text-primary-dark">
+          <span className="mt-2 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">
             สำเร็จแล้ว
           </span>
         </>
@@ -67,7 +68,7 @@ export function MedalHexagon({ entry }: { entry: MedalEntry }) {
           <p className="mt-2 font-mono text-xs text-ink/50 tnum">
             {Math.min(entry.progressKm, entry.targetKm).toFixed(1)} / {entry.targetKm} km
           </p>
-          {!entry.registrationStatus ? (
+          {!entry.registrationStatus && entry.registrationOpen ? (
             <Link
               href={entry.registrationHref}
               className="mt-3 inline-flex min-h-9 items-center justify-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-ink transition hover:bg-primary-dark"
@@ -75,6 +76,10 @@ export function MedalHexagon({ entry }: { entry: MedalEntry }) {
               <UserPlus className="size-4" aria-hidden="true" />
               สมัครเพื่อปลดล็อก
             </Link>
+          ) : !entry.registrationStatus ? (
+            <span className="mt-3 inline-flex min-h-9 items-center justify-center rounded-full bg-lane px-4 py-2 text-xs font-semibold text-muted">
+              งานสิ้นสุดแล้ว
+            </span>
           ) : entry.registrationStatus === "confirmed" ? (
             <Link
               href="/dashboard/submit"

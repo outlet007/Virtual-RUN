@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { Card, Input, Label } from "@/components/ui";
+import { Card, Input, Label, LinkButton } from "@/components/ui";
 import { createSubmission } from "@/lib/actions/submission";
 import { SubmissionSubmitButton } from "@/components/submission-submit-button";
 
@@ -35,10 +34,10 @@ export default async function SubmitPage({
   const today = new Date().toISOString().slice(0, 10);
 
   return (
-    <div className="mx-auto max-w-lg space-y-6">
-      <Link href="/dashboard" className="text-sm text-ink/50 hover:text-ink">
-        ← แดชบอร์ด
-      </Link>
+    <div className="max-w-lg space-y-6">
+      <LinkButton href="/dashboard" variant="ghost" icon="chevronLeft">
+        แดชบอร์ด
+      </LinkButton>
       <h1 className="font-display text-2xl font-bold">บันทึกผลวิ่ง</h1>
 
       {error && (
@@ -97,7 +96,7 @@ export default async function SubmitPage({
 
             <div>
               <Label>เวลา (ชั่วโมง : นาที : วินาที)</Label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <Input
                   name="duration_hours"
                   type="number"

@@ -157,8 +157,8 @@ export default async function DashboardPage({
           </p>
           <div className="space-y-3">
             {pendingActivities.map((p) => (
-              <Card key={p.id} className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
+              <Card key={p.id} className="flex flex-col items-stretch gap-4 md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-wrap items-center gap-3">
                   <span className="text-ink/60">
                     {p.activity_type === "walk" ? (
                       <PersonStanding className="h-5 w-5" />
@@ -173,9 +173,9 @@ export default async function DashboardPage({
                     {new Date(p.activity_date).toLocaleDateString("th-TH")}
                   </span>
                 </div>
-                <form action={assignPendingActivity} className="flex items-center gap-2">
+                <form action={assignPendingActivity} className="flex flex-col gap-2 sm:flex-row sm:items-center">
                   <input type="hidden" name="pending_id" value={p.id} />
-                  <Select name="registration_id" required className="w-56">
+                  <Select name="registration_id" required className="w-full sm:w-56">
                     <option value="">เลือกใบสมัคร...</option>
                     {confirmedRegs.map((r) => (
                       <option key={r.id} value={r.id}>
@@ -194,10 +194,10 @@ export default async function DashboardPage({
       {/* สรุปยอดรวม */}
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-ink text-paper">
-          <p className="text-xs uppercase tracking-wider text-paper/50">ระยะสะสมรวม</p>
+          <p className="text-xs uppercase tracking-wider text-paper">ระยะสะสมรวม</p>
           <p className="mt-1 font-mono text-4xl font-bold text-primary tnum">
             {formatKm(totalApproved)}
-            <span className="ml-1 text-base font-normal text-paper/40">km</span>
+            <span className="ml-1 text-base font-normal text-paper">km</span>
           </p>
         </Card>
         <Link href="/dashboard/events">
@@ -212,16 +212,22 @@ export default async function DashboardPage({
             <p className="mt-1 font-mono text-4xl font-bold text-medal tnum">{pendingCount}</p>
           </Card>
         </Link>
-        <Link href="/rewards">
+        <Link href="/dashboard/rewards">
           <Card className="hover:border-primary/40">
-            <p className="text-xs uppercase tracking-wider text-ink/40">แต้มสะสม</p>
-            <p className="mt-1 font-mono text-4xl font-bold text-primary-dark tnum">{points}</p>
+            <p className="text-xs uppercase tracking-wider text-ink/40">แต้มสะสมของฉัน</p>
+            <p className="mt-1 font-mono text-4xl font-bold text-[#F5A524] tnum">{points}</p>
           </Card>
         </Link>
       </section>
 
-      <div className="flex justify-end">
-        <LinkButton href="/dashboard/submit" icon="upload">บันทึกผลวิ่ง</LinkButton>
+      <div>
+        <LinkButton
+          href="/dashboard/submit"
+          icon="upload"
+          className="w-full justify-center py-6 text-[24px] leading-none [&_svg]:size-6"
+        >
+          บันทึกผลวิ่ง
+        </LinkButton>
       </div>
     </div>
   );

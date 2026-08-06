@@ -65,17 +65,17 @@ export function HeroCarousel({
             type="button"
             onClick={() => goTo(active - 1)}
             aria-label="ก่อนหน้า"
-            className="absolute left-3 top-1/2 z-10 inline-flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-ink/40 text-paper transition hover:bg-ink/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:left-6"
+            className="absolute left-3 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-ink/40 text-paper transition hover:bg-ink/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:left-6 sm:h-12 sm:w-12"
           >
-            <ChevronLeft className="h-8 w-8" strokeWidth={2.25} aria-hidden="true" />
+            <ChevronLeft className="h-6 w-6 sm:h-8 sm:w-8" strokeWidth={2.25} aria-hidden="true" />
           </button>
           <button
             type="button"
             onClick={() => goTo(active + 1)}
             aria-label="ถัดไป"
-            className="absolute right-3 top-1/2 z-10 inline-flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-ink/40 text-paper transition hover:bg-ink/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:right-6"
+            className="absolute right-3 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-ink/40 text-paper transition hover:bg-ink/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:right-6 sm:h-12 sm:w-12"
           >
-            <ChevronRight className="h-8 w-8" strokeWidth={2.25} aria-hidden="true" />
+            <ChevronRight className="h-6 w-6 sm:h-8 sm:w-8" strokeWidth={2.25} aria-hidden="true" />
           </button>
           <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-2">
             {slides.map((s, i) => (

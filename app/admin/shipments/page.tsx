@@ -95,9 +95,9 @@ export default async function AdminShipmentsPage({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-display text-xl font-bold">จัดส่งเหรียญ</h2>
-        <span className="font-mono text-sm text-ink/40 tnum">{regs.length} ใบสมัคร</span>
+        <span className="font-mono text-sm text-ink/40 tnum">{regs.length} ผู้สมัคร</span>
       </div>
 
       {error && (
@@ -148,7 +148,7 @@ export default async function AdminShipmentsPage({
 
       {regs.length === 0 ? (
         <Card className="text-center text-ink/50">
-          {q ? "ไม่พบรายการจัดส่งที่ตรงกับการค้นหา" : "ยังไม่มีใบสมัครที่ต้องจัดส่งเหรียญ"}
+          {q ? "ไม่พบรายการจัดส่งที่ตรงกับการค้นหา" : "ยังไม่มีผู้สมัครที่ต้องจัดส่งเหรียญ"}
         </Card>
       ) : (
         <div className="space-y-3">
@@ -157,7 +157,7 @@ export default async function AdminShipmentsPage({
             const addr = r.shipping_address;
             return (
               <Card key={r.id} className="space-y-3">
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-sm text-ink/50">
                       {r.events?.title} — {r.packages?.name}

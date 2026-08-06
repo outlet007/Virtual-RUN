@@ -74,7 +74,7 @@ export default async function AdminPaymentsPage({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-display text-xl font-bold">การชำระเงิน</h2>
         <span className="font-mono text-sm text-ink/40 tnum">{payments.length} รอตรวจสอบ</span>
       </div>
@@ -135,7 +135,7 @@ export default async function AdminPaymentsPage({
         <div className="space-y-3">
           {payments.map((p) => (
             <Card key={p.id} className="space-y-3">
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="text-sm text-ink/50">
                     {p.registrations?.events?.title} — {p.registrations?.packages?.name}
@@ -153,7 +153,7 @@ export default async function AdminPaymentsPage({
                 <Badge className={statusClass[p.status]}>{statusLabel[p.status]}</Badge>
               </div>
 
-              <div className="flex gap-2 border-t border-lane pt-3">
+              <div className="flex flex-col gap-2 border-t border-lane pt-3 sm:flex-row">
                 <form action={confirmPayment}>
                   <input type="hidden" name="payment_id" value={p.id} />
                   <input type="hidden" name="registration_id" value={p.registrations?.id ?? ""} />

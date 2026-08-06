@@ -39,14 +39,14 @@ export function EvidenceLightbox({ src, alt }: { src: string; alt: string }) {
 
       {open && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-2 backdrop-blur-sm sm:p-4"
           role="dialog"
           aria-modal="true"
           aria-label="ภาพหลักฐานผลวิ่ง"
           onClick={() => setOpen(false)}
         >
           <div
-            className="flex max-h-[95vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+            className="flex max-h-[calc(100vh-1rem)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-h-[calc(100vh-2rem)]"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-lane px-4 py-3 sm:px-5">

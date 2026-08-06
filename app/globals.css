@@ -9,6 +9,13 @@
   body {
     @apply bg-paper text-ink antialiased;
     font-feature-settings: "ss01";
+    overflow-wrap: anywhere;
+  }
+  img,
+  video,
+  canvas,
+  svg {
+    max-width: 100%;
   }
   /* ตัวเลขระยะทาง/BIB/เวลา ใช้ tabular figures ให้เรียงสวย */
   .tnum {
@@ -39,6 +46,15 @@
     aspect-ratio: 16 / 9;
     height: auto;
   }
+
+  .prose {
+    overflow-wrap: anywhere;
+  }
+}
+
+.py-1\.5 {
+  padding-top: 0.6rem;
+  padding-bottom: 0.6rem;
 }
 
 @media (prefers-reduced-motion: reduce) {

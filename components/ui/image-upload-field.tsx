@@ -119,7 +119,7 @@ export function ImageUploadField({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={preview}
-                  alt="ตัวอย่างตำแหน่งรูป hero"
+                  alt={`ตัวอย่างตำแหน่ง${label}`}
                   className="absolute inset-0 h-full w-full select-none object-cover"
                   style={{ objectPosition: [positionX, positionY].join("% ") + "%" }}
                   draggable={false}
@@ -132,7 +132,7 @@ export function ImageUploadField({
               </>
             ) : (
               <div className="flex h-full min-h-40 items-center justify-center text-sm text-ink/40">
-                เลือกรูปเพื่อปรับตำแหน่ง hero
+                เลือก{label}เพื่อปรับตำแหน่งโฟกัส
               </div>
             )}
           </div>
@@ -162,12 +162,12 @@ export function ImageUploadField({
           </div>
         </>
       ) : (
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
           {preview ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={preview} alt="" className="h-16 w-16 rounded-xl border border-lane object-cover" />
+            <img src={preview} alt="" className="h-16 w-16 shrink-0 rounded-xl border border-lane object-cover" />
           ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-dashed border-lane text-xs text-ink/40">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-dashed border-lane text-xs text-ink/40">
               ไม่มีรูป
             </div>
           )}

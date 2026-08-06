@@ -99,7 +99,7 @@ export default async function AdminHeroBannersPage({
                 defaultPositionX={b.position_x}
                 defaultPositionY={b.position_y}
               />
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <Label>หัวข้อ (ไม่บังคับ)</Label>
                   <Input name="title" defaultValue={b.title ?? ""} />
@@ -144,7 +144,7 @@ export default async function AdminHeroBannersPage({
             defaultPositionX={50}
             defaultPositionY={50}
           />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <Label>หัวข้อ (ไม่บังคับ)</Label>
               <Input name="title" />

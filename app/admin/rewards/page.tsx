@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, Button, Input, Label, Badge, ImageUploadField, Textarea } from "@/components/ui";
-import { createReward, updateReward, fulfillRedemption } from "@/lib/actions/admin";
+import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
+import { createReward, updateReward, deleteReward, fulfillRedemption } from "@/lib/actions/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,7 @@ export default async function AdminRewardsPage({
     error?: string;
     reward_added?: string;
     reward_saved?: string;
+    reward_deleted?: string;
     fulfilled?: string;
   }>;
 }) {
@@ -50,14 +52,14 @@ export default async function AdminRewardsPage({
       {sp.error && (
         <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{sp.error}</div>
       )}
-      {(sp.reward_added || sp.reward_saved || sp.fulfilled) && (
+      {(sp.reward_added || sp.reward_saved || sp.reward_deleted || sp.fulfilled) && (
         <div className="rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
-          บันทึกแล้ว
+          {sp.reward_deleted ? "ลบรางวัลแล้ว" : "บันทึกแล้ว"}
         </div>
       )}
 
       <div>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-display text-xl font-bold">รายการแลกรางวัลที่รอดำเนินการ</h2>
           <span className="font-mono text-sm text-ink/40 tnum">{redemptions.length} รายการ</span>
         </div>
@@ -66,7 +68,7 @@ export default async function AdminRewardsPage({
         ) : (
           <div className="mt-3 space-y-3">
             {redemptions.map((r) => (
-              <Card key={r.id} className="flex items-center justify-between gap-3">
+              <Card key={r.id} className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="font-semibold">{r.users?.name || r.users?.email}</p>
                   <p className="text-sm text-ink/50">
@@ -102,8 +104,8 @@ export default async function AdminRewardsPage({
                   label="รูปรางวัล"
                   defaultImageUrl={rw.image_url}
                 />
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="col-span-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="sm:col-span-2">
                     <Label>ชื่อรางวัล</Label>
                     <Input name="name" defaultValue={rw.name} required />
                   </div>
@@ -125,9 +127,17 @@ export default async function AdminRewardsPage({
                   <Label>จำนวนคงเหลือ</Label>
                   <Input name="stock" type="number" min="0" defaultValue={rw.stock} />
                 </div>
-                <Button variant="ghost" type="submit" icon="save">
-                  บันทึกรางวัลนี้
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button variant="ghost" type="submit" icon="save">
+                    บันทึกรางวัลนี้
+                  </Button>
+                  <ConfirmDeleteButton
+                    formAction={deleteReward}
+                    triggerLabel="ลบรางวัล"
+                    title="ยืนยันการลบรางวัล"
+                    description={`ต้องการลบรางวัล "${rw.name}" ใช่หรือไม่? รางวัลที่มีประวัติการแลกแล้วจะไม่สามารถลบได้`}
+                  />
+                </div>
               </Card>
             </form>
           ))}
@@ -137,8 +147,8 @@ export default async function AdminRewardsPage({
           <Card className="space-y-3">
             <p className="text-sm font-semibold">+ เพิ่มรางวัลใหม่</p>
             <ImageUploadField name="image_file" label="รูปรางวัล" />
-            <div className="grid grid-cols-3 gap-3">
-              <div className="col-span-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="sm:col-span-2">
                 <Label>ชื่อรางวัล</Label>
                 <Input name="name" required />
               </div>

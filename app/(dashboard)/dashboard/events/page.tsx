@@ -55,7 +55,7 @@ export default async function MyEventsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="font-display text-xl font-bold">งานของฉัน</h2>
           <p className="mt-1 text-sm text-muted">งานที่สมัครไว้ทั้งหมด พร้อมความคืบหน้าสะสมระยะ</p>
@@ -75,7 +75,7 @@ export default async function MyEventsPage() {
             const finished = done >= target;
             return (
               <Card key={r.id} className="space-y-3">
-                <div className="flex items-start justify-between">
+                <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-sm text-ink/50">{r.events?.title}</p>
                     <p className="font-display text-lg font-bold">{r.packages?.name}</p>
@@ -93,7 +93,7 @@ export default async function MyEventsPage() {
                     ) : (
                       <Badge
                         className={
-                          finished ? "bg-primary-soft text-primary-dark" : "bg-lane text-muted"
+                          finished ? "bg-green-100 text-green-700" : "bg-lane text-muted"
                         }
                       >
                         {finished ? (

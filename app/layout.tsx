@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
 import { Noto_Sans_Thai } from "next/font/google";
-import Link from "next/link";
-import { LogIn, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getSystemSettings } from "@/lib/system-settings";
 import { lighten, darken } from "@/lib/color";
 import { getAdminHome, isAdminRole, type AdminRole } from "@/lib/auth/admin";
+import { SiteHeader } from "@/components/site-header";
+import { CookieConsent } from "@/components/cookie-consent";
+import { sanitizeCookieConsentHtml } from "@/lib/cookie-consent-html";
+import {
+  getContentBackgroundDisplayStyle,
+  getContentBackgroundInsetStyle,
+} from "@/lib/content-background";
 import "./globals.css";
 
 // Noto Sans Thai เป็น font เดียวของทั้งระบบ (แทน Space Grotesk/Inter/Space Mono เดิม)
@@ -60,69 +65,55 @@ export default async function RootLayout({
   return (
     <html lang="th" style={themeVars}>
       <body className={`${notoSansThai.variable} font-sans`}>
-        <header className="sticky top-0 z-20 border-b border-lane bg-paper/85 backdrop-blur">
-          <nav className="mx-auto flex h-16 max-w-[1500px] items-center justify-between px-4">
-            <Link href="/" className="flex items-center gap-2">
-              {settings.logo_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={settings.logo_url} alt="" className="h-12 w-12 rounded-full object-cover" />
-              ) : (
-                <span className="grid h-12 w-12 place-items-center rounded-full bg-ink font-mono text-sm font-bold text-primary">
-                  VR
-                </span>
-              )}
-              <span className="font-display text-lg font-bold tracking-tight">
-                {settings.site_name}
-              </span>
-            </Link>
-            <div className="flex items-center gap-1 text-sm">
-              <Link
-                href="/"
-                className="rounded-lg px-3 py-2 font-medium hover:bg-lane/60"
-              >
-                งานวิ่ง
-              </Link>
-              {user ? (
-                <>
-                  <Link
-                    href="/dashboard"
-                    className="rounded-lg px-3 py-2 font-medium hover:bg-lane/60"
-                  >
-                    แดชบอร์ด
-                  </Link>
-                  {adminRole && (
-                    <>
-                      <Link
-                        href={getAdminHome(adminRole)}
-                        className="rounded-lg px-3 py-2 font-medium hover:bg-lane/60"
-                      >
-                        แผงควบคุม
-                      </Link>
-                    </>
-                  )}
-                  <form action="/auth/signout" method="post">
-                    <button className="inline-flex items-center gap-2 rounded-lg px-3 py-2 font-medium text-muted hover:bg-lane/60">
-                      <LogOut className="size-4" aria-hidden="true" />
-                      ออกจากระบบ
-                    </button>
-                  </form>
-                </>
-              ) : (
-                <Link
-                  href="/login"
-                  className="inline-flex items-center gap-2 rounded-lg bg-ink px-4 py-2 font-semibold text-paper hover:bg-ink/90"
-                >
-                  <LogIn className="size-4" aria-hidden="true" />
-                  เข้าสู่ระบบ
-                </Link>
-              )}
-            </div>
-          </nav>
-        </header>
-        <main className="mx-auto max-w-[1500px] px-4 py-8">{children}</main>
-        <footer className="mx-auto max-w-[1500px] px-4 py-10 text-center text-xs text-ink/40">
+        <SiteHeader
+          siteName={settings.site_name}
+          logoUrl={settings.logo_url}
+          isAuthenticated={Boolean(user)}
+          adminHref={adminRole ? getAdminHome(adminRole) : null}
+        />
+        <div className="relative">
+          {settings.content_background_url && (
+            <div
+              className="pointer-events-none absolute left-0 right-0"
+              style={{
+                backgroundImage: `url(${JSON.stringify(settings.content_background_url)})`,
+                backgroundPosition: `${settings.content_background_position_x}% ${settings.content_background_position_y}%`,
+                ...getContentBackgroundDisplayStyle(settings.content_background_display),
+                ...getContentBackgroundInsetStyle(
+                  settings.content_background_inset_top,
+                  settings.content_background_inset_bottom,
+                ),
+              }}
+              aria-hidden="true"
+            />
+          )}
+          {settings.content_overlay_opacity > 0 && (
+            <div
+              className="pointer-events-none absolute left-0 right-0"
+              style={{
+                backgroundColor: settings.content_overlay_color,
+                opacity: settings.content_overlay_opacity / 100,
+                ...getContentBackgroundInsetStyle(
+                  settings.content_background_inset_top,
+                  settings.content_background_inset_bottom,
+                ),
+              }}
+              aria-hidden="true"
+            />
+          )}
+          <main className="relative z-[1] mx-auto max-w-[1500px] px-3 py-5 sm:px-4 sm:py-8">
+            {children}
+          </main>
+        </div>
+        <footer className="mx-auto max-w-[1500px] px-3 py-8 text-center text-xs text-ink/40 sm:px-4 sm:py-10">
           © 2026 {settings.site_name} · Bangkok University. All Rights Reserved.
         </footer>
+        <CookieConsent
+          enabled={settings.cookie_consent_enabled}
+          messageHtml={sanitizeCookieConsentHtml(settings.cookie_consent_message)}
+          policyUrl={settings.cookie_policy_url}
+          buttonLabel={settings.cookie_consent_button_label}
+        />
       </body>
     </html>
   );
