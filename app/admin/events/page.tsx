@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { Search, Footprints, CalendarDays, ChevronRight, ChevronLeft, RotateCcw } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Card, Badge, LinkButton, Input, Select } from "@/components/ui";
+import { Card, Badge, Input, Select } from "@/components/ui";
 import { formatDate, stripHtml } from "@/lib/utils";
 import { getBangkokDate } from "@/lib/event-registration";
+import { CreateEventModal } from "@/components/admin/create-event-modal";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,14 @@ const statusClass: Record<string, string> = {
 export default async function AdminEventsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; q?: string; status?: string; event_deleted?: string }>;
+  searchParams: Promise<{
+    page?: string;
+    q?: string;
+    status?: string;
+    event_deleted?: string;
+    create?: string;
+    error?: string;
+  }>;
 }) {
   const sp = await searchParams;
   const db = createAdminClient();
@@ -71,7 +79,7 @@ export default async function AdminEventsPage({
     <div className="space-y-6">
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="font-display text-xl font-bold">งานทั้งหมด</h2>
-        <LinkButton href="/admin/events/new" icon="add">สร้างงาน</LinkButton>
+        <CreateEventModal initialOpen={sp.create === "1"} error={sp.error} />
       </div>
 
       {sp.event_deleted && (
@@ -147,7 +155,7 @@ export default async function AdminEventsPage({
               const isPast = ev.end_date < today;
               return (
                 <Link key={ev.id} href={`/admin/events/${ev.id}`} className="group">
-                  <Card className="flex h-full flex-col overflow-hidden p-0 hover:border-primary/40">
+                  <Card className="flex h-full flex-col overflow-hidden p-0 sm:p-0 hover:border-primary/40">
                     <div className="relative h-44 w-full overflow-hidden bg-lane">
                       {ev.cover_image ? (
                         // eslint-disable-next-line @next/next/no-img-element

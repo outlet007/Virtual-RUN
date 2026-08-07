@@ -101,7 +101,7 @@ export default async function RootLayout({
               aria-hidden="true"
             />
           )}
-          <main className="relative z-[1] mx-auto max-w-[1500px] px-3 py-5 sm:px-4 sm:py-8">
+          <main className="relative mx-auto max-w-[1500px] px-3 py-5 sm:px-4 sm:py-8">
             {children}
           </main>
         </div>

@@ -58,7 +58,7 @@ export function ConfirmDeleteButton({
         <div
           ref={dialogRef}
           tabIndex={-1}
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-ink/60 p-4 backdrop-blur-sm outline-none"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm outline-none"
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}

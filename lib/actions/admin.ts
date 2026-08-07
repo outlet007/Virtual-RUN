@@ -121,10 +121,10 @@ export async function createEvent(formData: FormData) {
   const cover_position_y = parseImagePosition(formData.get("cover_position_y"));
 
   if (!title || !start_date || !end_date) {
-    err("/admin/events/new", "กรอกชื่องานและวันที่ให้ครบ");
+    err("/admin/events?create=1", "กรอกชื่องานและวันที่ให้ครบ");
   }
   if (!isValidBibPrefix(bib_prefix)) {
-    err("/admin/events/new", "คำนำหน้า BIB ต้องเป็นตัวอักษรอังกฤษหรือตัวเลข 2–8 ตัว");
+    err("/admin/events?create=1", "คำนำหน้า BIB ต้องเป็นตัวอักษรอังกฤษหรือตัวเลข 2–8 ตัว");
   }
 
   let cover_image: string | null = null;
@@ -133,7 +133,7 @@ export async function createEvent(formData: FormData) {
     cover_image = await uploadEventImage(db, formData.get("cover_image_file"), "covers");
     poster_image = await uploadEventImage(db, formData.get("poster_image_file"), "posters");
   } catch (e) {
-    err("/admin/events/new", (e as Error).message);
+    err("/admin/events?create=1", (e as Error).message);
   }
 
   const { data, error } = await db
@@ -154,7 +154,7 @@ export async function createEvent(formData: FormData) {
     .select("id")
     .single();
 
-  if (error) err("/admin/events/new", error.message);
+  if (error) err("/admin/events?create=1", error.message);
 
   revalidatePath("/admin/events");
   revalidatePath("/");
@@ -567,52 +567,6 @@ export async function reviewSubmission(formData: FormData) {
   revalidatePath("/admin/submissions");
   revalidatePath("/dashboard");
   redirect(`/admin/submissions?reviewed=${status}`);
-}
-
-// ---------- Shipments ----------
-
-export async function upsertShipment(formData: FormData) {
-  await requireAdmin();
-  const db = createAdminClient();
-
-  const registration_id = String(formData.get("registration_id") ?? "");
-  const carrier = String(formData.get("carrier") ?? "").trim();
-  const tracking_no = String(formData.get("tracking_no") ?? "").trim();
-  const status = String(formData.get("status") ?? "pending");
-
-  if (!registration_id) err("/admin/shipments", "ไม่พบผู้สมัคร");
-
-  const { error } = await db.from("shipments").upsert(
-    {
-      registration_id,
-      carrier: carrier || null,
-      tracking_no: tracking_no || null,
-      status,
-      shipped_at: status === "shipped" || status === "delivered" ? new Date().toISOString() : null,
-    },
-    { onConflict: "registration_id" },
-  );
-
-  if (error) err("/admin/shipments", error.message);
-
-  if (status === "shipped") {
-    const { data: reg } = await db
-      .from("registrations")
-      .select("user_id")
-      .eq("id", registration_id)
-      .single();
-    if (reg) {
-      await notifyUser(reg.user_id, "shipment_shipped", {
-        subject: "เหรียญของคุณถูกจัดส่งแล้ว",
-        text: tracking_no
-          ? `เหรียญของคุณถูกจัดส่งแล้วผ่าน ${carrier || "ผู้ให้บริการขนส่ง"} เลขพัสดุ ${tracking_no}`
-          : "เหรียญของคุณถูกจัดส่งแล้ว",
-      });
-    }
-  }
-
-  revalidatePath("/admin/shipments");
-  redirect("/admin/shipments?saved=1");
 }
 
 // ---------- Admins ----------
@@ -1255,6 +1209,10 @@ export async function updateSystemSettings(formData: FormData) {
   ).trim();
   const content_overlay_color = String(formData.get("content_overlay_color") ?? "").trim();
   const content_overlay_opacity = Number(formData.get("content_overlay_opacity"));
+  const submission_max_distance_km = Number(
+    formData.get("submission_max_distance_km"),
+  );
+  const submission_daily_limit = Number(formData.get("submission_daily_limit"));
   const content_background_position_x = parseImagePosition(
     formData.get("content_background_position_x"),
   );
@@ -1306,6 +1264,20 @@ export async function updateSystemSettings(formData: FormData) {
   ) {
     err("/admin/settings", "Opacity ของ Overlay ต้องอยู่ระหว่าง 0–100");
   }
+  if (
+    !Number.isFinite(submission_max_distance_km) ||
+    submission_max_distance_km < 0.1 ||
+    submission_max_distance_km > 1000
+  ) {
+    err("/admin/settings", "ระยะสูงสุดต่อครั้งต้องอยู่ระหว่าง 0.1–1,000 กม.");
+  }
+  if (
+    !Number.isInteger(submission_daily_limit) ||
+    submission_daily_limit < 1 ||
+    submission_daily_limit > 50
+  ) {
+    err("/admin/settings", "จำนวนส่งผลสูงสุดต่อวันต้องเป็นจำนวนเต็มระหว่าง 1–50");
+  }
   if (!CONTENT_BACKGROUND_DISPLAYS.some((mode) => mode === content_background_display)) {
     err("/admin/settings", "รูปแบบการแสดงพื้นหลังไม่ถูกต้อง");
   }
@@ -1332,6 +1304,8 @@ export async function updateSystemSettings(formData: FormData) {
     content_background_inset_bottom,
     content_overlay_color,
     content_overlay_opacity,
+    submission_max_distance_km,
+    submission_daily_limit,
   };
 
   try {

@@ -2,12 +2,16 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { createHash } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { basicRuleCheck } from "@/lib/rules";
+import { evaluateSubmissionRules } from "@/lib/rules";
+import { loadSubmissionRuleRuntime } from "@/lib/submission-rule-context";
 import { awardForApprovedSubmission } from "@/lib/gamification";
 import { readRunEvidence } from "@/lib/ocr/run-evidence";
+import {
+  createEvidenceFingerprint,
+  DEFAULT_PHASH_DISTANCE_THRESHOLD,
+} from "@/lib/evidence-fingerprint";
 
 const EVIDENCE_TYPES = {
   "image/png": "png",
@@ -45,7 +49,13 @@ export async function createSubmission(formData: FormData) {
     ? durationHours * 3600 + durationMinutes * 60 + durationSeconds
     : 0;
 
-  if (!registrationId || distanceKm <= 0 || !activityDate || durationSec <= 0) {
+  if (
+    !registrationId ||
+    !Number.isFinite(distanceKm) ||
+    distanceKm <= 0 ||
+    !/^d{4}-d{2}-d{2}$/.test(activityDate) ||
+    durationSec <= 0
+  ) {
     redirect(
       "/dashboard/submit?error=" +
         encodeURIComponent("กรอกระยะ เวลา และวันที่ให้ถูกต้อง"),
@@ -69,7 +79,7 @@ export async function createSubmission(formData: FormData) {
 
   const { data: registration } = await supabase
     .from("registrations")
-    .select("id")
+    .select("id, events(start_date, end_date)")
     .eq("id", registrationId)
     .eq("user_id", user.id)
     .eq("status", "confirmed")
@@ -81,19 +91,105 @@ export async function createSubmission(formData: FormData) {
     );
   }
 
+  const registrationEvent = Array.isArray(registration.events)
+    ? registration.events[0] ?? null
+    : registration.events;
+  if (!registrationEvent) {
+    redirect(
+      "/dashboard/submit?error=" + encodeURIComponent("ไม่พบช่วงเวลาของงาน"),
+    );
+  }
+
+  const db = createAdminClient();
+  let ruleRuntime;
+  try {
+    ruleRuntime = await loadSubmissionRuleRuntime(db, registrationId, activityDate);
+  } catch {
+    redirect(
+      "/dashboard/submit?error=" +
+        encodeURIComponent("ตรวจสอบกฎการส่งผลไม่สำเร็จ กรุณาลองอีกครั้ง"),
+    );
+  }
+
+  const ruleResult = evaluateSubmissionRules({
+    distanceKm,
+    durationSec,
+    activityDate,
+    eventStartDate: registrationEvent.start_date,
+    eventEndDate: registrationEvent.end_date,
+    ...ruleRuntime,
+  });
+
   const imageBuffer = Buffer.from(await evidenceFile.arrayBuffer());
-  const evidenceSha256 = createHash("sha256").update(imageBuffer).digest("hex");
-  const { data: duplicate } = await supabase
+  let fingerprint;
+  try {
+    fingerprint = await createEvidenceFingerprint(imageBuffer);
+  } catch {
+    redirect(
+      "/dashboard/submit?error=" +
+        encodeURIComponent("ไฟล์หลักฐานเสียหายหรือไม่ใช่รูปภาพที่รองรับ"),
+    );
+  }
+
+  const { data: exactDuplicate, error: exactDuplicateError } = await db
     .from("submissions")
     .select("id")
-    .eq("user_id", user.id)
-    .eq("evidence_sha256", evidenceSha256)
+    .eq("evidence_sha256", fingerprint.sha256)
     .maybeSingle();
-  if (duplicate) {
+  if (exactDuplicateError) {
+    redirect(
+      "/dashboard/submit?error=" +
+        encodeURIComponent("ตรวจสอบหลักฐานซ้ำไม่สำเร็จ กรุณาลองอีกครั้ง"),
+    );
+  }
+  if (exactDuplicate) {
     redirect(
       "/dashboard/submit?error=" +
         encodeURIComponent("รูปหลักฐานนี้เคยใช้บันทึกผลแล้ว"),
     );
+  }
+
+  const { data: normalizedDuplicate, error: normalizedDuplicateError } = await db
+    .from("submissions")
+    .select("id")
+    .eq("normalized_sha256", fingerprint.normalizedSha256)
+    .limit(1)
+    .maybeSingle();
+  if (normalizedDuplicateError) {
+    redirect(
+      "/dashboard/submit?error=" +
+        encodeURIComponent("ตรวจสอบหลักฐานซ้ำไม่สำเร็จ กรุณาลองอีกครั้ง"),
+    );
+  }
+
+  let duplicateMatch:
+    | { type: "normalized" | "perceptual"; submissionId: string; distance: number }
+    | null = normalizedDuplicate
+    ? { type: "normalized", submissionId: normalizedDuplicate.id, distance: 0 }
+    : null;
+
+  if (!duplicateMatch) {
+    const { data: nearMatches, error: nearMatchError } = await db.rpc(
+      "find_near_duplicate_evidence",
+      {
+        candidate_phash: fingerprint.phash,
+        max_distance: DEFAULT_PHASH_DISTANCE_THRESHOLD,
+      },
+    );
+    if (nearMatchError) {
+      redirect(
+        "/dashboard/submit?error=" +
+          encodeURIComponent("ตรวจสอบความคล้ายของหลักฐานไม่สำเร็จ กรุณาลองอีกครั้ง"),
+      );
+    }
+    const nearest = (nearMatches as { submission_id: string; distance: number }[] | null)?.[0];
+    if (nearest) {
+      duplicateMatch = {
+        type: "perceptual",
+        submissionId: nearest.submission_id,
+        distance: nearest.distance,
+      };
+    }
   }
 
   const ocr = await readRunEvidence(imageBuffer, extension, distanceKm);
@@ -109,12 +205,10 @@ export async function createSubmission(formData: FormData) {
   }
   const evidencePath = path;
 
-  const ruleStatus = basicRuleCheck(distanceKm, durationSec);
-  const status = ocr.status === "matched" && ruleStatus === "approved"
+  const status = !duplicateMatch && ocr.status === "matched" && ruleResult.status === "approved"
     ? "approved"
     : "flagged";
 
-  const db = createAdminClient();
   const { data: submission, error } = await db
     .from("submissions")
     .insert({
@@ -124,9 +218,16 @@ export async function createSubmission(formData: FormData) {
       activity_type: activityType,
       distance_km: distanceKm,
       duration_sec: durationSec,
-      activity_date: new Date(activityDate).toISOString(),
+      activity_date: new Date(`${activityDate}T00:00:00+07:00`).toISOString(),
+      activity_local_date: activityDate,
+      flag_reason: ruleResult.reasons,
       evidence_url: evidencePath,
-      evidence_sha256: evidenceSha256,
+      evidence_sha256: fingerprint.sha256,
+      normalized_sha256: fingerprint.normalizedSha256,
+      evidence_phash: fingerprint.phash,
+      duplicate_match_type: duplicateMatch?.type ?? null,
+      duplicate_match_submission_id: duplicateMatch?.submissionId ?? null,
+      duplicate_similarity_distance: duplicateMatch?.distance ?? null,
       ocr_status: ocr.status,
       ocr_distance_km: ocr.distanceKm,
       ocr_confidence: ocr.confidence,
@@ -139,6 +240,12 @@ export async function createSubmission(formData: FormData) {
 
   if (error) {
     await db.storage.from("run-evidence").remove([evidencePath]);
+    if (error.code === "23505") {
+      redirect(
+        "/dashboard/submit?error=" +
+          encodeURIComponent("รูปหลักฐานนี้เคยใช้บันทึกผลแล้ว"),
+      );
+    }
     redirect("/dashboard/submit?error=" + encodeURIComponent(error.message));
   }
 

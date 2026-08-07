@@ -1,122 +1,103 @@
 import Link from "next/link";
 import { RotateCcw, Search } from "lucide-react";
 import { Badge, Button, Card, Input, Label, LinkButton, Select } from "@/components/ui";
-import { manuallyApproveRegistration } from "@/lib/actions/admin-registrations";
 import {
-  getAdminRegistrations,
-  getRegistrationEventOptions,
-  registrationStatusLabel,
-} from "@/lib/admin/registrations";
+  ACCOUNT_TYPES,
+  ACCOUNT_TYPE_LABELS,
+  getAdminSystemUsers,
+  normalizeAccountType,
+  type AccountType,
+} from "@/lib/admin/users";
 import { requireAdmin } from "@/lib/auth/admin";
 
 export const dynamic = "force-dynamic";
 
-const statusClass: Record<string, string> = {
-  pending: "bg-medal-soft text-medal",
-  confirmed: "bg-primary-soft text-primary-dark",
-  cancelled: "bg-red-100 text-red-700",
+const accountTypeClass: Record<AccountType, string> = {
+  user: "bg-primary-soft text-primary-dark",
+  staff: "bg-sky-100 text-sky-700",
+  admin: "bg-medal-soft text-medal",
+  super_admin: "bg-ink text-paper",
 };
+
+function userInitials(name: string | null, email: string | null) {
+  const source = (name || email || "U").trim();
+  const parts = source.split(/\s+/).filter(Boolean);
+  if (parts.length > 1) return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  return source.slice(0, 2).toUpperCase();
+}
 
 export default async function AdminRegistrationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{
-    approved?: string;
-    error?: string;
-    event?: string;
-    q?: string;
-    status?: string;
-  }>;
+  searchParams: Promise<{ q?: string; accountType?: string }>;
 }) {
   await requireAdmin();
   const sp = await searchParams;
   const q = (sp.q ?? "").trim();
-  const eventId = sp.event && sp.event !== "all" ? sp.event : "";
-  const status = sp.status ?? "all";
-
-  const [registrations, events] = await Promise.all([
-    getAdminRegistrations({ q, eventId, status }),
-    getRegistrationEventOptions(),
-  ]);
+  const accountType = normalizeAccountType(sp.accountType);
+  const users = await getAdminSystemUsers({ q, accountType });
 
   const exportParams = new URLSearchParams();
   if (q) exportParams.set("q", q);
-  if (eventId) exportParams.set("event", eventId);
-  if (status !== "all") exportParams.set("status", status);
+  if (accountType !== "all") exportParams.set("accountType", accountType);
   const exportQuery = exportParams.toString();
   const exportHref = `/admin/registrations/export${exportQuery ? `?${exportQuery}` : ""}`;
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-display text-xl font-bold">จัดการผู้สมัคร</h2>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-display text-xl font-bold">จัดการผู้สมัคร</h2>
+          <p className="mt-1 text-sm text-ink/55">
+            รายชื่อผู้ใช้งานทั้งหมดและประเภทบัญชีในระบบ Virtual RUN
+          </p>
+        </div>
         <div className="flex items-center gap-3">
           <span className="font-mono text-sm text-ink/40 tnum">
-            {registrations.length} ผู้สมัคร
+            {users.length} บัญชีผู้ใช้
           </span>
-          <LinkButton href={exportHref} variant="ghost" icon="download">
+          <LinkButton href={exportHref} icon="download">
             Export CSV
           </LinkButton>
         </div>
       </div>
 
-      {sp.approved && (
-        <div className="rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
-          ยืนยันผู้สมัครและออกหมายเลข BIB แล้ว
-        </div>
-      )}
-      {sp.error && (
-        <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{sp.error}</div>
-      )}
-
       <Card>
         <form method="get" className="space-y-4">
-          <div>
-            <Label htmlFor="registration-search">ค้นหาผู้สมัคร</Label>
-            <div className="flex items-center gap-2">
-              <div className="relative min-w-0 flex-1">
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_260px_auto] lg:items-end">
+            <div>
+              <Label htmlFor="user-search">ค้นหาผู้ใช้งาน</Label>
+              <div className="relative">
                 <Search
                   className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/40"
                   aria-hidden="true"
                 />
                 <Input
-                  id="registration-search"
+                  id="user-search"
                   name="q"
                   defaultValue={q}
-                  placeholder="ชื่อผู้สมัคร อีเมล BIB งาน หรือแพ็กเกจ"
+                  placeholder="ชื่อ อีเมล โทรศัพท์ LINE จังหวัด หรือรหัสไปรษณีย์"
                   className="pl-9"
                 />
               </div>
-              <Button type="submit" className="shrink-0" icon="search">
-                ค้นหา
-              </Button>
             </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <Label htmlFor="registration-event">งาน</Label>
-              <Select id="registration-event" name="event" defaultValue={eventId || "all"}>
-                <option value="all">ทุกงาน</option>
-                {events.map((event) => (
-                  <option key={event.id} value={event.id}>
-                    {event.title}
+              <Label htmlFor="account-type">ประเภทบัญชี</Label>
+              <Select id="account-type" name="accountType" defaultValue={accountType}>
+                <option value="all">ทุกประเภทบัญชี</option>
+                {ACCOUNT_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {ACCOUNT_TYPE_LABELS[type]}
                   </option>
                 ))}
               </Select>
             </div>
-            <div>
-              <Label htmlFor="registration-status">สถานะ</Label>
-              <Select id="registration-status" name="status" defaultValue={status}>
-                <option value="all">ทุกสถานะ</option>
-                <option value="pending">รอดำเนินการ</option>
-                <option value="confirmed">ยืนยันแล้ว</option>
-                <option value="cancelled">ยกเลิก</option>
-              </Select>
-            </div>
+            <Button type="submit" className="w-full lg:w-auto" icon="search">
+              ค้นหา
+            </Button>
           </div>
 
-          {(q || eventId || status !== "all") && (
+          {(q || accountType !== "all") && (
             <Link
               href="/admin/registrations"
               className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-lane px-4 text-sm font-semibold transition hover:bg-lane/50"
@@ -128,67 +109,88 @@ export default async function AdminRegistrationsPage({
         </form>
       </Card>
 
-      {registrations.length === 0 ? (
-        <Card className="text-center text-ink/50">ไม่พบผู้สมัครที่ตรงกับเงื่อนไข</Card>
+      {users.length === 0 ? (
+        <Card className="text-center text-ink/50">ไม่พบบัญชีผู้ใช้ที่ตรงกับเงื่อนไข</Card>
       ) : (
-        <div className="space-y-3">
-          {registrations.map((registration) => {
-            const address = registration.shipping_address;
-            return (
-              <Card key={registration.id} className="space-y-3">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm text-ink/50">
-                      {registration.events?.title} — {registration.packages?.name}
-                    </p>
-                    <p className="font-semibold">
-                      {registration.users?.name || registration.users?.email || "ไม่ทราบชื่อ"}
-                    </p>
-                    {registration.users?.name && registration.users.email && (
-                      <p className="text-sm text-ink/50">{registration.users.email}</p>
-                    )}
-                    <p className="mt-1 font-mono text-xs text-ink/40 tnum">
-                      สมัครเมื่อ{" "}
-                      {new Date(registration.registered_at).toLocaleString("th-TH", {
-                        timeZone: "Asia/Bangkok",
-                      })}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    {registration.bib_number && (
-                      <span className="font-mono text-sm font-bold text-primary-dark tnum">
-                        BIB {registration.bib_number}
-                      </span>
-                    )}
-                    <Badge className={statusClass[registration.status]}>
-                      {registrationStatusLabel[registration.status] ?? registration.status}
-                    </Badge>
-                  </div>
-                </div>
-
-                {address && (
-                  <div className="border-t border-lane pt-3 text-sm text-ink/60">
-                    <p className="font-medium text-ink/70">ที่อยู่จัดส่ง</p>
-                    <p>
-                      {address.recipient} · {address.phone}
-                      <br />
-                      {address.address} {address.province} {address.postal_code}
-                    </p>
-                  </div>
-                )}
-
-                {registration.status === "pending" && (
-                  <form action={manuallyApproveRegistration} className="border-t border-lane pt-3">
-                    <input type="hidden" name="registration_id" value={registration.id} />
-                    <Button type="submit" icon="userCheck">
-                      ยืนยันผู้สมัครและออก BIB
-                    </Button>
-                  </form>
-                )}
-              </Card>
-            );
-          })}
-        </div>
+        <Card className="overflow-hidden p-0 sm:p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1050px] border-collapse text-left text-sm">
+              <caption className="sr-only">รายชื่อบัญชีผู้ใช้งานทั้งหมดในระบบ</caption>
+              <thead className="bg-lane/35 text-xs text-ink/55">
+                <tr>
+                  <th scope="col" className="px-4 py-3 font-semibold">ผู้ใช้งาน</th>
+                  <th scope="col" className="px-4 py-3 font-semibold">ข้อมูลติดต่อ</th>
+                  <th scope="col" className="px-4 py-3 font-semibold">LINE</th>
+                  <th scope="col" className="px-4 py-3 font-semibold">ที่อยู่</th>
+                  <th scope="col" className="px-4 py-3 font-semibold">วันที่สมัครระบบ</th>
+                  <th scope="col" className="px-4 py-3 font-semibold">ประเภทบัญชี</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-lane">
+                {users.map((user) => (
+                  <tr key={user.id} className="align-top transition hover:bg-lane/20">
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-3">
+                        <span
+                          className="grid size-10 shrink-0 place-items-center rounded-full bg-primary-soft font-mono text-xs font-bold text-primary-dark"
+                          aria-hidden="true"
+                        >
+                          {userInitials(user.name, user.email)}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-ink">{user.name || "ยังไม่ระบุชื่อ"}</p>
+                          <p className="mt-1 max-w-[260px] truncate text-xs text-ink/50">
+                            {user.email || "ไม่มีอีเมล"}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <p className="text-ink/75">{user.email || "ไม่มีอีเมล"}</p>
+                      <p className="mt-1 font-mono text-xs text-ink/50 tnum">
+                        {user.phone || "ไม่มีเบอร์โทรศัพท์"}
+                      </p>
+                    </td>
+                    <td className="px-4 py-4 text-ink/65">
+                      {user.line_user_id || "ยังไม่เชื่อมต่อ"}
+                    </td>
+                    <td className="max-w-[320px] px-4 py-4 text-xs leading-5 text-ink/60">
+                      {user.address || user.province || user.postal_code ? (
+                        <>
+                          {user.address && <p>{user.address}</p>}
+                          <p className={user.address ? "mt-1" : undefined}>
+                            {[user.province, user.postal_code].filter(Boolean).join(" ")}
+                          </p>
+                        </>
+                      ) : (
+                        <span className="text-ink/35">ยังไม่ระบุที่อยู่</span>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-4">
+                      <p className="font-mono text-sm tnum">
+                        {new Date(user.created_at).toLocaleDateString("th-TH", {
+                          timeZone: "Asia/Bangkok",
+                        })}
+                      </p>
+                      <p className="mt-1 font-mono text-xs text-ink/45 tnum">
+                        {new Date(user.created_at).toLocaleTimeString("th-TH", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          timeZone: "Asia/Bangkok",
+                        })} น.
+                      </p>
+                    </td>
+                    <td className="px-4 py-4">
+                      <Badge className={accountTypeClass[user.role]}>
+                        {ACCOUNT_TYPE_LABELS[user.role]}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       )}
     </div>
   );

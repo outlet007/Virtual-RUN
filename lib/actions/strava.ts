@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { basicRuleCheck } from "@/lib/rules";
+import { evaluateSubmissionRules } from "@/lib/rules";
+import { getBangkokActivityDate, loadSubmissionRuleRuntime } from "@/lib/submission-rule-context";
 import { awardForApprovedSubmission } from "@/lib/gamification";
 
 export async function disconnectStrava() {
@@ -44,7 +45,7 @@ export async function assignPendingActivity(formData: FormData) {
 
   const { data: registration } = await supabase
     .from("registrations")
-    .select("id")
+    .select("id, events(start_date, end_date)")
     .eq("id", registrationId)
     .eq("user_id", user.id)
     .eq("status", "confirmed")
@@ -53,8 +54,25 @@ export async function assignPendingActivity(formData: FormData) {
     redirect("/dashboard?error=" + encodeURIComponent("ใบสมัครไม่ถูกต้อง"));
   }
 
-  const status = basicRuleCheck(Number(pending!.distance_km), pending!.duration_sec);
+  const registrationEvent = Array.isArray(registration.events)
+    ? registration.events[0] ?? null
+    : registration.events;
+  if (!registrationEvent) {
+    redirect("/dashboard?error=" + encodeURIComponent("ไม่พบช่วงเวลาของงาน"));
+  }
+
   const db = createAdminClient();
+  const activityLocalDate = getBangkokActivityDate(pending.activity_date);
+  const ruleRuntime = await loadSubmissionRuleRuntime(db, registrationId, activityLocalDate);
+  const ruleResult = evaluateSubmissionRules({
+    distanceKm: Number(pending.distance_km),
+    durationSec: pending.duration_sec,
+    activityDate: activityLocalDate,
+    eventStartDate: registrationEvent.start_date,
+    eventEndDate: registrationEvent.end_date,
+    ...ruleRuntime,
+  });
+  const status = ruleResult.status;
   const { data: submission, error } = await db
     .from("submissions")
     .insert({
@@ -64,7 +82,9 @@ export async function assignPendingActivity(formData: FormData) {
       activity_type: pending!.activity_type,
       distance_km: pending!.distance_km,
       duration_sec: pending!.duration_sec,
-      activity_date: pending!.activity_date,
+      activity_date: pending.activity_date,
+      activity_local_date: activityLocalDate,
+      flag_reason: ruleResult.reasons,
       strava_activity_id: pending!.strava_activity_id,
       status,
     })
@@ -79,8 +99,8 @@ export async function assignPendingActivity(formData: FormData) {
     await awardForApprovedSubmission(
       registrationId,
       user.id,
-      Number(pending!.distance_km),
-      submission!.id,
+      Number(pending.distance_km),
+      submission.id,
     );
   }
 

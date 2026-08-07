@@ -1,9 +1,21 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Medal, CalendarDays, Road } from "lucide-react";
+import { CalendarDays, Medal, Road, RotateCcw, Search } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Card, Button, Input, Label, Select, Badge, ImageUploadField, Tabs } from "@/components/ui";
+import {
+  Card,
+  Button,
+  Input,
+  Label,
+  Select,
+  Badge,
+  ImageUploadField,
+  LinkButton,
+  Tabs,
+} from "@/components/ui";
 import { EditEventModal } from "@/components/admin/edit-event-modal";
+import { EventLeaderboardCard } from "@/components/admin/event-leaderboard";
+import { RegistrationTrendChart } from "@/components/admin/registration-trend-chart";
 import { MedalDeleteButton } from "@/components/admin/medal-delete-button";
 import { PhysicalMedalDeleteButton } from "@/components/admin/physical-medal-delete-button";
 import { PackageMedalFields } from "@/components/admin/package-medal-fields";
@@ -20,6 +32,7 @@ import {
 } from "@/lib/actions/admin";
 import { manuallyApproveRegistration } from "@/lib/actions/admin-registrations";
 import { registrationStatusLabel, type ShippingAddress } from "@/lib/admin/registrations";
+import { buildEventLeaderboards, buildRegistrationSeries } from "@/lib/admin/day8";
 import { formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -67,6 +80,19 @@ type EventRegistrationRow = {
   packages: { name: string } | null;
 };
 
+type Relation<T> = T | T[] | null;
+type EventSubmissionRow = {
+  id: string;
+  status: string;
+  distance_km: number | string;
+  user_id: string;
+  users: Relation<{ name: string | null; email: string | null }>;
+};
+
+function firstRelation<T>(value: Relation<T>) {
+  return Array.isArray(value) ? (value[0] ?? null) : value;
+}
+
 const tierLabel: Record<string, string> = {
   bronze: "บรอนซ์",
   silver: "เงิน",
@@ -110,11 +136,15 @@ export default async function EventDashboardPage({
     physical_medal_saved?: string;
     physical_medal_deleted?: string;
     registration_approved?: string;
+    registration_q?: string;
+    registration_status?: string;
     tab?: string;
+    period?: string;
   }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
+  const period = sp.period === "monthly" ? "monthly" : "daily";
   const db = createAdminClient();
 
   const { data: event } = await db
@@ -159,7 +189,7 @@ export default async function EventDashboardPage({
         .order("registered_at", { ascending: false }),
       db
         .from("submissions")
-        .select("id, status, registrations!inner(event_id)")
+        .select("id, status, distance_km, user_id, users(name, email), registrations!inner(event_id)")
         .eq("registrations.event_id", id),
       db
         .from("payments")
@@ -173,13 +203,78 @@ export default async function EventDashboardPage({
     ]);
 
   const regList = (regs ?? []) as unknown as EventRegistrationRow[];
-  const subList = subs ?? [];
+  const registrationQuery = (sp.registration_q ?? "").trim();
+  const registrationStatus = ["pending", "confirmed", "cancelled"].includes(
+    sp.registration_status ?? "",
+  )
+    ? sp.registration_status
+    : "all";
+  const registrationSearchNeedle = registrationQuery
+    .normalize("NFKC")
+    .toLocaleLowerCase("th-TH");
+  const filteredRegList = regList.filter((registration) => {
+    if (registrationStatus !== "all" && registration.status !== registrationStatus) return false;
+    if (!registrationSearchNeedle) return true;
+    const address = registration.shipping_address;
+    return [
+      registration.users?.name,
+      registration.users?.email,
+      registration.bib_number,
+      registration.packages?.name,
+      address?.recipient,
+      address?.phone,
+      address?.address,
+      address?.province,
+      address?.postal_code,
+    ].some((value) =>
+      String(value ?? "")
+        .normalize("NFKC")
+        .toLocaleLowerCase("th-TH")
+        .includes(registrationSearchNeedle),
+    );
+  });
+  const registrationExportParams = new URLSearchParams();
+  if (registrationQuery) registrationExportParams.set("registration_q", registrationQuery);
+  if (registrationStatus !== "all" && registrationStatus) {
+    registrationExportParams.set("registration_status", registrationStatus);
+  }
+  const registrationExportQuery = registrationExportParams.toString();
+  const registrationExportHref =
+    "/admin/events/" +
+    event.id +
+    "/registrations/export" +
+    (registrationExportQuery ? "?" + registrationExportQuery : "");
+  const subList = (subs ?? []) as unknown as EventSubmissionRow[];
   const confirmedCount = regList.filter((r) => r.status === "confirmed").length;
   const pendingRegCount = regList.filter((r) => r.status === "pending").length;
   const cancelledCount = regList.filter((r) => r.status === "cancelled").length;
   const approvedSubs = subList.filter((s) => s.status === "approved").length;
   const pendingSubs = subList.filter((s) => s.status === "pending" || s.status === "flagged").length;
   const revenue = (paidPayments ?? []).reduce((sum, p) => sum + Number(p.amount), 0);
+  const approvedDistanceKm = subList
+    .filter((submission) => submission.status === "approved")
+    .reduce((sum, submission) => sum + Number(submission.distance_km), 0);
+  const registrationSeries = buildRegistrationSeries(
+    regList.map((registration) => ({ registeredAt: registration.registered_at })),
+    period,
+  );
+  const registrationSeriesTotal = registrationSeries.reduce(
+    (sum, point) => sum + point.registrations,
+    0,
+  );
+  const [eventLeaderboard] = buildEventLeaderboards(
+    subList.flatMap((submission) => {
+      if (submission.status !== "approved") return [];
+      const user = firstRelation(submission.users);
+      return [{
+        eventId: event.id,
+        eventTitle: event.title,
+        userId: submission.user_id,
+        userName: user?.name || user?.email || "ไม่ทราบชื่อ",
+        distanceKm: Number(submission.distance_km),
+      }];
+    }),
+  );
 
   const dashboardStats = [
     { label: "ผู้สมัครทั้งหมด", value: regList.length },
@@ -188,6 +283,10 @@ export default async function EventDashboardPage({
     { label: "ยกเลิก", value: cancelledCount },
     { label: "ผลวิ่งอนุมัติแล้ว", value: approvedSubs },
     { label: "ผลวิ่งรอตรวจ", value: pendingSubs },
+    {
+      label: "ระยะสะสมที่อนุมัติ (กม.)",
+      value: approvedDistanceKm.toLocaleString("th-TH", { maximumFractionDigits: 1 }),
+    },
     { label: "ยอดชำระเงินสะสม (บาท)", value: revenue.toLocaleString(undefined, { maximumFractionDigits: 2 }) },
     { label: "เหรียญที่ปลดล็อกแล้ว", value: medalsUnlocked ?? 0 },
   ];
@@ -318,7 +417,14 @@ export default async function EventDashboardPage({
                     />
                   )}
                 </Card>
-
+              </div>
+            ),
+          },
+          {
+            id: "statistics",
+            label: "สถิติงาน",
+            content: (
+              <div className="space-y-6">
                 <div>
                   <h3 className="mb-3 font-display text-lg font-bold">สถิติงานนี้</h3>
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -330,6 +436,57 @@ export default async function EventDashboardPage({
                     ))}
                   </div>
                 </div>
+
+                <section aria-labelledby="event-registration-trend-heading">
+                  <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+                    <div>
+                      <h3 id="event-registration-trend-heading" className="font-display text-lg font-bold">
+                        แนวโน้มผู้สมัคร
+                        {period === "daily" ? " 30 วันล่าสุด" : " 12 เดือนล่าสุด"}
+                      </h3>
+                      <p className="mt-1 text-sm text-ink/50">
+                        รวม {registrationSeriesTotal.toLocaleString("th-TH")} คนในช่วงที่เลือก
+                      </p>
+                    </div>
+                    <div className="flex rounded-xl border border-lane p-1" aria-label="เลือกช่วงเวลาของกราฟ">
+                      <Link
+                        href={`/admin/events/${event.id}?tab=statistics&period=daily`}
+                        aria-current={period === "daily" ? "page" : undefined}
+                        className={`rounded-lg px-3 py-2 text-sm font-semibold ${
+                          period === "daily" ? "bg-ink text-paper" : "text-ink/60"
+                        }`}
+                      >
+                        รายวัน
+                      </Link>
+                      <Link
+                        href={`/admin/events/${event.id}?tab=statistics&period=monthly`}
+                        aria-current={period === "monthly" ? "page" : undefined}
+                        className={`rounded-lg px-3 py-2 text-sm font-semibold ${
+                          period === "monthly" ? "bg-ink text-paper" : "text-ink/60"
+                        }`}
+                      >
+                        รายเดือน
+                      </Link>
+                    </div>
+                  </div>
+                  <Card>
+                    <div className="overflow-x-auto pb-1">
+                      <RegistrationTrendChart data={registrationSeries} />
+                    </div>
+                  </Card>
+                </section>
+
+                <section aria-labelledby="event-leaderboard-heading">
+                  <div className="mb-3">
+                    <h3 id="event-leaderboard-heading" className="font-display text-lg font-bold">
+                      อันดับระยะสะสมสูงสุด
+                    </h3>
+                    <p className="mt-1 text-sm text-ink/50">
+                      Top 10 จากผลวิ่งที่อนุมัติแล้วของงานนี้เท่านั้น
+                    </p>
+                  </div>
+                  <EventLeaderboardCard leaderboard={eventLeaderboard} />
+                </section>
               </div>
             ),
           },
@@ -757,88 +914,204 @@ export default async function EventDashboardPage({
           },
           {
             id: "registrations",
-            label: `ผู้สมัคร (${regList.length})`,
+            label: "ผู้สมัคร (" + regList.length + ")",
             content: (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {sp.registration_approved && (
-                  <p className="text-sm text-primary-dark">
+                  <div className="rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
                     ยืนยันผู้สมัครและออกหมายเลข BIB แล้ว
-                  </p>
+                  </div>
                 )}
+
+                <Card>
+                  <form method="get" className="space-y-4">
+                    <input type="hidden" name="tab" value="registrations" />
+                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_240px_auto] lg:items-end">
+                      <div>
+                        <Label htmlFor="event-registration-search">ค้นหาผู้สมัคร</Label>
+                        <div className="relative">
+                          <Search
+                            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink/40"
+                            aria-hidden="true"
+                          />
+                          <Input
+                            id="event-registration-search"
+                            name="registration_q"
+                            defaultValue={registrationQuery}
+                            placeholder="ชื่อ อีเมล BIB แพ็กเกจ หรือที่อยู่"
+                            className="pl-9"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="event-registration-status">สถานะ</Label>
+                        <Select
+                          id="event-registration-status"
+                          name="registration_status"
+                          defaultValue={registrationStatus}
+                        >
+                          <option value="all">ทุกสถานะ</option>
+                          <option value="pending">รอดำเนินการ</option>
+                          <option value="confirmed">ยืนยันแล้ว</option>
+                          <option value="cancelled">ยกเลิก</option>
+                        </Select>
+                      </div>
+                      <Button type="submit" className="w-full lg:w-auto" icon="search">
+                        ค้นหา
+                      </Button>
+                    </div>
+
+                    {(registrationQuery || registrationStatus !== "all") && (
+                      <Link
+                        href={"/admin/events/" + event.id + "?tab=registrations"}
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-lane px-4 text-sm font-semibold transition hover:bg-lane/50"
+                      >
+                        <RotateCcw className="size-4" aria-hidden="true" />
+                        ล้างการค้นหา
+                      </Link>
+                    )}
+                  </form>
+                </Card>
+
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold">รายชื่อผู้สมัครงานนี้</p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="font-mono text-sm text-ink/45 tnum">
+                      แสดง {filteredRegList.length} จาก {regList.length} คน
+                    </span>
+                    <LinkButton href={registrationExportHref} icon="download">
+                      Export CSV
+                    </LinkButton>
+                  </div>
+                </div>
 
                 {regList.length === 0 ? (
                   <Card className="text-center text-ink/50">ยังไม่มีผู้สมัครในงานนี้</Card>
+                ) : filteredRegList.length === 0 ? (
+                  <Card className="text-center text-ink/50">
+                    ไม่พบผู้สมัครที่ตรงกับเงื่อนไข
+                  </Card>
                 ) : (
-                  regList.map((registration) => {
-                    const address = registration.shipping_address;
-                    return (
-                      <Card key={registration.id} className="space-y-3">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-sm text-ink/50">
-                              {registration.packages?.name ?? "ไม่พบข้อมูลแพ็กเกจ"}
-                            </p>
-                            <p className="font-semibold">
-                              {registration.users?.name ||
-                                registration.users?.email ||
-                                "ไม่ทราบชื่อ"}
-                            </p>
-                            {registration.users?.name && registration.users.email && (
-                              <p className="text-sm text-ink/50">{registration.users.email}</p>
-                            )}
-                            <p className="mt-1 font-mono text-xs text-ink/40 tnum">
-                              สมัครเมื่อ{" "}
-                              {new Date(registration.registered_at).toLocaleString("th-TH", {
-                                timeZone: "Asia/Bangkok",
-                              })}
-                            </p>
-                          </div>
-                          <div className="flex flex-wrap items-center justify-end gap-2">
-                            {registration.bib_number && (
-                              <span className="font-mono text-sm font-bold text-primary-dark tnum">
-                                BIB {registration.bib_number}
-                              </span>
-                            )}
-                            <Badge className={registrationStatusClass[registration.status]}>
-                              {registrationStatusLabel[registration.status] ?? registration.status}
-                            </Badge>
-                          </div>
-                        </div>
-
-                        {address && (
-                          <div className="border-t border-lane pt-3 text-sm text-ink/60">
-                            <p className="font-medium text-ink/70">ที่อยู่จัดส่ง</p>
-                            <p>
-                              {address.recipient} · {address.phone}
-                              <br />
-                              {address.address} {address.province} {address.postal_code}
-                            </p>
-                          </div>
-                        )}
-
-                        {registration.status === "pending" && (
-                          <form
-                            action={manuallyApproveRegistration}
-                            className="border-t border-lane pt-3"
-                          >
-                            <input
-                              type="hidden"
-                              name="registration_id"
-                              value={registration.id}
-                            />
-                            <input type="hidden" name="event_id" value={event.id} />
-                            <Button type="submit" icon="userCheck">
-                              ยืนยันผู้สมัครและออก BIB
-                            </Button>
-                          </form>
-                        )}
-                      </Card>
-                    );
-                  })
+                  <Card className="overflow-hidden p-0 sm:p-0">
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[1180px] border-collapse text-left text-sm">
+                        <caption className="sr-only">
+                          รายชื่อผู้สมัครเฉพาะงานตามเงื่อนไขที่เลือก
+                        </caption>
+                        <thead className="bg-lane/35 text-xs text-ink/55">
+                          <tr>
+                            <th scope="col" className="px-4 py-3 font-semibold">ผู้สมัคร</th>
+                            <th scope="col" className="px-4 py-3 font-semibold">แพ็กเกจ</th>
+                            <th scope="col" className="px-4 py-3 font-semibold">BIB</th>
+                            <th scope="col" className="px-4 py-3 font-semibold">วันที่สมัคร</th>
+                            <th scope="col" className="px-4 py-3 font-semibold">ที่อยู่จัดส่ง</th>
+                            <th scope="col" className="px-4 py-3 font-semibold">สถานะ</th>
+                            <th scope="col" className="px-4 py-3 font-semibold">การจัดการ</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-lane">
+                          {filteredRegList.map((registration) => {
+                            const address = registration.shipping_address;
+                            return (
+                              <tr
+                                key={registration.id}
+                                className="align-top transition hover:bg-lane/20"
+                              >
+                                <td className="px-4 py-4">
+                                  <p className="font-semibold text-ink">
+                                    {registration.users?.name ||
+                                      registration.users?.email ||
+                                      "ไม่ทราบชื่อ"}
+                                  </p>
+                                  {registration.users?.name && registration.users.email && (
+                                    <p className="mt-1 text-xs text-ink/50">
+                                      {registration.users.email}
+                                    </p>
+                                  )}
+                                </td>
+                                <td className="px-4 py-4">
+                                  <p className="font-medium text-ink/80">
+                                    {registration.packages?.name ?? "ไม่พบข้อมูลแพ็กเกจ"}
+                                  </p>
+                                </td>
+                                <td className="px-4 py-4 font-mono font-bold text-primary-dark tnum">
+                                  {registration.bib_number ? (
+                                    "BIB " + registration.bib_number
+                                  ) : (
+                                    <span className="font-sans font-normal text-ink/35">
+                                      รอออก BIB
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="whitespace-nowrap px-4 py-4">
+                                  <p className="font-mono text-sm tnum">
+                                    {new Date(registration.registered_at).toLocaleDateString(
+                                      "th-TH",
+                                      { timeZone: "Asia/Bangkok" },
+                                    )}
+                                  </p>
+                                  <p className="mt-1 font-mono text-xs text-ink/45 tnum">
+                                    {new Date(registration.registered_at).toLocaleTimeString(
+                                      "th-TH",
+                                      {
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                        timeZone: "Asia/Bangkok",
+                                      },
+                                    )} น.
+                                  </p>
+                                </td>
+                                <td className="max-w-[300px] px-4 py-4 text-xs leading-5 text-ink/60">
+                                  {address ? (
+                                    <>
+                                      <p className="font-medium text-ink/75">
+                                        {address.recipient} · {address.phone}
+                                      </p>
+                                      <p className="mt-1">
+                                        {address.address} {address.province} {address.postal_code}
+                                      </p>
+                                    </>
+                                  ) : (
+                                    <span className="text-ink/35">ไม่มีข้อมูลที่อยู่</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-4">
+                                  <Badge className={registrationStatusClass[registration.status]}>
+                                    {registrationStatusLabel[registration.status] ??
+                                      registration.status}
+                                  </Badge>
+                                </td>
+                                <td className="px-4 py-4">
+                                  {registration.status === "pending" ? (
+                                    <form action={manuallyApproveRegistration}>
+                                      <input
+                                        type="hidden"
+                                        name="registration_id"
+                                        value={registration.id}
+                                      />
+                                      <input type="hidden" name="event_id" value={event.id} />
+                                      <Button
+                                        type="submit"
+                                        icon="userCheck"
+                                        className="min-h-9 whitespace-nowrap px-3 py-1.5 text-xs"
+                                      >
+                                        ยืนยันและออก BIB
+                                      </Button>
+                                    </form>
+                                  ) : (
+                                    <span className="text-xs text-ink/35">ไม่มีรายการ</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </Card>
                 )}
               </div>
-            ),
-          },
+            ),          },
         ]}
       />
     </div>

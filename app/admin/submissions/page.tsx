@@ -14,6 +14,10 @@ import { EvidenceLightbox } from "@/components/admin/evidence-lightbox";
 import { formatKm } from "@/lib/utils";
 import { reprocessSubmissionOcr, reviewSubmission } from "@/lib/actions/admin";
 import { toPublicSupabaseUrl } from "@/lib/supabase/public-url";
+import {
+  SUBMISSION_FLAG_REASON_LABELS,
+  type SubmissionFlagReason,
+} from "@/lib/rules";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +31,10 @@ type SubRow = {
   ocr_status: string;
   ocr_distance_km: number | null;
   ocr_confidence: number | null;
+  duplicate_match_type: "exact" | "normalized" | "perceptual" | null;
+  duplicate_match_submission_id: string | null;
+  duplicate_similarity_distance: number | null;
+  flag_reason: SubmissionFlagReason[];
   status: string;
   source: string;
   users: { name: string | null; email: string | null } | null;
@@ -34,6 +42,13 @@ type SubRow = {
     packages: { name: string } | null;
     events: { title: string } | null;
   } | null;
+};
+
+type DuplicateReference = {
+  id: string;
+  activity_date: string;
+  users: { name: string | null; email: string | null } | null;
+  registrations: { events: { title: string } | null } | null;
 };
 
 const filters = [
@@ -86,6 +101,11 @@ const ocrStatusLabel: Record<string, string> = {
   mismatch: "ระยะไม่ตรงกัน",
   unreadable: "อ่านระยะไม่ได้",
   error: "OCR ประมวลผลไม่สำเร็จ",
+};
+const duplicateMatchLabel: Record<string, string> = {
+  exact: "ไฟล์ตรงกันทั้งหมด",
+  normalized: "ภาพหลัง normalize ตรงกัน",
+  perceptual: "ภาพมีลักษณะใกล้เคียงกัน",
 };
 
 function formatDuration(totalSeconds: number) {
@@ -157,7 +177,7 @@ export default async function AdminSubmissionsPage({
   let query = db
     .from("submissions")
     .select(
-      "id, distance_km, duration_sec, activity_type, activity_date, evidence_url, ocr_status, ocr_distance_km, ocr_confidence, status, source, users(name, email), registrations(packages(name), events(title))",
+      "id, distance_km, duration_sec, activity_type, activity_date, evidence_url, ocr_status, ocr_distance_km, ocr_confidence, duplicate_match_type, duplicate_match_submission_id, duplicate_similarity_distance, flag_reason, status, source, users(name, email), registrations(packages(name), events(title))",
     )
     .order("activity_date", { ascending: false });
 
@@ -181,9 +201,11 @@ export default async function AdminSubmissionsPage({
           submission.users?.email,
           submission.registrations?.events?.title,
           submission.registrations?.packages?.name,
+          submission.id,
           submission.activity_type,
           submission.status,
           statusLabel[submission.status],
+          ...submission.flag_reason.map((reason) => SUBMISSION_FLAG_REASON_LABELS[reason]),
           submission.distance_km,
           formatKm(Number(submission.distance_km)),
           new Date(submission.activity_date).toLocaleDateString("th-TH"),
@@ -203,6 +225,24 @@ export default async function AdminSubmissionsPage({
         if (signed) evidenceLinks.set(s.id, toPublicSupabaseUrl(signed.signedUrl));
       }),
   );
+
+  const duplicateReferenceIds = Array.from(
+    new Set(
+      subs
+        .map((submission) => submission.duplicate_match_submission_id)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  );
+  const duplicateReferences = new Map<string, DuplicateReference>();
+  if (duplicateReferenceIds.length > 0) {
+    const { data: references } = await db
+      .from("submissions")
+      .select("id, activity_date, users(name, email), registrations(events(title))")
+      .in("id", duplicateReferenceIds);
+    for (const reference of (references ?? []) as unknown as DuplicateReference[]) {
+      duplicateReferences.set(reference.id, reference);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -388,6 +428,57 @@ export default async function AdminSubmissionsPage({
                           ตรวจ OCR ใหม่
                         </Button>
                       </form>
+                    </div>
+                  )}
+                  {s.flag_reason.length > 0 && (
+                    <div className="w-full rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                      <p className="font-semibold">เหตุผลจาก Rule Engine</p>
+                      <ul className="mt-1 list-disc space-y-1 pl-5">
+                        {s.flag_reason.map((reason) => (
+                          <li key={reason}>
+                            {SUBMISSION_FLAG_REASON_LABELS[reason] ?? reason}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {s.duplicate_match_type && (
+                    <div className="w-full rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                      <p className="font-semibold">ตรวจพบหลักฐานที่อาจซ้ำ</p>
+                      <p className="mt-0.5">
+                        {duplicateMatchLabel[s.duplicate_match_type] ?? s.duplicate_match_type}
+                        {s.duplicate_similarity_distance !== null && (
+                          <>
+                            {" · "}ระยะห่าง {s.duplicate_similarity_distance}/64
+                            {" · "}ความคล้ายประมาณ{" "}
+                            {Math.round(
+                              (1 - Number(s.duplicate_similarity_distance) / 64) * 100,
+                            )}
+                            %
+                          </>
+                        )}
+                      </p>
+                      {s.duplicate_match_submission_id &&
+                        duplicateReferences.has(s.duplicate_match_submission_id) && (
+                        <div className="mt-2 rounded-lg bg-white/70 px-2.5 py-2 text-xs text-ink/65">
+                          <p className="font-semibold text-ink/80">รายการอ้างอิงสำหรับ Admin</p>
+                          <p>
+                            {duplicateReferences.get(s.duplicate_match_submission_id)?.users?.name ||
+                              duplicateReferences.get(s.duplicate_match_submission_id)?.users?.email ||
+                              "ไม่ทราบชื่อ"}
+                            {" · "}
+                            {duplicateReferences.get(s.duplicate_match_submission_id)?.registrations
+                              ?.events?.title || "ไม่ทราบชื่องาน"}
+                            {" · "}
+                            {new Date(
+                              duplicateReferences.get(s.duplicate_match_submission_id)!.activity_date,
+                            ).toLocaleDateString("th-TH")}
+                          </p>
+                          <p className="mt-0.5 font-mono text-[11px] text-ink/40">
+                            Submission: {s.duplicate_match_submission_id}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

@@ -14,7 +14,8 @@ export type StravaActivity = {
   type: string; // "Run" | "Walk" | ...
   distance: number; // meters
   moving_time: number; // seconds
-  start_date: string; // ISO
+  start_date: string; // ISO UTC
+  start_date_local?: string; // ISO ตาม timezone ของกิจกรรม
 };
 
 export async function exchangeCodeForToken(code: string): Promise<StravaTokenResponse> {

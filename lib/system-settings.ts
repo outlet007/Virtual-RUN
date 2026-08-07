@@ -32,6 +32,8 @@ export type SystemSettings = {
   content_background_inset_bottom: number;
   content_overlay_color: string;
   content_overlay_opacity: number;
+  submission_max_distance_km: number;
+  submission_daily_limit: number;
 };
 
 // ค่าเริ่มต้นตรงกับ default ในตาราง system_settings (0012_system_settings.sql)
@@ -57,6 +59,8 @@ export const DEFAULT_SETTINGS: SystemSettings = {
   content_background_inset_bottom: 0,
   content_overlay_color: "#FAFAF8",
   content_overlay_opacity: 0,
+  submission_max_distance_km: 100,
+  submission_daily_limit: 3,
 };
 
 export async function getSystemSettings(): Promise<SystemSettings> {
@@ -64,7 +68,7 @@ export async function getSystemSettings(): Promise<SystemSettings> {
   const { data } = await supabase
     .from("system_settings")
     .select(
-      "site_name, logo_url, favicon_url, color_ink, color_primary, color_accent, color_medal, cookie_consent_enabled, cookie_consent_message, cookie_policy_url, cookie_consent_button_label, content_background_url, content_background_position_x, content_background_position_y, content_background_display, content_background_inset_top, content_background_inset_bottom, content_overlay_color, content_overlay_opacity",
+      "site_name, logo_url, favicon_url, color_ink, color_primary, color_accent, color_medal, cookie_consent_enabled, cookie_consent_message, cookie_policy_url, cookie_consent_button_label, content_background_url, content_background_position_x, content_background_position_y, content_background_display, content_background_inset_top, content_background_inset_bottom, content_overlay_color, content_overlay_opacity, submission_max_distance_km, submission_daily_limit",
     )
     .eq("id", 1)
     .single();

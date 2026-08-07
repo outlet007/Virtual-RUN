@@ -22,7 +22,7 @@ export default async function AdminSettingsPage({
   const { data: settingsRow } = await db
     .from("system_settings")
     .select(
-      "site_name, logo_url, favicon_url, color_ink, color_primary, color_accent, color_medal, cookie_consent_enabled, cookie_consent_message, cookie_policy_url, cookie_consent_button_label, content_background_url, content_background_position_x, content_background_position_y, content_background_display, content_background_inset_top, content_background_inset_bottom, content_overlay_color, content_overlay_opacity",
+      "site_name, logo_url, favicon_url, color_ink, color_primary, color_accent, color_medal, cookie_consent_enabled, cookie_consent_message, cookie_policy_url, cookie_consent_button_label, content_background_url, content_background_position_x, content_background_position_y, content_background_display, content_background_inset_top, content_background_inset_bottom, content_overlay_color, content_overlay_opacity, submission_max_distance_km, submission_daily_limit",
     )
     .eq("id", 1)
     .single();
@@ -196,6 +196,43 @@ export default async function AdminSettingsPage({
             <p className="text-xs text-ink/40">
               0% คือโปร่งใสทั้งหมด และ 100% คือแสดงสี Overlay เต็มพื้นที่
             </p>
+          </div>
+
+          <div className="space-y-4 border-t border-lane pt-5">
+            <div>
+              <h3 className="font-display font-bold">กฎตรวจผลวิ่ง</h3>
+              <p className="mt-1 text-sm text-ink/50">
+                รายการที่เกินเงื่อนไขจะถูกตั้งสถานะผิดปกติเพื่อให้ Admin ตรวจสอบ
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <Label>ระยะสูงสุดต่อครั้ง (กม.)</Label>
+                <Input
+                  type="number"
+                  name="submission_max_distance_km"
+                  min={0.1}
+                  max={1000}
+                  step={0.01}
+                  defaultValue={settings.submission_max_distance_km}
+                  required
+                />
+                <p className="mt-1 text-xs text-ink/40">ปรับได้ตั้งแต่ 0.1–1,000 กม.</p>
+              </div>
+              <div>
+                <Label>จำนวนส่งผลสูงสุดต่อวัน/ใบสมัคร</Label>
+                <Input
+                  type="number"
+                  name="submission_daily_limit"
+                  min={1}
+                  max={50}
+                  step={1}
+                  defaultValue={settings.submission_daily_limit}
+                  required
+                />
+                <p className="mt-1 text-xs text-ink/40">รายการถัดจากจำนวนนี้จะถูก Flag</p>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-4 border-t border-lane pt-5">

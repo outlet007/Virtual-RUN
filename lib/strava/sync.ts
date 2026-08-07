@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { basicRuleCheck } from "@/lib/rules";
+import { evaluateSubmissionRules } from "@/lib/rules";
+import { getBangkokActivityDate, loadSubmissionRuleRuntime } from "@/lib/submission-rule-context";
 import { refreshAccessToken, type StravaActivity } from "@/lib/strava/api";
 import { awardForApprovedSubmission } from "@/lib/gamification";
 
@@ -56,7 +57,8 @@ export async function syncActivityForUser(userId: string, activity: StravaActivi
   const distanceKm = activity.distance / 1000;
   const durationSec = activity.moving_time;
   const activityDate = new Date(activity.start_date);
-  const activityDateStr = activityDate.toISOString().slice(0, 10);
+  const activityDateStr =
+    activity.start_date_local?.slice(0, 10) || getBangkokActivityDate(activityDate);
 
   const { data: regsRaw } = await db
     .from("registrations")
@@ -74,17 +76,29 @@ export async function syncActivityForUser(userId: string, activity: StravaActivi
   });
 
   if (matches.length === 1) {
-    const status = basicRuleCheck(distanceKm, durationSec);
+    const registration = matches[0];
+    const ruleRuntime = await loadSubmissionRuleRuntime(db, registration.id, activityDateStr);
+    const ruleResult = evaluateSubmissionRules({
+      distanceKm,
+      durationSec,
+      activityDate: activityDateStr,
+      eventStartDate: registration.events!.start_date,
+      eventEndDate: registration.events!.end_date,
+      ...ruleRuntime,
+    });
+    const status = ruleResult.status;
     const { data: submission, error } = await db
       .from("submissions")
       .insert({
-        registration_id: matches[0].id,
+        registration_id: registration.id,
         user_id: userId,
         source: "strava",
         activity_type: activityType,
         distance_km: distanceKm,
         duration_sec: durationSec,
         activity_date: activityDate.toISOString(),
+        activity_local_date: activityDateStr,
+        flag_reason: ruleResult.reasons,
         strava_activity_id: String(activity.id),
         status,
       })
@@ -98,7 +112,7 @@ export async function syncActivityForUser(userId: string, activity: StravaActivi
     }
 
     if (status === "approved") {
-      await awardForApprovedSubmission(matches[0].id, userId, distanceKm, submission.id);
+      await awardForApprovedSubmission(registration.id, userId, distanceKm, submission.id);
     }
     return;
   }

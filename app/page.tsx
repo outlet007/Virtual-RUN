@@ -191,7 +191,7 @@ export default async function HomePage({
                   : 0;
                 return (
                   <Link key={ev.id} href={`/events/${ev.id}`} className="group">
-                    <Card className="flex h-full flex-col overflow-hidden p-0 hover:border-primary/40">
+                    <Card className="flex h-full flex-col overflow-hidden p-0 sm:p-0 hover:border-primary/40">
                       <div className="relative h-44 w-full overflow-hidden bg-lane">
                         {ev.cover_image ? (
                           // eslint-disable-next-line @next/next/no-img-element
@@ -306,7 +306,7 @@ export default async function HomePage({
 
               return (
                 <Link key={ev.id} href={`/events/${ev.id}`} className="group">
-                  <Card className="flex h-full flex-col overflow-hidden p-0 hover:border-ink/25">
+                  <Card className="flex h-full flex-col overflow-hidden p-0 sm:p-0 hover:border-ink/25">
                     <div className="relative h-44 w-full overflow-hidden bg-lane">
                       {ev.cover_image ? (
                         // eslint-disable-next-line @next/next/no-img-element

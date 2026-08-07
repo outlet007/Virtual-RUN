@@ -54,7 +54,7 @@ export function RewardRedeemButton({
         <div
           ref={dialogRef}
           tabIndex={-1}
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-ink/60 p-3 backdrop-blur-sm outline-none sm:p-4"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-3 backdrop-blur-sm outline-none sm:p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
