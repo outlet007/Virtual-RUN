@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Card, Button, Input, Label, Select, ImageUploadField } from "@/components/ui";
+import { Card, Button, HeadingIcon, Input, Label, Select, ImageUploadField } from "@/components/ui";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { createEvent } from "@/lib/actions/admin";
 
@@ -17,7 +17,10 @@ export default async function NewEventPage({
       <Link href="/admin/events" className="text-sm text-ink/50 hover:text-ink">
         ← งานทั้งหมด
       </Link>
-      <h2 className="font-display text-xl font-bold">สร้างงานใหม่</h2>
+      <h2 className="flex items-center gap-2 font-display text-xl font-bold">
+        <HeadingIcon name="calendarPlus" />
+        สร้างงานใหม่
+      </h2>
 
       {error && (
         <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { Card, Input, Label, LinkButton } from "@/components/ui";
+import { Card, HeadingIcon, Input, Label, LinkButton } from "@/components/ui";
 import { createSubmission } from "@/lib/actions/submission";
 import { SubmissionSubmitButton } from "@/components/submission-submit-button";
 
@@ -38,7 +38,10 @@ export default async function SubmitPage({
       <LinkButton href="/dashboard" variant="ghost" icon="chevronLeft">
         แดชบอร์ด
       </LinkButton>
-      <h1 className="font-display text-2xl font-bold">บันทึกผลวิ่ง</h1>
+      <h1 className="flex items-center gap-2 font-display text-2xl font-bold">
+        <HeadingIcon name="upload" />
+        บันทึกผลวิ่ง
+      </h1>
 
       {error && (
         <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">

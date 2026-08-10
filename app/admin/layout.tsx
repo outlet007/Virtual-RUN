@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HeadingIcon } from "@/components/ui";
 import { ADMIN_ROLE_LABELS, requireAdmin } from "@/lib/auth/admin";
 
 const operationalTabs = [
@@ -10,6 +11,7 @@ const operationalTabs = [
 
 const managerTabs = [
   { href: "/admin/events", label: "งาน" },
+  { href: "/admin/articles", label: "บทความ" },
   { href: "/admin/rewards", label: "รางวัล" },
   { href: "/admin/levels", label: "Level" },
 ];
@@ -25,6 +27,7 @@ const superAdminTabs = [
 
 const adminTabs = [
   { href: "/admin/events", label: "งานและเหรียญ" },
+  { href: "/admin/articles", label: "บทความ" },
   { href: "/admin/hero-banners", label: "Banner หน้าแรก" },
   { href: "/admin/rewards", label: "รางวัล" },
   { href: "/admin/levels", label: "Level" },
@@ -51,7 +54,10 @@ export default async function AdminLayout({
           Admin
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-3">
-          <h1 className="font-display text-2xl font-bold">แผงควบคุม</h1>
+          <h1 className="flex items-center gap-2 font-display text-2xl font-bold">
+            <HeadingIcon name="dashboard" />
+            แผงควบคุม
+          </h1>
           <span className="rounded-full bg-primary-soft px-3 py-1 text-xs font-semibold text-primary-dark">
             {ADMIN_ROLE_LABELS[role]}
           </span>

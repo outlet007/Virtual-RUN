@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ExternalLink, X } from "lucide-react";
-import { Button } from "@/components/ui";
+import { Button, HeadingIcon } from "@/components/ui";
 
 export function EvidenceLightbox({ src, alt }: { src: string; alt: string }) {
   const [open, setOpen] = useState(false);
@@ -50,7 +50,10 @@ export function EvidenceLightbox({ src, alt }: { src: string; alt: string }) {
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-lane px-4 py-3 sm:px-5">
-              <h3 className="font-display text-lg font-bold">หลักฐานผลวิ่ง</h3>
+              <h3 className="flex items-center gap-2 font-display text-lg font-bold">
+                <HeadingIcon name="banner" />
+                หลักฐานผลวิ่ง
+              </h3>
               <button
                 type="button"
                 onClick={() => setOpen(false)}

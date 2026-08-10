@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PartyPopper, CheckCircle2, FileText, Footprints, PersonStanding } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { Card, LinkButton, Button, Select } from "@/components/ui";
+import { Card, HeadingIcon, LinkButton, Button, Select } from "@/components/ui";
 import { formatKm, formatDate } from "@/lib/utils";
 import { assignPendingActivity } from "@/lib/actions/strava";
 
@@ -149,7 +149,8 @@ export default async function DashboardPage({
       {/* กิจกรรมจาก Strava ที่ต้องเลือกใบสมัครเอง */}
       {pendingActivities.length > 0 && (
         <section className="space-y-3">
-          <h2 className="font-display text-xl font-bold">
+          <h2 className="flex items-center gap-2 font-display text-xl font-bold">
+            <HeadingIcon name="activity" />
             กิจกรรมจาก Strava ที่ต้องเลือกใบสมัคร
           </h2>
           <p className="text-sm text-ink/50">

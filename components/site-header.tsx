@@ -37,7 +37,10 @@ export function SiteHeader({
   const links = (
     <>
       <Link href="/" onClick={() => setOpen(false)}>
-        งานวิ่ง
+        งานที่เปิดรับสมัคร
+      </Link>
+      <Link href="/articles" onClick={() => setOpen(false)}>
+        บทความและเกร็ดความรู้
       </Link>
       {isAuthenticated && (
         <Link href="/dashboard" onClick={() => setOpen(false)}>

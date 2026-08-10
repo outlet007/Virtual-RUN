@@ -2,11 +2,23 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Medal, CalendarDays, ChevronLeft, Road } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { Card, Badge, LinkButton } from "@/components/ui";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { Card, Badge, HeadingIcon, LinkButton } from "@/components/ui";
+import { EventBibLeaderboard } from "@/components/events/event-bib-leaderboard";
+import { buildEventBibLeaderboard } from "@/lib/event-bib-leaderboard";
 import { formatBaht, formatDate, stripHtml } from "@/lib/utils";
 import { isEventRegistrationOpen } from "@/lib/event-registration";
 
 export const dynamic = "force-dynamic";
+
+type LeaderboardSubmissionRow = {
+  registration_id: string;
+  distance_km: number;
+  registrations:
+    | { bib_number: string | null }
+    | Array<{ bib_number: string | null }>
+    | null;
+};
 
 export default async function EventDetailPage({
   params,
@@ -18,16 +30,26 @@ export default async function EventDetailPage({
   const { id } = await params;
   const { error } = await searchParams;
   const supabase = await createClient();
+  const db = createAdminClient();
 
-  const { data: event } = await supabase
-    .from("events")
-    .select(
-      "id, title, description, cover_image, cover_position_x, cover_position_y, poster_image, pricing, start_date, end_date, status, packages(id, name, target_distance_km, price, has_physical_medal, digital_medal:medals!packages_digital_medal_id_fkey(id, name), physical_medal:physical_medals!packages_physical_medal_id_fkey(id, name))",
-    )
-    .eq("id", id)
-    .single();
+  const [{ data: event }, { data: leaderboardRows, error: leaderboardError }] =
+    await Promise.all([
+      supabase
+        .from("events")
+        .select(
+          "id, title, description, cover_image, cover_position_x, cover_position_y, poster_image, pricing, start_date, end_date, status, packages(id, name, target_distance_km, price, has_physical_medal, digital_medal:medals!packages_digital_medal_id_fkey(id, name), physical_medal:physical_medals!packages_physical_medal_id_fkey(id, name))",
+        )
+        .eq("id", id)
+        .single(),
+      db
+        .from("submissions")
+        .select("registration_id, distance_km, registrations!inner(event_id, bib_number)")
+        .eq("status", "approved")
+        .eq("registrations.event_id", id),
+    ]);
 
   if (!event) notFound();
+  if (leaderboardError) throw new Error(leaderboardError.message);
   const registrationOpen = isEventRegistrationOpen(event);
   const packages = (event.packages ?? []).map((packageRow) => ({
     ...packageRow,
@@ -42,6 +64,19 @@ export default async function EventDetailPage({
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  const leaderboard = buildEventBibLeaderboard(
+    ((leaderboardRows ?? []) as unknown as LeaderboardSubmissionRow[]).map((row) => {
+      const registration = Array.isArray(row.registrations)
+        ? row.registrations[0] ?? null
+        : row.registrations;
+      return {
+        registrationId: row.registration_id,
+        bibNumber: registration?.bib_number ?? null,
+        distanceKm: Number(row.distance_km),
+      };
+    }),
+  );
 
   return (
     <div className="space-y-6">
@@ -82,7 +117,8 @@ export default async function EventDetailPage({
             >
               {event.pricing === "free" ? "ฟรี" : "มีค่าสมัคร"}
             </Badge>
-            <h1 className="mt-3 font-display text-3xl font-bold leading-tight text-white drop-shadow-md sm:text-4xl">
+            <h1 className="mt-3 flex items-center gap-3 font-display text-3xl font-bold leading-tight text-white drop-shadow-md sm:text-4xl">
+              <HeadingIcon name="calendar" className="size-7 text-primary sm:size-8" />
               {event.title}
             </h1>
             <p className="mt-3 inline-flex items-center gap-1.5 font-mono text-sm font-medium text-white/90 drop-shadow-sm tnum">
@@ -101,7 +137,7 @@ export default async function EventDetailPage({
       {/* สไตล์ปุ่มเดียวกับ "ดูรายละเอียด →" ที่ใช้ในการ์ดรายการงาน — ตามที่ขอย้ายมาแทนตำแหน่งคำโปรยเดิม */}
       <Link
         href="/"
-        className="inline-flex w-fit items-center gap-1 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-ink transition hover:bg-primary-dark"
+        className="inline-flex w-fit items-center gap-1 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-ink transition hover:bg-primary-hover"
       >
         <ChevronLeft className="h-4 w-4" /> งานทั้งหมด
       </Link>
@@ -109,7 +145,10 @@ export default async function EventDetailPage({
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[7fr_3fr]">
         {/* ซ้าย: รายละเอียดงาน + รูป poster (จัดการรูปนี้ได้จากหน้า admin แก้ไขงาน) */}
         <div className="space-y-4">
-          <h2 className="font-display text-xl font-bold">รายละเอียดงาน</h2>
+          <h2 className="flex items-center gap-2 font-display text-xl font-bold">
+            <HeadingIcon name="clipboard" />
+            รายละเอียดงาน
+          </h2>
           {event.description && (
             <div
               className="prose prose-sm max-w-none text-muted prose-headings:font-display prose-headings:text-ink prose-img:rounded-xl"
@@ -128,7 +167,10 @@ export default async function EventDetailPage({
 
         {/* ขวา: เลือกแพ็กเกจ */}
         <div id="packages" className="scroll-mt-24 space-y-3">
-          <h2 className="font-display text-xl font-bold">เลือกแพ็กเกจ</h2>
+          <h2 className="flex items-center gap-2 font-display text-xl font-bold">
+            <HeadingIcon name="package" />
+            เลือกแพ็กเกจ
+          </h2>
           {packages.map((p) => (
             <Card
               key={p.id}
@@ -204,6 +246,7 @@ export default async function EventDetailPage({
                 ))}
             </Card>
           ))}
+          <EventBibLeaderboard rows={leaderboard} />
         </div>
       </div>
     </div>

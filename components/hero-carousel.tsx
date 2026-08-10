@@ -85,7 +85,9 @@ export function HeroCarousel({
                 onClick={() => goTo(i)}
                 aria-label={`สไลด์ที่ ${i + 1}`}
                 className={`h-2 rounded-full transition-all ${
-                  i === active ? "w-6 bg-primary" : "w-2 bg-paper/60 hover:bg-paper/80"
+                  i === active
+                    ? "w-6 bg-primary hover:bg-primary-hover"
+                    : "w-2 bg-paper/60 hover:bg-paper/80"
                 }`}
               />
             ))}

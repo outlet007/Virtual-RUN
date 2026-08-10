@@ -1,7 +1,7 @@
 import { Link2 } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { Card, Button, Input, Label, LinkButton, ImageUploadField, Select, Textarea } from "@/components/ui";
+import { Card, Button, HeadingIcon, Input, Label, LinkButton, ImageUploadField, Select, Textarea } from "@/components/ui";
 import { ColorField } from "@/components/admin/color-field";
 import { OpacityField } from "@/components/admin/opacity-field";
 import { updateSystemSettings } from "@/lib/actions/admin";
@@ -50,7 +50,10 @@ export default async function AdminSettingsPage({
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h2 className="font-display text-xl font-bold">ตั้งค่าระบบ</h2>
+        <h2 className="flex items-center gap-2 font-display text-xl font-bold">
+          <HeadingIcon name="settings" />
+          ตั้งค่าระบบ
+        </h2>
         <p className="mt-1 text-sm text-muted">
           ชื่อระบบ โลโก้ favicon สีธีม — แก้แล้วมีผลทันทีทั้งเว็บ ไม่ต้อง build ใหม่
         </p>
@@ -87,7 +90,10 @@ export default async function AdminSettingsPage({
 
       <form action={updateSystemSettings}>
         <Card className="space-y-5">
-          <h3 className="font-display font-bold">แบรนด์ระบบ</h3>
+          <h3 className="flex items-center gap-2 font-display font-bold">
+            <HeadingIcon name="sparkles" className="size-4" />
+            แบรนด์ระบบ
+          </h3>
           <div>
             <Label>ชื่อระบบ</Label>
             <Input name="site_name" defaultValue={settings.site_name} required />
@@ -101,7 +107,10 @@ export default async function AdminSettingsPage({
             />
           </div>
 
-          <h3 className="font-display font-bold">สีธีม</h3>
+          <h3 className="flex items-center gap-2 font-display font-bold">
+            <HeadingIcon name="palette" className="size-4" />
+            สีธีม
+          </h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <ColorField name="color_ink" label="สีหลัก (ink)" defaultValue={settings.color_ink} />
             <ColorField
@@ -115,7 +124,10 @@ export default async function AdminSettingsPage({
 
           <div className="space-y-4 border-t border-lane pt-5">
             <div>
-              <h3 className="font-display font-bold">พื้นหลังพื้นที่เนื้อหา</h3>
+              <h3 className="flex items-center gap-2 font-display font-bold">
+                <HeadingIcon name="banner" className="size-4" />
+                พื้นหลังพื้นที่เนื้อหา
+              </h3>
               <p className="mt-1 text-sm text-ink/50">
                 รูปและ Overlay จะใช้กับพื้นที่แสดงเนื้อหาระหว่าง Header และ Footer โดยไม่ทับ Hero Banner
               </p>
@@ -200,7 +212,10 @@ export default async function AdminSettingsPage({
 
           <div className="space-y-4 border-t border-lane pt-5">
             <div>
-              <h3 className="font-display font-bold">กฎตรวจผลวิ่ง</h3>
+              <h3 className="flex items-center gap-2 font-display font-bold">
+                <HeadingIcon name="sliders" className="size-4" />
+                กฎตรวจผลวิ่ง
+              </h3>
               <p className="mt-1 text-sm text-ink/50">
                 รายการที่เกินเงื่อนไขจะถูกตั้งสถานะผิดปกติเพื่อให้ Admin ตรวจสอบ
               </p>
@@ -237,7 +252,10 @@ export default async function AdminSettingsPage({
 
           <div className="space-y-4 border-t border-lane pt-5">
             <div>
-              <h3 className="font-display font-bold">Cookie Consent</h3>
+              <h3 className="flex items-center gap-2 font-display font-bold">
+                <HeadingIcon name="cookie" className="size-4" />
+                Cookie Consent
+              </h3>
               <p className="mt-1 text-sm text-ink/50">
                 แสดงแถบแจ้งการใช้ Cookie ที่ด้านล่างของทุกหน้า ผู้ใช้ที่กดยอมรับแล้วจะไม่เห็นซ้ำเป็นเวลา 180 วัน
               </p>
@@ -292,7 +310,10 @@ export default async function AdminSettingsPage({
       </form>
 
       <div>
-        <h3 className="mb-3 font-display font-bold">เชื่อมต่อบัญชีของฉัน</h3>
+        <h3 className="mb-3 flex items-center gap-2 font-display font-bold">
+          <HeadingIcon name="link" className="size-4" />
+          เชื่อมต่อบัญชีของฉัน
+        </h3>
         <div className="space-y-3">
           <Card className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">

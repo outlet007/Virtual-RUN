@@ -927,14 +927,14 @@ export async function createReward(formData: FormData) {
   const stock = Number(formData.get("stock") ?? 0);
 
   if (!name || costPoints <= 0) {
-    err("/admin/rewards", "กรอกชื่อรางวัลและแต้มให้ถูกต้อง");
+    err("/admin/rewards?create=1", "กรอกชื่อรางวัลและแต้มให้ถูกต้อง");
   }
 
   let imageUrl: string | null = null;
   try {
     imageUrl = await uploadEventImage(db, formData.get("image_file"), "rewards");
   } catch (e) {
-    err("/admin/rewards", (e as Error).message);
+    err("/admin/rewards?create=1", (e as Error).message);
   }
 
   const { error } = await db.from("rewards").insert({
@@ -944,7 +944,7 @@ export async function createReward(formData: FormData) {
     cost_points: costPoints,
     stock,
   });
-  if (error) err("/admin/rewards", error.message);
+  if (error) err("/admin/rewards?create=1", error.message);
 
   revalidatePath("/admin/rewards");
   revalidatePath("/rewards");

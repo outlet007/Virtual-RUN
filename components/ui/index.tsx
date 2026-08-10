@@ -33,6 +33,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export { ImageUploadField } from "./image-upload-field";
+export { HeadingIcon, type HeadingIconName } from "./heading-icon";
 export { Tabs } from "./tabs";
 
 const buttonIcons = {
@@ -84,7 +85,7 @@ export function Button({
   icon?: ButtonIconName;
 }) {
   const styles = {
-    primary: "bg-primary text-ink hover:bg-primary-dark",
+    primary: "bg-primary text-ink hover:bg-primary-hover",
     ink: "bg-ink text-paper hover:bg-ink/90",
     ghost: "border border-lane bg-transparent hover:bg-lane/50",
   }[variant];
@@ -114,7 +115,7 @@ export function LinkButton({
   icon?: ButtonIconName;
 }) {
   const styles = {
-    primary: "bg-primary text-ink hover:bg-primary-dark",
+    primary: "bg-primary text-ink hover:bg-primary-hover",
     ink: "bg-ink text-paper hover:bg-ink/90",
     ghost: "border border-lane bg-transparent hover:bg-lane/50",
   }[variant];

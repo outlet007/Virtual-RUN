@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Gift } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { Badge, Card } from "@/components/ui";
+import { Badge, Card, HeadingIcon } from "@/components/ui";
 import { RewardRedeemButton } from "@/components/dashboard/reward-redeem-button";
 
 export const dynamic = "force-dynamic";
@@ -41,7 +41,10 @@ export default async function DashboardRewardsPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-2xl font-bold">แลกแต้มเป็นรางวัล</h1>
+        <h1 className="flex items-center gap-2 font-display text-2xl font-bold">
+          <HeadingIcon name="gift" />
+          แลกแต้มเป็นรางวัล
+        </h1>
         <p className="mt-1 text-sm text-muted">
           เลือกรางวัลที่ต้องการและยืนยันก่อนใช้แต้มสะสม
         </p>
@@ -66,7 +69,10 @@ export default async function DashboardRewardsPage({
 
       <section className="space-y-4">
         <div>
-          <h2 className="font-display text-xl font-bold">แลกแต้มเป็นรางวัล</h2>
+          <h2 className="flex items-center gap-2 font-display text-xl font-bold">
+            <HeadingIcon name="gift" />
+            แลกแต้มเป็นรางวัล
+          </h2>
           <p className="mt-1 text-sm text-ink/50">
             รางวัลที่แต้มถึงและยังมีของคงเหลือจะแสดงปุ่มแลก
           </p>
@@ -118,7 +124,10 @@ export default async function DashboardRewardsPage({
 
                   <div className="flex flex-1 flex-col p-4 sm:p-5">
                     <div className="flex flex-wrap items-start justify-between gap-2">
-                      <h3 className="font-display text-lg font-bold">{reward.name}</h3>
+                      <h3 className="flex items-center gap-2 font-display text-lg font-bold">
+                        <HeadingIcon name="gift" className="size-4" />
+                        {reward.name}
+                      </h3>
                       <Badge
                         className={
                           inStock

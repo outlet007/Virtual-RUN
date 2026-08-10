@@ -9,7 +9,7 @@ import {
   Search,
 } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Card, Badge, Button, Input, Select } from "@/components/ui";
+import { Card, Badge, Button, HeadingIcon, Input, Select } from "@/components/ui";
 import { EvidenceLightbox } from "@/components/admin/evidence-lightbox";
 import { formatKm } from "@/lib/utils";
 import { reprocessSubmissionOcr, reviewSubmission } from "@/lib/actions/admin";
@@ -247,7 +247,10 @@ export default async function AdminSubmissionsPage({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-display text-xl font-bold">ตรวจผลวิ่ง</h2>
+        <h2 className="flex items-center gap-2 font-display text-xl font-bold">
+          <HeadingIcon name="submission" />
+          ตรวจผลวิ่ง
+        </h2>
         <span className="font-mono text-sm text-ink/40 tnum">{subs.length} รายการ</span>
       </div>
 

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { Card, Button, Input, Label, ImageUploadField, Textarea } from "@/components/ui";
+import { Card, Button, HeadingIcon, Input, Label, ImageUploadField, Textarea } from "@/components/ui";
 import { updateProfile, changePassword } from "@/lib/actions/profile";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +26,10 @@ export default async function ProfilePage({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="font-display text-xl font-bold">โปรไฟล์ของฉัน</h2>
+        <h2 className="flex items-center gap-2 font-display text-xl font-bold">
+          <HeadingIcon name="user" />
+          โปรไฟล์ของฉัน
+        </h2>
         <p className="mt-1 text-sm text-muted">แก้ไขข้อมูลส่วนตัวและรหัสผ่านของบัญชี</p>
       </div>
 
@@ -46,7 +49,10 @@ export default async function ProfilePage({
 
       <form action={updateProfile}>
         <Card className="space-y-4">
-          <h3 className="font-display font-bold">ข้อมูลส่วนตัว</h3>
+          <h3 className="flex items-center gap-2 font-display font-bold">
+            <HeadingIcon name="identity" className="size-4" />
+            ข้อมูลส่วนตัว
+          </h3>
           <ImageUploadField
             name="avatar_file"
             label="รูปโปรไฟล์"
@@ -65,7 +71,10 @@ export default async function ProfilePage({
             <Input name="phone" type="tel" defaultValue={profile?.phone ?? ""} />
           </div>
           <div className="border-t border-border pt-4">
-            <h3 className="font-display font-bold">ข้อมูลที่อยู่</h3>
+            <h3 className="flex items-center gap-2 font-display font-bold">
+              <HeadingIcon name="mapPin" className="size-4" />
+              ข้อมูลที่อยู่
+            </h3>
           </div>
           <div>
             <Label>ที่อยู่</Label>
@@ -100,7 +109,10 @@ export default async function ProfilePage({
 
       <form action={changePassword}>
         <Card className="space-y-4">
-          <h3 className="font-display font-bold">เปลี่ยนรหัสผ่าน</h3>
+          <h3 className="flex items-center gap-2 font-display font-bold">
+            <HeadingIcon name="key" className="size-4" />
+            เปลี่ยนรหัสผ่าน
+          </h3>
           <div>
             <Label>รหัสผ่านใหม่</Label>
             <Input name="password" type="password" minLength={6} required />

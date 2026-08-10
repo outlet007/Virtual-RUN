@@ -56,6 +56,10 @@ export default async function RootLayout({
     "--color-ink": settings.color_ink,
     "--color-primary": settings.color_primary,
     "--color-primary-dark": darken(settings.color_primary, 0.15),
+    "--color-primary-hover":
+      settings.color_primary.toLowerCase() === "#fec81d"
+        ? "#febc1d"
+        : darken(settings.color_primary, 0.15),
     "--color-primary-soft": lighten(settings.color_primary, 0.9),
     "--color-medal": settings.color_medal,
     "--color-medal-soft": lighten(settings.color_medal, 0.92),

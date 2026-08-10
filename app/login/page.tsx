@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import Script from "next/script";
 import { LockKeyhole, Mail } from "lucide-react";
-import { Card, Button, Input, Label, LinkButton } from "@/components/ui";
+import { Card, Button, HeadingIcon, Input, Label, LinkButton } from "@/components/ui";
 import { logIn } from "@/lib/actions/auth";
 
 export default async function LoginPage({
@@ -16,7 +16,10 @@ export default async function LoginPage({
   return (
     <div className="mx-auto max-w-sm space-y-6 pt-8">
       <div>
-        <h1 className="font-display text-2xl font-bold">เข้าสู่ระบบ</h1>
+        <h1 className="flex items-center gap-2 font-display text-2xl font-bold">
+          <HeadingIcon name="login" />
+          เข้าสู่ระบบ
+        </h1>
         <p className="mt-1 text-sm text-ink/50">ยินดีต้อนรับกลับมา</p>
       </div>
 

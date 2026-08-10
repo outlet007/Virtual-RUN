@@ -75,7 +75,7 @@ export function DashboardSidebar({
           <Link
             href="/profile"
             aria-label="แก้ไขโปรไฟล์"
-            className="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full bg-primary text-ink"
+            className="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full bg-primary text-ink transition hover:bg-primary-hover"
           >
             <Pencil className="h-3.5 w-3.5" />
           </Link>

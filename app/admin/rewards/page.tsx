@@ -1,7 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Card, Button, Input, Label, Badge, ImageUploadField, Textarea } from "@/components/ui";
+import { Card, Button, HeadingIcon, Input, Label, Badge, ImageUploadField, Textarea } from "@/components/ui";
+import { CreateRewardModal } from "@/components/admin/create-reward-modal";
 import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
-import { createReward, updateReward, deleteReward, fulfillRedemption } from "@/lib/actions/admin";
+import { updateReward, deleteReward, fulfillRedemption } from "@/lib/actions/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ export default async function AdminRewardsPage({
 }: {
   searchParams: Promise<{
     error?: string;
+    create?: string;
     reward_added?: string;
     reward_saved?: string;
     reward_deleted?: string;
@@ -49,7 +51,7 @@ export default async function AdminRewardsPage({
 
   return (
     <div className="space-y-8">
-      {sp.error && (
+      {sp.error && sp.create !== "1" && (
         <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{sp.error}</div>
       )}
       {(sp.reward_added || sp.reward_saved || sp.reward_deleted || sp.fulfilled) && (
@@ -60,7 +62,10 @@ export default async function AdminRewardsPage({
 
       <div>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-display text-xl font-bold">รายการแลกรางวัลที่รอดำเนินการ</h2>
+          <h2 className="flex items-center gap-2 font-display text-xl font-bold">
+            <HeadingIcon name="clipboard" />
+            รายการแลกรางวัลที่รอดำเนินการ
+          </h2>
           <span className="font-mono text-sm text-ink/40 tnum">{redemptions.length} รายการ</span>
         </div>
         {redemptions.length === 0 ? (
@@ -86,7 +91,13 @@ export default async function AdminRewardsPage({
       </div>
 
       <div>
-        <h2 className="font-display text-xl font-bold">แคตตาล็อกรางวัล</h2>
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="flex items-center gap-2 font-display text-xl font-bold">
+            <HeadingIcon name="gift" />
+            แคตตาล็อกรางวัล
+          </h2>
+          <CreateRewardModal initialOpen={sp.create === "1"} error={sp.error} />
+        </div>
         <div className="mt-3 space-y-3">
           {rewards.map((rw) => (
             <form key={rw.id} action={updateReward}>
@@ -143,35 +154,6 @@ export default async function AdminRewardsPage({
           ))}
         </div>
 
-        <form action={createReward} className="mt-4">
-          <Card className="space-y-3">
-            <p className="text-sm font-semibold">+ เพิ่มรางวัลใหม่</p>
-            <ImageUploadField name="image_file" label="รูปรางวัล" />
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div className="sm:col-span-2">
-                <Label>ชื่อรางวัล</Label>
-                <Input name="name" required />
-              </div>
-              <div>
-                <Label>แต้มที่ใช้แลก</Label>
-                <Input name="cost_points" type="number" min="1" required />
-              </div>
-            </div>
-            <div>
-              <Label>รายละเอียดรางวัล</Label>
-              <Textarea
-                name="description"
-                rows={3}
-                placeholder="อธิบายรายละเอียด เงื่อนไข หรือสิ่งที่ผู้ใช้จะได้รับ"
-              />
-            </div>
-            <div>
-              <Label>จำนวนคงเหลือ</Label>
-              <Input name="stock" type="number" min="0" defaultValue={0} />
-            </div>
-            <Button type="submit" icon="add">เพิ่มรางวัล</Button>
-          </Card>
-        </form>
       </div>
     </div>
   );

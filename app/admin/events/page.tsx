@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Search, Footprints, CalendarDays, ChevronRight, ChevronLeft, RotateCcw } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Card, Badge, Input, Select } from "@/components/ui";
+import { Card, Badge, HeadingIcon, Input, Select } from "@/components/ui";
 import { formatDate, stripHtml } from "@/lib/utils";
 import { getBangkokDate } from "@/lib/event-registration";
 import { CreateEventModal } from "@/components/admin/create-event-modal";
@@ -78,7 +78,10 @@ export default async function AdminEventsPage({
   return (
     <div className="space-y-6">
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="font-display text-xl font-bold">งานทั้งหมด</h2>
+        <h2 className="flex items-center gap-2 font-display text-xl font-bold">
+          <HeadingIcon name="calendar" />
+          งานทั้งหมด
+        </h2>
         <CreateEventModal initialOpen={sp.create === "1"} error={sp.error} />
       </div>
 
@@ -131,7 +134,7 @@ export default async function AdminEventsPage({
           <div className="flex items-center gap-3">
             <button
               type="submit"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-ink transition hover:bg-primary-dark"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-ink transition hover:bg-primary-hover"
             >
               <Search className="size-4" aria-hidden="true" />
               ค้นหา
@@ -174,7 +177,10 @@ export default async function AdminEventsPage({
                       </Badge>
                     </div>
                     <div className="flex flex-1 flex-col gap-2 p-5">
-                      <h3 className="line-clamp-2 font-display font-bold">{ev.title}</h3>
+                      <h3 className="flex items-start gap-2 font-display font-bold">
+                        <HeadingIcon name="calendar" className="mt-0.5 size-4" />
+                        <span className="line-clamp-2">{ev.title}</span>
+                      </h3>
                       <p className="flex flex-wrap items-center gap-1.5 font-mono text-xs text-accent tnum">
                         <span className="inline-flex items-center gap-1">
                           <CalendarDays className="h-3.5 w-3.5" /> {formatDate(ev.start_date)}
@@ -186,7 +192,7 @@ export default async function AdminEventsPage({
                       {ev.description && (
                         <p className="line-clamp-2 text-sm text-muted">{stripHtml(ev.description)}</p>
                       )}
-                      <span className="mt-auto inline-flex w-fit items-center gap-1 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-ink transition group-hover:bg-primary-dark">
+                      <span className="mt-auto inline-flex w-fit items-center gap-1 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-ink transition group-hover:bg-primary-hover">
                         <ChevronRight className="h-4 w-4" aria-hidden="true" /> ดูรายละเอียด
                       </span>
                     </div>
@@ -211,7 +217,9 @@ export default async function AdminEventsPage({
                   key={p}
                   href={buildPageHref(p)}
                   className={`rounded-lg px-3 py-2 text-sm font-medium tnum ${
-                    p === page ? "bg-primary text-ink" : "text-muted hover:bg-lane/60"
+                    p === page
+                      ? "bg-primary text-ink hover:bg-primary-hover"
+                      : "text-muted hover:bg-lane/60"
                   }`}
                 >
                   {p}

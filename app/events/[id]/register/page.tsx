@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { Medal } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { Card, Button, Input, Label, Badge } from "@/components/ui";
+import { Card, Button, HeadingIcon, Input, Label, Badge } from "@/components/ui";
 import { registerForEvent } from "@/lib/actions/registration";
 import { formatBaht } from "@/lib/utils";
 import { isEventRegistrationOpen } from "@/lib/event-registration";
@@ -47,7 +47,10 @@ export default async function RegisterPage({
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
-      <h1 className="font-display text-2xl font-bold">ยืนยันการสมัคร</h1>
+      <h1 className="flex items-center gap-2 font-display text-2xl font-bold">
+        <HeadingIcon name="calendarCheck" />
+        ยืนยันการสมัคร
+      </h1>
 
       <Card className="space-y-1 bg-ink text-paper">
         <p className="text-sm text-paper/60">{eventTitle}</p>

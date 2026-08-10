@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { RotateCcw, Search } from "lucide-react";
-import { Badge, Button, Card, Input, Label, LinkButton, Select } from "@/components/ui";
+import { Badge, Button, Card, HeadingIcon, Input, Label, LinkButton, Select } from "@/components/ui";
 import {
   ACCOUNT_TYPES,
   ACCOUNT_TYPE_LABELS,
@@ -47,7 +47,10 @@ export default async function AdminRegistrationsPage({
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="font-display text-xl font-bold">จัดการผู้สมัคร</h2>
+          <h2 className="flex items-center gap-2 font-display text-xl font-bold">
+            <HeadingIcon name="users" />
+            จัดการผู้สมัคร
+          </h2>
           <p className="mt-1 text-sm text-ink/55">
             รายชื่อผู้ใช้งานทั้งหมดและประเภทบัญชีในระบบ Virtual RUN
           </p>

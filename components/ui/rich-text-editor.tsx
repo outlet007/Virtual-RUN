@@ -20,6 +20,10 @@ import {
   Code2,
 } from "lucide-react";
 import { uploadDescriptionImage, uploadDescriptionVideo } from "@/lib/actions/admin";
+import {
+  uploadContentDescriptionImage,
+  uploadContentDescriptionVideo,
+} from "@/lib/actions/content";
 
 function ToolbarButton({
   onClick,
@@ -42,7 +46,9 @@ function ToolbarButton({
       aria-label={label}
       aria-pressed={active}
       className={`inline-flex h-8 w-8 items-center justify-center rounded-lg transition disabled:opacity-30 ${
-        active ? "bg-primary text-ink" : "text-ink/60 hover:bg-lane/60"
+        active
+          ? "bg-primary text-ink hover:bg-primary-hover"
+          : "text-ink/60 hover:bg-lane/60"
       }`}
     >
       {children}
@@ -53,9 +59,11 @@ function ToolbarButton({
 export function RichTextEditor({
   name,
   defaultValue,
+  uploadTarget = "event",
 }: {
   name: string;
   defaultValue?: string | null;
+  uploadTarget?: "event" | "content";
 }) {
   const [html, setHtml] = useState(defaultValue ?? "");
   const [sourceMode, setSourceMode] = useState(false);
@@ -112,7 +120,9 @@ export function RichTextEditor({
       const formData = new FormData();
       formData.append("image_file", file);
       try {
-        const url = await uploadDescriptionImage(formData);
+        const url = uploadTarget === "content"
+          ? await uploadContentDescriptionImage(formData)
+          : await uploadDescriptionImage(formData);
         if (url) editor.chain().focus().setImage({ src: url }).run();
       } catch {
         // upload ล้มเหลว — เงียบไว้ ไม่บล็อกการแก้ไขต่อ (เหมือน pattern อื่นของ editor นี้)
@@ -144,7 +154,9 @@ export function RichTextEditor({
       const formData = new FormData();
       formData.append("video_file", file);
       try {
-        const url = await uploadDescriptionVideo(formData);
+        const url = uploadTarget === "content"
+          ? await uploadContentDescriptionVideo(formData)
+          : await uploadDescriptionVideo(formData);
         if (url) {
           editor.chain().focus().setVideo({ src: url }).run();
           // เหตุผลเดียวกับตอนแทรก YouTube — กันไม่ให้ NodeSelection ค้างแล้วพิมพ์ทับวิดีโอทิ้ง

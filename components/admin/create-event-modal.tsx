@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
-import { Button, Card, ImageUploadField, Input, Label, Select } from "@/components/ui";
+import { Button, Card, HeadingIcon, ImageUploadField, Input, Label, Select } from "@/components/ui";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { createEvent } from "@/lib/actions/admin";
 
@@ -53,7 +53,8 @@ export function CreateEventModal({
               <Card className="space-y-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <h3 id="create-event-title" className="font-display text-lg font-bold">
+                    <h3 id="create-event-title" className="flex items-center gap-2 font-display text-lg font-bold">
+                      <HeadingIcon name="calendarPlus" />
                       สร้างงานใหม่
                     </h3>
                     <p className="mt-1 text-sm text-ink/50">

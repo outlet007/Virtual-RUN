@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Card, Button, Input, Label, LinkButton } from "@/components/ui";
+import { Card, Button, HeadingIcon, Input, Label, LinkButton } from "@/components/ui";
 import { signUp } from "@/lib/actions/auth";
 
 export default async function SignupPage({
@@ -12,7 +12,10 @@ export default async function SignupPage({
   return (
     <div className="mx-auto max-w-sm space-y-6 pt-8">
       <div>
-        <h1 className="font-display text-2xl font-bold">สมัครสมาชิก</h1>
+        <h1 className="flex items-center gap-2 font-display text-2xl font-bold">
+          <HeadingIcon name="register" />
+          สมัครสมาชิก
+        </h1>
         <p className="mt-1 text-sm text-ink/50">เริ่มเก็บระยะและสะสมเหรียญ</p>
       </div>
 

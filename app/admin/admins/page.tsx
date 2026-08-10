@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Card, Button, Input, Label } from "@/components/ui";
+import { Card, Button, HeadingIcon, Input, Label } from "@/components/ui";
 import { removeAdminRole, setAdminRole } from "@/lib/actions/admin";
 import { ADMIN_ROLES, ADMIN_ROLE_LABELS, requireSuperAdmin } from "@/lib/auth/admin";
 
@@ -25,7 +25,10 @@ export default async function AdminAdminsPage({
   return (
     <div className="w-full max-w-none space-y-6">
       <div>
-        <h2 className="font-display text-xl font-bold">กำหนดระดับสิทธิ์</h2>
+        <h2 className="flex items-center gap-2 font-display text-xl font-bold">
+          <HeadingIcon name="admin" />
+          กำหนดระดับสิทธิ์
+        </h2>
         <p className="mt-1 text-sm text-ink/60">
           ผู้ดูแลระบบสูงสุดจัดการสิทธิ์ได้ทั้งหมด ผู้ดูแลระบบจัดการเนื้อหา และเจ้าหน้าที่ดูแลงานประจำวัน
         </p>

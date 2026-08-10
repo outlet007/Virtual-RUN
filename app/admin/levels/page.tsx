@@ -1,7 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Card, Button, Input, Label, Badge } from "@/components/ui";
+import { Card, Button, HeadingIcon, Input, Label, Badge } from "@/components/ui";
+import { CreateLevelModal } from "@/components/admin/create-level-modal";
 import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
-import { createLevel, deleteLevel, updateLevel } from "@/lib/actions/levels";
+import { deleteLevel, updateLevel } from "@/lib/actions/levels";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,13 @@ type LevelRow = {
 export default async function AdminLevelsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; added?: string; saved?: string; deleted?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    create?: string;
+    added?: string;
+    saved?: string;
+    deleted?: string;
+  }>;
 }) {
   const sp = await searchParams;
   const db = createAdminClient();
@@ -27,14 +34,20 @@ export default async function AdminLevelsPage({
 
   return (
     <div className="max-w-4xl space-y-6">
-      <div>
-        <h2 className="font-display text-xl font-bold">จัดการ Level และ XP</h2>
-        <p className="mt-1 text-sm text-muted">
-          กำหนดชื่อและ XP ขั้นต่ำที่ผู้ใช้งานต้องสะสมเพื่อปลดล็อกแต่ละ Level
-        </p>
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="flex items-center gap-2 font-display text-xl font-bold">
+            <HeadingIcon name="level" />
+            จัดการ Level และ XP
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            กำหนดชื่อและ XP ขั้นต่ำที่ผู้ใช้งานต้องสะสมเพื่อปลดล็อกแต่ละ Level
+          </p>
+        </div>
+        <CreateLevelModal initialOpen={sp.create === "1"} error={sp.error} />
       </div>
 
-      {sp.error && (
+      {sp.error && sp.create !== "1" && (
         <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{sp.error}</div>
       )}
       {(sp.added || sp.saved || sp.deleted) && (
@@ -107,26 +120,6 @@ export default async function AdminLevelsPage({
         ))}
       </div>
 
-      <form action={createLevel}>
-        <Card className="space-y-4 border-primary/40">
-          <h3 className="font-display font-bold">+ เพิ่ม Level ใหม่</h3>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[120px_minmax(0,1fr)_minmax(180px,0.7fr)]">
-            <div>
-              <Label>Level</Label>
-              <Input name="level_number" type="number" min={1} max={999} required />
-            </div>
-            <div>
-              <Label>ชื่อ Level</Label>
-              <Input name="name" maxLength={50} required />
-            </div>
-            <div>
-              <Label>XP ขั้นต่ำเพื่อปลดล็อก</Label>
-              <Input name="min_xp" type="number" min={0} max={1000000000} required />
-            </div>
-          </div>
-          <Button type="submit" icon="add">เพิ่ม Level</Button>
-        </Card>
-      </form>
     </div>
   );
 }

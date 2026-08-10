@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { RegistrationTrendChart } from "@/components/admin/registration-trend-chart";
-import { Card } from "@/components/ui";
+import { Card, HeadingIcon } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth/admin";
 import { buildEventLeaderboards, buildRegistrationSeries } from "@/lib/admin/day8";
 import { getAdminShipments } from "@/lib/admin/shipments";
@@ -63,7 +63,7 @@ export default async function AdminOverviewPage({
     db.from("submissions").select("id", { count: "exact", head: true }).in("status", ["pending", "flagged"]),
     db.from("payments").select("id", { count: "exact", head: true }).eq("status", "pending"),
     getAdminShipments({ status: "pending" }),
-    db.from("users").select("id", { count: "exact", head: true }).eq("role", "user"),
+    db.from("users").select("id", { count: "exact", head: true }),
     db.from("events").select("id", { count: "exact", head: true }),
     db.from("registrations").select("id", { count: "exact", head: true }),
     db.from("registrations").select("id", { count: "exact", head: true }).eq("status", "confirmed"),
@@ -131,36 +131,11 @@ export default async function AdminOverviewPage({
 
   return (
     <div className="space-y-8">
-      <section>
-        <h2 className="mb-3 font-display text-lg font-bold">ต้องดำเนินการ</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {actionStats.map((stat) => (
-            <Link key={stat.href} href={stat.href}>
-              <Card className="hover:border-primary/40">
-                <p className="text-xs uppercase tracking-wider text-ink/40">{stat.label}</p>
-                <p className="mt-1 font-mono text-4xl font-bold tnum">{stat.value}</p>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      <section>
-        <h2 className="mb-3 font-display text-lg font-bold">ภาพรวมระบบ</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          {overviewStats.map((stat) => (
-            <Card key={stat.label}>
-              <p className="text-xs uppercase tracking-wider text-ink/40">{stat.label}</p>
-              <p className="mt-1 font-mono text-2xl font-bold tnum">{stat.value}</p>
-            </Card>
-          ))}
-        </div>
-      </section>
-
       <section aria-labelledby="registration-trend-heading">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 id="registration-trend-heading" className="font-display text-lg font-bold">
+            <h2 id="registration-trend-heading" className="flex items-center gap-2 font-display text-lg font-bold">
+              <HeadingIcon name="chart" />
               แนวโน้มผู้สมัคร{period === "daily" ? " 30 วันล่าสุด" : " 12 เดือนล่าสุด"}
             </h2>
             <p className="mt-1 text-sm text-ink/50">
@@ -193,7 +168,10 @@ export default async function AdminOverviewPage({
 
       <section aria-labelledby="leaderboard-heading">
         <div className="mb-3">
-          <h2 id="leaderboard-heading" className="font-display text-lg font-bold">อันดับระยะสะสมสูงสุดต่องาน</h2>
+          <h2 id="leaderboard-heading" className="flex items-center gap-2 font-display text-lg font-bold">
+            <HeadingIcon name="trophy" className="text-medal" />
+            อันดับระยะสะสมสูงสุดต่องาน
+          </h2>
           <p className="mt-1 text-sm text-ink/50">Top 10 จากผลวิ่งที่อนุมัติแล้วเท่านั้น</p>
         </div>
         {leaderboards.length === 0 ? (
@@ -202,7 +180,10 @@ export default async function AdminOverviewPage({
           <div className="grid gap-4 xl:grid-cols-2">
             {leaderboards.map((event) => (
               <Card key={event.eventId}>
-                <h3 className="font-display font-bold">{event.eventTitle}</h3>
+                <h3 className="flex items-center gap-2 font-display font-bold">
+                  <HeadingIcon name="calendar" className="size-4" />
+                  {event.eventTitle}
+                </h3>
                 <ol className="mt-3 divide-y divide-lane">
                   {event.runners.map((runner, index) => (
                     <li key={runner.userId} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
@@ -221,6 +202,39 @@ export default async function AdminOverviewPage({
           </div>
         )}
       </section>
+
+      <section>
+        <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-bold">
+          <HeadingIcon name="clipboard" />
+          ต้องดำเนินการ
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {actionStats.map((stat) => (
+            <Link key={stat.href} href={stat.href}>
+              <Card className="hover:border-primary/40">
+                <p className="text-xs uppercase tracking-wider text-ink/40">{stat.label}</p>
+                <p className="mt-1 font-mono text-4xl font-bold tnum">{stat.value}</p>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-bold">
+          <HeadingIcon name="overview" />
+          ภาพรวมระบบ
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          {overviewStats.map((stat) => (
+            <Card key={stat.label}>
+              <p className="text-xs uppercase tracking-wider text-ink/40">{stat.label}</p>
+              <p className="mt-1 font-mono text-2xl font-bold tnum">{stat.value}</p>
+            </Card>
+          ))}
+        </div>
+      </section>
+
     </div>
   );
 }

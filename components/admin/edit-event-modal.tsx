@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { Button, Card, Input, Label, Select, ImageUploadField } from "@/components/ui";
+import { Button, Card, HeadingIcon, Input, Label, Select, ImageUploadField } from "@/components/ui";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { updateEvent } from "@/lib/actions/admin";
 
@@ -54,7 +54,10 @@ export function EditEventModal({ event }: { event: EventForModal }) {
               <input type="hidden" name="existing_poster_image" value={event.poster_image ?? ""} />
               <Card className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-display text-lg font-bold">แก้ไขงาน</h3>
+                  <h3 className="flex items-center gap-2 font-display text-lg font-bold">
+                    <HeadingIcon name="edit" />
+                    แก้ไขงาน
+                  </h3>
                   <button
                     type="button"
                     onClick={() => setOpen(false)}

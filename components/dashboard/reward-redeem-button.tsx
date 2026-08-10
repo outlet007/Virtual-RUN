@@ -73,7 +73,8 @@ export function RewardRedeemButton({
                 <p className="text-xs font-semibold uppercase tracking-wider text-primary-dark">
                   ยืนยันการแลกรางวัล
                 </p>
-                <h2 id={titleId} className="mt-1 font-display text-xl font-bold text-ink">
+                <h2 id={titleId} className="mt-1 flex items-center gap-2 font-display text-xl font-bold text-ink">
+                  <Gift className="size-5 shrink-0 text-primary-dark" aria-hidden="true" />
                   {reward.name}
                 </h2>
               </div>

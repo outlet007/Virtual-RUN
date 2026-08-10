@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Gift } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { Card, Badge, Button, LinkButton } from "@/components/ui";
+import { Card, Badge, Button, HeadingIcon, LinkButton } from "@/components/ui";
 import { redeemReward } from "@/lib/actions/rewards";
 
 export const dynamic = "force-dynamic";
@@ -56,7 +56,10 @@ export default async function RewardsPage({
         </div>
       )}
 
-      <h1 className="font-display text-xl font-bold">แลกแต้มเป็นรางวัล</h1>
+      <h1 className="flex items-center gap-2 font-display text-xl font-bold">
+        <HeadingIcon name="gift" />
+        แลกแต้มเป็นรางวัล
+      </h1>
 
       {rewards.length === 0 ? (
         <Card className="text-center text-ink/50">ยังไม่มีรางวัลให้แลก</Card>

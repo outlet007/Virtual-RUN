@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { Card, Badge } from "@/components/ui";
+import { Card, Badge, HeadingIcon } from "@/components/ui";
 import { formatBaht } from "@/lib/utils";
 import { generatePromptPayQrDataUrl } from "@/lib/promptpay";
 
@@ -60,7 +60,10 @@ export default async function PayPage({
 
       <div>
         <p className="text-sm text-ink/50">{reg.events?.title}</p>
-        <h1 className="font-display text-2xl font-bold">{reg.packages?.name}</h1>
+        <h1 className="flex items-center gap-2 font-display text-2xl font-bold">
+          <HeadingIcon name="creditCard" />
+          {reg.packages?.name}
+        </h1>
       </div>
 
       {payment.status === "pending" && (

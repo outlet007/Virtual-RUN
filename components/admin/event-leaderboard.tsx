@@ -1,4 +1,4 @@
-import { Card } from "@/components/ui";
+import { Card, HeadingIcon } from "@/components/ui";
 import type { EventLeaderboard } from "@/lib/admin/day8";
 
 export function EventLeaderboardCard({ leaderboard }: { leaderboard?: EventLeaderboard }) {
@@ -12,7 +12,10 @@ export function EventLeaderboardCard({ leaderboard }: { leaderboard?: EventLeade
 
   return (
     <Card>
-      <h4 className="font-display font-bold">{leaderboard.eventTitle}</h4>
+      <h4 className="flex items-center gap-2 font-display font-bold">
+        <HeadingIcon name="calendar" className="size-4" />
+        {leaderboard.eventTitle}
+      </h4>
       <ol className="mt-3 divide-y divide-lane" aria-label="10 อันดับระยะสะสมสูงสุด">
         {leaderboard.runners.map((runner, index) => (
           <li

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { RotateCcw, Search } from "lucide-react";
-import { Card, Badge, Button, Input, Label, LinkButton, Select } from "@/components/ui";
+import { Card, Badge, Button, HeadingIcon, Input, Label, LinkButton, Select } from "@/components/ui";
 import { updateShipmentStatus } from "@/lib/actions/shipments";
 import {
   getAdminShipments,
@@ -47,7 +47,10 @@ export default async function AdminShipmentsPage({ searchParams }: {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-display text-xl font-bold">จัดส่งเหรียญ</h2>
+          <h2 className="flex items-center gap-2 font-display text-xl font-bold">
+            <HeadingIcon name="truck" />
+            จัดส่งเหรียญ
+          </h2>
           <p className="mt-1 text-sm text-ink/50">แสดงเฉพาะผู้สมัครแพ็กเกจเหรียญกายภาพที่สะสมระยะถึงเป้าหมายแล้ว</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

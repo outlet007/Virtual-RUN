@@ -14,6 +14,7 @@ const config: Config = {
           DEFAULT: "var(--color-primary)", // go / distance
           // ปุ่ม primary ใช้ text-ink ทับเสมอ (ดู components/ui/index.tsx) เพราะสีพื้นอาจสว่าง
           dark: "var(--color-primary-dark)",
+          hover: "var(--color-primary-hover)",
           soft: "var(--color-primary-soft)",
         },
         medal: {

@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Card, Button, Input, Label, ImageUploadField } from "@/components/ui";
+import { Card, Button, HeadingIcon, Input, Label, ImageUploadField } from "@/components/ui";
 import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
 import {
   createHeroBanner,
@@ -45,7 +45,10 @@ export default async function AdminHeroBannersPage({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="font-display text-xl font-bold">Banner หน้าแรก</h2>
+        <h2 className="flex items-center gap-2 font-display text-xl font-bold">
+          <HeadingIcon name="banner" />
+          Banner หน้าแรก
+        </h2>
         <p className="mt-1 text-sm text-muted">
           จัดการรูป slide banner ที่แสดงบนหัวหน้าแรก — เรียงตามเลขลำดับ (น้อยไปมาก)
         </p>

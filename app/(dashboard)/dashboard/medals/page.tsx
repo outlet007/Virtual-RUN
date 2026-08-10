@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { Medal as MedalIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { MedalFilterGrid } from "@/components/dashboard/medal-filter-grid";
+import { HeadingIcon } from "@/components/ui";
 import type { MedalEntry } from "@/components/dashboard/medal-hexagon";
 import { isEventRegistrationOpen } from "@/lib/event-registration";
 
@@ -130,7 +131,10 @@ export default async function MedalsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h2 className="font-display text-xl font-bold">เหรียญรางวัลของฉัน</h2>
+          <h2 className="flex items-center gap-2 font-display text-xl font-bold">
+            <HeadingIcon name="medal" />
+            เหรียญรางวัลของฉัน
+          </h2>
           <p className="mt-1 text-sm text-muted">เก็บเหรียญให้ครบทุกความสำเร็จในเส้นทางนักวิ่งของคุณ</p>
         </div>
         <div className="flex items-center gap-3 rounded-2xl border border-lane bg-white px-5 py-3">

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Flag } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { Card, Badge, LinkButton, TrackProgress } from "@/components/ui";
+import { Card, Badge, HeadingIcon, LinkButton, TrackProgress } from "@/components/ui";
 import { formatKm } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -57,7 +57,10 @@ export default async function MyEventsPage() {
     <div className="space-y-6">
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="font-display text-xl font-bold">งานของฉัน</h2>
+          <h2 className="flex items-center gap-2 font-display text-xl font-bold">
+            <HeadingIcon name="calendarCheck" />
+            งานของฉัน
+          </h2>
           <p className="mt-1 text-sm text-muted">งานที่สมัครไว้ทั้งหมด พร้อมความคืบหน้าสะสมระยะ</p>
         </div>
         <LinkButton href="/dashboard/submit" icon="upload">บันทึกผลวิ่ง</LinkButton>

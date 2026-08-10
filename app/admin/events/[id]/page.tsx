@@ -9,6 +9,7 @@ import {
   Label,
   Select,
   Badge,
+  HeadingIcon,
   ImageUploadField,
   LinkButton,
   Tabs,
@@ -309,7 +310,10 @@ export default async function EventDashboardPage({
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="font-display text-xl font-bold">{event.title}</h2>
+            <h2 className="flex items-center gap-2 font-display text-xl font-bold">
+              <HeadingIcon name="calendar" />
+              {event.title}
+            </h2>
             <Badge className={statusClass[event.status]}>{statusLabel[event.status]}</Badge>
           </div>
           <p className="mt-1 flex flex-wrap items-center gap-1.5 font-mono text-xs text-accent tnum">
@@ -426,7 +430,10 @@ export default async function EventDashboardPage({
             content: (
               <div className="space-y-6">
                 <div>
-                  <h3 className="mb-3 font-display text-lg font-bold">สถิติงานนี้</h3>
+                  <h3 className="mb-3 flex items-center gap-2 font-display text-lg font-bold">
+                    <HeadingIcon name="overview" />
+                    สถิติงานนี้
+                  </h3>
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     {dashboardStats.map((s) => (
                       <Card key={s.label}>
@@ -440,7 +447,8 @@ export default async function EventDashboardPage({
                 <section aria-labelledby="event-registration-trend-heading">
                   <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
                     <div>
-                      <h3 id="event-registration-trend-heading" className="font-display text-lg font-bold">
+                      <h3 id="event-registration-trend-heading" className="flex items-center gap-2 font-display text-lg font-bold">
+                        <HeadingIcon name="chart" />
                         แนวโน้มผู้สมัคร
                         {period === "daily" ? " 30 วันล่าสุด" : " 12 เดือนล่าสุด"}
                       </h3>
@@ -478,7 +486,8 @@ export default async function EventDashboardPage({
 
                 <section aria-labelledby="event-leaderboard-heading">
                   <div className="mb-3">
-                    <h3 id="event-leaderboard-heading" className="font-display text-lg font-bold">
+                    <h3 id="event-leaderboard-heading" className="flex items-center gap-2 font-display text-lg font-bold">
+                      <HeadingIcon name="trophy" className="text-medal" />
                       อันดับระยะสะสมสูงสุด
                     </h3>
                     <p className="mt-1 text-sm text-ink/50">

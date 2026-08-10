@@ -60,7 +60,7 @@ export function CookieConsent({
         <button
           type="button"
           onClick={acceptCookies}
-          className="inline-flex h-8 shrink-0 items-center justify-center rounded-full bg-primary px-4 text-xs font-semibold text-ink transition hover:bg-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-paper"
+          className="inline-flex h-8 shrink-0 items-center justify-center rounded-full bg-primary px-4 text-xs font-semibold text-ink transition hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-paper"
         >
           {buttonLabel}
         </button>

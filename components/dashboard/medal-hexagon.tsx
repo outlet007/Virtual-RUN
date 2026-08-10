@@ -71,7 +71,7 @@ export function MedalHexagon({ entry }: { entry: MedalEntry }) {
           {!entry.registrationStatus && entry.registrationOpen ? (
             <Link
               href={entry.registrationHref}
-              className="mt-3 inline-flex min-h-9 items-center justify-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-ink transition hover:bg-primary-dark"
+              className="mt-3 inline-flex min-h-9 items-center justify-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-ink transition hover:bg-primary-hover"
             >
               <UserPlus className="size-4" aria-hidden="true" />
               สมัครเพื่อปลดล็อก

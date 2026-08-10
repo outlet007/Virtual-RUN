@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { RotateCcw, Search } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Card, Badge, Button, Input } from "@/components/ui";
+import { Card, Badge, Button, HeadingIcon, Input } from "@/components/ui";
 import { formatBaht } from "@/lib/utils";
 import { confirmPayment, rejectPayment } from "@/lib/actions/admin";
 
@@ -75,7 +75,10 @@ export default async function AdminPaymentsPage({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-display text-xl font-bold">การชำระเงิน</h2>
+        <h2 className="flex items-center gap-2 font-display text-xl font-bold">
+          <HeadingIcon name="creditCard" />
+          การชำระเงิน
+        </h2>
         <span className="font-mono text-sm text-ink/40 tnum">{payments.length} รอตรวจสอบ</span>
       </div>
 
