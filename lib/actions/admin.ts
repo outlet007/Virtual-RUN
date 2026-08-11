@@ -111,8 +111,10 @@ export async function createEvent(formData: FormData) {
   const db = createAdminClient();
 
   const title = String(formData.get("title") ?? "").trim();
+  const title_en = String(formData.get("title_en") ?? "").trim() || null;
   const bib_prefix = normalizeBibPrefix(formData.get("bib_prefix"));
   const description = sanitizeDescription(String(formData.get("description") ?? "").trim());
+  const description_en = sanitizeDescription(String(formData.get("description_en") ?? "").trim());
   const pricing = String(formData.get("pricing") ?? "free");
   const start_date = String(formData.get("start_date") ?? "");
   const end_date = String(formData.get("end_date") ?? "");
@@ -140,8 +142,10 @@ export async function createEvent(formData: FormData) {
     .from("events")
     .insert({
       title,
+      title_en,
       bib_prefix,
       description: description || null,
+      description_en: description_en || null,
       cover_image,
       cover_position_x,
       cover_position_y,
@@ -167,8 +171,10 @@ export async function updateEvent(formData: FormData) {
 
   const id = String(formData.get("id") ?? "");
   const title = String(formData.get("title") ?? "").trim();
+  const title_en = String(formData.get("title_en") ?? "").trim() || null;
   const bib_prefix = normalizeBibPrefix(formData.get("bib_prefix"));
   const description = sanitizeDescription(String(formData.get("description") ?? "").trim());
+  const description_en = sanitizeDescription(String(formData.get("description_en") ?? "").trim());
   const pricing = String(formData.get("pricing") ?? "free");
   const start_date = String(formData.get("start_date") ?? "");
   const end_date = String(formData.get("end_date") ?? "");
@@ -199,8 +205,10 @@ export async function updateEvent(formData: FormData) {
     .from("events")
     .update({
       title,
+      title_en,
       bib_prefix,
       description: description || null,
+      description_en: description_en || null,
       cover_image,
       cover_position_x,
       cover_position_y,
@@ -329,6 +337,7 @@ export async function createPackage(formData: FormData) {
 
   const event_id = String(formData.get("event_id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
+  const name_en = String(formData.get("name_en") ?? "").trim() || null;
   const target_distance_km = Number(formData.get("target_distance_km") ?? 0);
   const activity_types = formData.getAll("activity_types").map(String);
 
@@ -343,6 +352,7 @@ export async function createPackage(formData: FormData) {
   const { error } = await db.from("packages").insert({
     event_id,
     name,
+    name_en,
     target_distance_km,
     price,
     activity_types: activity_types.length > 0 ? activity_types : ["run", "walk"],
@@ -365,6 +375,7 @@ export async function updatePackage(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const event_id = String(formData.get("event_id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
+  const name_en = String(formData.get("name_en") ?? "").trim() || null;
   const target_distance_km = Number(formData.get("target_distance_km") ?? 0);
   const activity_types = formData.getAll("activity_types").map(String);
 
@@ -380,6 +391,7 @@ export async function updatePackage(formData: FormData) {
     .from("packages")
     .update({
       name,
+      name_en,
       target_distance_km,
       price,
       activity_types: activity_types.length > 0 ? activity_types : ["run", "walk"],
@@ -703,6 +715,7 @@ export async function createMedal(formData: FormData) {
 
   const eventId = String(formData.get("event_id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
+  const name_en = String(formData.get("name_en") ?? "").trim() || null;
   const tier = String(formData.get("tier") ?? "bronze");
   const targetKm = Number(formData.get("target_km") ?? 0);
   const bonusPoints = Number(formData.get("bonus_points") ?? 0);
@@ -722,6 +735,7 @@ export async function createMedal(formData: FormData) {
   const { error } = await db.from("medals").insert({
     event_id: eventId,
     name,
+    name_en,
     tier,
     unlock_rule: { type: "distance", target_km: targetKm },
     bonus_points: bonusPoints,
@@ -741,6 +755,7 @@ export async function updateMedal(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const eventId = String(formData.get("event_id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
+  const name_en = String(formData.get("name_en") ?? "").trim() || null;
   const tier = String(formData.get("tier") ?? "bronze");
   const targetKm = Number(formData.get("target_km") ?? 0);
   const bonusPoints = Number(formData.get("bonus_points") ?? 0);
@@ -762,6 +777,7 @@ export async function updateMedal(formData: FormData) {
     .from("medals")
     .update({
       name,
+      name_en,
       tier,
       unlock_rule: { type: "distance", target_km: targetKm },
       bonus_points: bonusPoints,
@@ -806,6 +822,8 @@ export async function createPhysicalMedal(formData: FormData) {
 
   const eventId = String(formData.get("event_id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
+  const name_en = String(formData.get("name_en") ?? "").trim() || null;
+  const description_en = String(formData.get("description_en") ?? "").trim() || null;
   const tier = String(formData.get("tier") ?? "bronze");
   const targetKm = Number(formData.get("target_km") ?? 0);
   const bonusPoints = Number(formData.get("bonus_points") ?? 0);
@@ -828,6 +846,8 @@ export async function createPhysicalMedal(formData: FormData) {
   const { error } = await db.from("physical_medals").insert({
     event_id: eventId,
     name,
+    name_en,
+    description_en,
     tier,
     unlock_rule: { type: "distance", target_km: targetKm },
     bonus_points: bonusPoints,
@@ -847,6 +867,8 @@ export async function updatePhysicalMedal(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const eventId = String(formData.get("event_id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
+  const name_en = String(formData.get("name_en") ?? "").trim() || null;
+  const description_en = String(formData.get("description_en") ?? "").trim() || null;
   const tier = String(formData.get("tier") ?? "bronze");
   const targetKm = Number(formData.get("target_km") ?? 0);
   const bonusPoints = Number(formData.get("bonus_points") ?? 0);
@@ -871,6 +893,8 @@ export async function updatePhysicalMedal(formData: FormData) {
     .from("physical_medals")
     .update({
       name,
+      name_en,
+      description_en,
       tier,
       unlock_rule: { type: "distance", target_km: targetKm },
       bonus_points: bonusPoints,
@@ -922,7 +946,9 @@ export async function createReward(formData: FormData) {
   const db = createAdminClient();
 
   const name = String(formData.get("name") ?? "").trim();
+  const name_en = String(formData.get("name_en") ?? "").trim() || null;
   const description = String(formData.get("description") ?? "").trim() || null;
+  const description_en = String(formData.get("description_en") ?? "").trim() || null;
   const costPoints = Number(formData.get("cost_points") ?? 0);
   const stock = Number(formData.get("stock") ?? 0);
 
@@ -939,7 +965,9 @@ export async function createReward(formData: FormData) {
 
   const { error } = await db.from("rewards").insert({
     name,
+    name_en,
     description,
+    description_en,
     image_url: imageUrl,
     cost_points: costPoints,
     stock,
@@ -958,7 +986,9 @@ export async function updateReward(formData: FormData) {
 
   const id = String(formData.get("id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
+  const name_en = String(formData.get("name_en") ?? "").trim() || null;
   const description = String(formData.get("description") ?? "").trim() || null;
+  const description_en = String(formData.get("description_en") ?? "").trim() || null;
   const costPoints = Number(formData.get("cost_points") ?? 0);
   const stock = Number(formData.get("stock") ?? 0);
 
@@ -976,7 +1006,7 @@ export async function updateReward(formData: FormData) {
 
   const { error } = await db
     .from("rewards")
-    .update({ name, description, image_url: imageUrl, cost_points: costPoints, stock })
+    .update({ name, name_en, description, description_en, image_url: imageUrl, cost_points: costPoints, stock })
     .eq("id", id);
   if (error) err("/admin/rewards", error.message);
 
@@ -1044,12 +1074,45 @@ export async function fulfillRedemption(formData: FormData) {
 
 // ---------- Hero Banners ----------
 
+const HERO_BANNER_CONTENT_LIMITS = [
+  ["kicker", 120, "ข้อความนำภาษาไทย"],
+  ["kicker_en", 120, "ข้อความนำภาษาอังกฤษ"],
+  ["title", 160, "หัวข้อหลักภาษาไทย"],
+  ["title_en", 160, "หัวข้อหลักภาษาอังกฤษ"],
+  ["highlight", 160, "ข้อความไฮไลต์ภาษาไทย"],
+  ["highlight_en", 160, "ข้อความไฮไลต์ภาษาอังกฤษ"],
+  ["title_suffix", 160, "ข้อความต่อท้ายภาษาไทย"],
+  ["title_suffix_en", 160, "ข้อความต่อท้ายภาษาอังกฤษ"],
+  ["subtitle", 1000, "คำอธิบายภาษาไทย"],
+  ["subtitle_en", 1000, "คำอธิบายภาษาอังกฤษ"],
+] as const;
+
+function readHeroBannerContent(formData: FormData) {
+  const content = Object.fromEntries(
+    HERO_BANNER_CONTENT_LIMITS.map(([field]) => [
+      field,
+      String(formData.get(field) ?? "").trim(),
+    ]),
+  ) as Record<(typeof HERO_BANNER_CONTENT_LIMITS)[number][0], string>;
+
+  for (const [field, maximum, label] of HERO_BANNER_CONTENT_LIMITS) {
+    const value = content[field];
+    if (!value || value.length > maximum) {
+      err(
+        "/admin/hero-banners",
+        `${label}ต้องมีความยาว 1–${maximum.toLocaleString("th-TH")} ตัวอักษร`,
+      );
+    }
+  }
+
+  return content;
+}
+
 export async function createHeroBanner(formData: FormData) {
   await requireManager();
   const db = createAdminClient();
 
-  const title = String(formData.get("title") ?? "").trim();
-  const subtitle = String(formData.get("subtitle") ?? "").trim();
+  const content = readHeroBannerContent(formData);
   const link_url = String(formData.get("link_url") ?? "").trim();
   const is_active = formData.get("is_active") === "on";
   const position_x = parseImagePosition(formData.get("position_x"));
@@ -1076,8 +1139,7 @@ export async function createHeroBanner(formData: FormData) {
 
   const { error } = await db.from("hero_banners").insert({
     image_url,
-    title: title || null,
-    subtitle: subtitle || null,
+    ...content,
     link_url: link_url || null,
     position_x,
     position_y,
@@ -1096,8 +1158,7 @@ export async function updateHeroBanner(formData: FormData) {
   const db = createAdminClient();
 
   const id = String(formData.get("id") ?? "");
-  const title = String(formData.get("title") ?? "").trim();
-  const subtitle = String(formData.get("subtitle") ?? "").trim();
+  const content = readHeroBannerContent(formData);
   const link_url = String(formData.get("link_url") ?? "").trim();
   const is_active = formData.get("is_active") === "on";
   const position_x = parseImagePosition(formData.get("position_x"));
@@ -1118,8 +1179,7 @@ export async function updateHeroBanner(formData: FormData) {
     .from("hero_banners")
     .update({
       image_url,
-      title: title || null,
-      subtitle: subtitle || null,
+      ...content,
       link_url: link_url || null,
       position_x,
       position_y,
@@ -1194,6 +1254,8 @@ export async function updateSystemSettings(formData: FormData) {
   const db = createAdminClient();
 
   const site_name = String(formData.get("site_name") ?? "").trim();
+  const site_name_en = String(formData.get("site_name_en") ?? "").trim() || null;
+  const header_show_site_name = formData.get("header_show_site_name") === "on";
   const color_ink = String(formData.get("color_ink") ?? "").trim();
   const color_primary = String(formData.get("color_primary") ?? "").trim();
   const color_accent = String(formData.get("color_accent") ?? "").trim();
@@ -1203,10 +1265,19 @@ export async function updateSystemSettings(formData: FormData) {
     formData.get("cookie_consent_message") ?? "",
   ).trim();
   const cookie_consent_message = sanitizeCookieConsentHtml(cookie_consent_message_input);
+  const cookie_consent_message_en_input = String(formData.get("cookie_consent_message_en") ?? "").trim();
+  const cookie_consent_message_en = cookie_consent_message_en_input
+    ? sanitizeCookieConsentHtml(cookie_consent_message_en_input)
+    : null;
   const cookie_policy_url = String(formData.get("cookie_policy_url") ?? "").trim();
   const cookie_consent_button_label = String(
     formData.get("cookie_consent_button_label") ?? "",
   ).trim();
+  const cookie_consent_button_label_en = String(
+    formData.get("cookie_consent_button_label_en") ?? "",
+  ).trim() || null;
+  const privacy_policy_text = String(formData.get("privacy_policy_text") ?? "").trim();
+  const privacy_policy_text_en = String(formData.get("privacy_policy_text_en") ?? "").trim();
   const content_overlay_color = String(formData.get("content_overlay_color") ?? "").trim();
   const content_overlay_opacity = Number(formData.get("content_overlay_opacity"));
   const submission_max_distance_km = Number(
@@ -1242,6 +1313,12 @@ export async function updateSystemSettings(formData: FormData) {
   }
   if (!cookie_consent_button_label || cookie_consent_button_label.length > 50) {
     err("/admin/settings", "ข้อความบนปุ่มยอมรับต้องมีความยาว 1–50 ตัวอักษร");
+  }
+  if (!privacy_policy_text || privacy_policy_text.length > 20000) {
+    err("/admin/settings", "นโยบายความเป็นส่วนตัวภาษาไทยต้องมีความยาว 1–20,000 ตัวอักษร");
+  }
+  if (!privacy_policy_text_en || privacy_policy_text_en.length > 20000) {
+    err("/admin/settings", "นโยบายความเป็นส่วนตัวภาษาอังกฤษต้องมีความยาว 1–20,000 ตัวอักษร");
   }
   if (cookie_policy_url.length > 2048) {
     err("/admin/settings", "URL นโยบาย Cookie ยาวเกินไป");
@@ -1289,14 +1366,20 @@ export async function updateSystemSettings(formData: FormData) {
 
   const update: Record<string, unknown> = {
     site_name,
+    site_name_en,
+    header_show_site_name,
     color_ink,
     color_primary,
     color_accent,
     color_medal,
     cookie_consent_enabled,
     cookie_consent_message,
+    cookie_consent_message_en,
     cookie_policy_url,
     cookie_consent_button_label,
+    cookie_consent_button_label_en,
+    privacy_policy_text,
+    privacy_policy_text_en,
     content_background_position_x,
     content_background_position_y,
     content_background_display,

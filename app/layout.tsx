@@ -7,6 +7,8 @@ import { getAdminHome, isAdminRole, type AdminRole } from "@/lib/auth/admin";
 import { SiteHeader } from "@/components/site-header";
 import { CookieConsent } from "@/components/cookie-consent";
 import { sanitizeCookieConsentHtml } from "@/lib/cookie-consent-html";
+import { getLocale } from "@/lib/i18n/server";
+import { pickLocalized, tx } from "@/lib/i18n/shared";
 import {
   getContentBackgroundDisplayStyle,
   getContentBackgroundInsetStyle,
@@ -21,10 +23,10 @@ const notoSansThai = Noto_Sans_Thai({
 });
 
 export async function generateMetadata(): Promise<Metadata> {
-  const settings = await getSystemSettings();
+  const [settings, locale] = await Promise.all([getSystemSettings(), getLocale()]);
   return {
-    title: settings.site_name,
-    description: "วิ่ง เก็บระยะ สะสมเหรียญ — ที่ไหน เมื่อไหร่ก็ได้",
+    title: pickLocalized(locale, settings.site_name, settings.site_name_en),
+    description: tx(locale, "วิ่ง เก็บระยะ สะสมเหรียญ — ที่ไหน เมื่อไหร่ก็ได้", "Run, track your distance, and collect medals — anywhere, anytime."),
     icons: settings.favicon_url ? { icon: settings.favicon_url } : undefined,
   };
 }
@@ -34,7 +36,7 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
+  const [supabase, locale] = await Promise.all([createClient(), getLocale()]);
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -66,14 +68,18 @@ export default async function RootLayout({
     "--color-accent": settings.color_accent,
   } as React.CSSProperties;
 
+  const siteName = pickLocalized(locale, settings.site_name, settings.site_name_en);
+
   return (
-    <html lang="th" style={themeVars}>
+    <html lang={locale} style={themeVars}>
       <body className={`${notoSansThai.variable} font-sans`}>
         <SiteHeader
-          siteName={settings.site_name}
+          siteName={siteName}
           logoUrl={settings.logo_url}
+          showSiteName={settings.header_show_site_name}
           isAuthenticated={Boolean(user)}
           adminHref={adminRole ? getAdminHome(adminRole) : null}
+          locale={locale}
         />
         <div className="relative">
           {settings.content_background_url && (
@@ -110,13 +116,13 @@ export default async function RootLayout({
           </main>
         </div>
         <footer className="mx-auto max-w-[1500px] px-3 py-8 text-center text-xs text-ink/40 sm:px-4 sm:py-10">
-          © 2026 {settings.site_name} · Bangkok University. All Rights Reserved.
+          © 2026 {siteName} · Bangkok University. All Rights Reserved.
         </footer>
         <CookieConsent
           enabled={settings.cookie_consent_enabled}
-          messageHtml={sanitizeCookieConsentHtml(settings.cookie_consent_message)}
+          messageHtml={sanitizeCookieConsentHtml(pickLocalized(locale, settings.cookie_consent_message, settings.cookie_consent_message_en))}
           policyUrl={settings.cookie_policy_url}
-          buttonLabel={settings.cookie_consent_button_label}
+          buttonLabel={pickLocalized(locale, settings.cookie_consent_button_label, settings.cookie_consent_button_label_en)}
         />
       </body>
     </html>

@@ -20,6 +20,7 @@ export function ImageUploadField({
   defaultPositionY,
   compact = false,
   compactSize = "default",
+  previewVariant = "square",
 }: {
   name: string;
   label: string;
@@ -31,6 +32,7 @@ export function ImageUploadField({
   defaultPositionY?: number | null;
   compact?: boolean;
   compactSize?: "default" | "large" | "fill";
+  previewVariant?: "square" | "logo";
 }) {
   const [preview, setPreview] = useState<string | null>(defaultImageUrl ?? null);
   const [positionX, setPositionX] = useState(() => clampPosition(defaultPositionX));
@@ -165,9 +167,21 @@ export function ImageUploadField({
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
           {preview ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={preview} alt="" className="h-16 w-16 shrink-0 rounded-xl border border-lane object-cover" />
+            <img
+              src={preview}
+              alt=""
+              className={cn(
+                "h-16 shrink-0 rounded-xl border border-lane",
+                previewVariant === "logo"
+                  ? "w-full max-w-56 bg-white object-contain p-1"
+                  : "w-16 object-cover",
+              )}
+            />
           ) : (
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-dashed border-lane text-xs text-ink/40">
+            <div className={cn(
+              "flex h-16 shrink-0 items-center justify-center rounded-xl border border-dashed border-lane text-xs text-ink/40",
+              previewVariant === "logo" ? "w-full max-w-56" : "w-16",
+            )}>
               ไม่มีรูป
             </div>
           )}

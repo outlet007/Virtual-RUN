@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Gift, X } from "lucide-react";
 import { redeemReward } from "@/lib/actions/rewards";
 import { Badge, Button } from "@/components/ui";
+import { tx, type Locale } from "@/lib/i18n/shared";
 
 type RewardForRedeem = {
   id: string;
@@ -17,9 +18,11 @@ type RewardForRedeem = {
 export function RewardRedeemButton({
   reward,
   balance,
+  locale,
 }: {
   reward: RewardForRedeem;
   balance: number;
+  locale: Locale;
 }) {
   const [open, setOpen] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -47,7 +50,7 @@ export function RewardRedeemButton({
   return (
     <>
       <Button type="button" icon="gift" className="w-full" onClick={() => setOpen(true)}>
-        แลก
+        {tx(locale, "แลก", "Redeem")}
       </Button>
 
       {open && (
@@ -71,7 +74,7 @@ export function RewardRedeemButton({
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-primary-dark">
-                  ยืนยันการแลกรางวัล
+                  {tx(locale, "ยืนยันการแลกรางวัล", "Confirm reward redemption")}
                 </p>
                 <h2 id={titleId} className="mt-1 flex items-center gap-2 font-display text-xl font-bold text-ink">
                   <Gift className="size-5 shrink-0 text-primary-dark" aria-hidden="true" />
@@ -82,7 +85,7 @@ export function RewardRedeemButton({
                 type="button"
                 onClick={() => setOpen(false)}
                 className="grid size-9 shrink-0 place-items-center rounded-full text-ink/45 hover:bg-lane/60 hover:text-ink"
-                aria-label="ปิด"
+                aria-label={tx(locale, "ปิด", "Close")}
               >
                 <X className="size-5" aria-hidden="true" />
               </button>
@@ -105,10 +108,10 @@ export function RewardRedeemButton({
 
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <Badge className="bg-primary-soft text-primary-dark">
-                {reward.cost_points.toLocaleString("th-TH")} แต้ม
+                {reward.cost_points.toLocaleString(locale === "en" ? "en-US" : "th-TH")} {tx(locale, "แต้ม", "points")}
               </Badge>
               <Badge className="bg-lane text-ink/60">
-                คงเหลือ {reward.stock.toLocaleString("th-TH")}
+                {tx(locale, "คงเหลือ", "In stock")} {reward.stock.toLocaleString(locale === "en" ? "en-US" : "th-TH")}
               </Badge>
             </div>
 
@@ -120,13 +123,13 @@ export function RewardRedeemButton({
 
             <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-lane/35 p-4 text-sm">
               <div>
-                <p className="text-ink/50">แต้มปัจจุบัน</p>
+                <p className="text-ink/50">{tx(locale, "แต้มปัจจุบัน", "Current points")}</p>
                 <p className="mt-1 font-mono text-lg font-bold text-[#F5A524] tnum">
                   {balance.toLocaleString("th-TH")}
                 </p>
               </div>
               <div>
-                <p className="text-ink/50">แต้มคงเหลือหลังแลก</p>
+                <p className="text-ink/50">{tx(locale, "แต้มคงเหลือหลังแลก", "Points after redemption")}</p>
                 <p className="mt-1 font-mono text-lg font-bold text-ink tnum">
                   {(balance - reward.cost_points).toLocaleString("th-TH")}
                 </p>
@@ -134,15 +137,15 @@ export function RewardRedeemButton({
             </div>
 
             <p className="mt-4 text-sm text-ink/60">
-              กรุณาตรวจสอบรายละเอียดให้ถูกต้องก่อนยืนยัน ระบบจะหักแต้มทันทีหลังแลกสำเร็จ
+              {tx(locale, "กรุณาตรวจสอบรายละเอียดให้ถูกต้องก่อนยืนยัน ระบบจะหักแต้มทันทีหลังแลกสำเร็จ", "Review the details before confirming. Points are deducted immediately after redemption.")}
             </p>
 
             <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button type="button" variant="ghost" icon="reject" onClick={() => setOpen(false)}>
-                ยกเลิก
+                {tx(locale, "ยกเลิก", "Cancel")}
               </Button>
               <Button type="submit" icon="confirm">
-                ยืนยันการแลก
+                {tx(locale, "ยืนยันการแลก", "Confirm redemption")}
               </Button>
             </div>
           </form>

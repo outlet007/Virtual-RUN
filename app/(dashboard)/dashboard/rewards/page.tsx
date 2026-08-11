@@ -3,13 +3,17 @@ import { Gift } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Badge, Card, HeadingIcon } from "@/components/ui";
 import { RewardRedeemButton } from "@/components/dashboard/reward-redeem-button";
+import { getLocale } from "@/lib/i18n/server";
+import { pickLocalized, tx } from "@/lib/i18n/shared";
 
 export const dynamic = "force-dynamic";
 
 type RewardRow = {
   id: string;
   name: string;
+  name_en: string | null;
   description: string | null;
+  description_en: string | null;
   image_url: string | null;
   cost_points: number;
   stock: number;
@@ -21,7 +25,7 @@ export default async function DashboardRewardsPage({
   searchParams: Promise<{ error?: string; redeemed?: string }>;
 }) {
   const sp = await searchParams;
-  const supabase = await createClient();
+  const [supabase, locale] = await Promise.all([createClient(), getLocale()]);
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -30,7 +34,7 @@ export default async function DashboardRewardsPage({
   const [{ data: rewardsRaw }, { data: ledger }] = await Promise.all([
     supabase
       .from("rewards")
-      .select("id, name, description, image_url, cost_points, stock")
+      .select("id, name, name_en, description, description_en, image_url, cost_points, stock")
       .order("cost_points", { ascending: true }),
     supabase.from("points_ledger").select("delta").eq("user_id", user.id),
   ]);
@@ -43,15 +47,15 @@ export default async function DashboardRewardsPage({
       <div>
         <h1 className="flex items-center gap-2 font-display text-2xl font-bold">
           <HeadingIcon name="gift" />
-          แลกแต้มเป็นรางวัล
+          {tx(locale, "แลกแต้มเป็นรางวัล", "Redeem rewards")}
         </h1>
         <p className="mt-1 text-sm text-muted">
-          เลือกรางวัลที่ต้องการและยืนยันก่อนใช้แต้มสะสม
+          {tx(locale, "เลือกรางวัลที่ต้องการและยืนยันก่อนใช้แต้มสะสม", "Choose a reward and confirm before spending points")}
         </p>
       </div>
 
       <Card className="bg-ink text-paper">
-        <p className="text-xs uppercase tracking-wider text-paper">แต้มสะสมของฉัน</p>
+        <p className="text-xs uppercase tracking-wider text-paper">{tx(locale, "แต้มสะสมของฉัน", "My points")}</p>
         <p className="mt-1 font-mono text-4xl font-bold text-[#F5A524] tnum">
           {balance.toLocaleString("th-TH")}
         </p>
@@ -63,7 +67,7 @@ export default async function DashboardRewardsPage({
       {sp.redeemed && (
         <div className="flex items-center gap-2 rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
           <Gift className="size-4 shrink-0" aria-hidden="true" />
-          แลกรางวัลสำเร็จแล้ว รอผู้ดูแลระบบดำเนินการ
+          {tx(locale, "แลกรางวัลสำเร็จแล้ว รอผู้ดูแลระบบดำเนินการ", "Reward redeemed. An administrator will process it shortly.")}
         </div>
       )}
 
@@ -71,15 +75,15 @@ export default async function DashboardRewardsPage({
         <div>
           <h2 className="flex items-center gap-2 font-display text-xl font-bold">
             <HeadingIcon name="gift" />
-            แลกแต้มเป็นรางวัล
+            {tx(locale, "แลกแต้มเป็นรางวัล", "Available rewards")}
           </h2>
           <p className="mt-1 text-sm text-ink/50">
-            รางวัลที่แต้มถึงและยังมีของคงเหลือจะแสดงปุ่มแลก
+            {tx(locale, "รางวัลที่แต้มถึงและยังมีของคงเหลือจะแสดงปุ่มแลก", "Rewards you can afford and that are in stock can be redeemed")}
           </p>
         </div>
 
         {rewards.length === 0 ? (
-          <Card className="py-10 text-center text-ink/50">ยังไม่มีรางวัลในระบบ</Card>
+          <Card className="py-10 text-center text-ink/50">{tx(locale, "ยังไม่มีรางวัลในระบบ", "No rewards available")}</Card>
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {rewards.map((reward) => {
@@ -102,7 +106,7 @@ export default async function DashboardRewardsPage({
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={reward.image_url}
-                        alt={reward.name}
+                        alt={pickLocalized(locale, reward.name, reward.name_en)}
                         className={
                           canRedeem
                             ? "h-full w-full object-cover"
@@ -126,7 +130,7 @@ export default async function DashboardRewardsPage({
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <h3 className="flex items-center gap-2 font-display text-lg font-bold">
                         <HeadingIcon name="gift" className="size-4" />
-                        {reward.name}
+                        {pickLocalized(locale, reward.name, reward.name_en)}
                       </h3>
                       <Badge
                         className={
@@ -136,31 +140,31 @@ export default async function DashboardRewardsPage({
                         }
                       >
                         {inStock
-                          ? "คงเหลือ " + reward.stock.toLocaleString("th-TH")
-                          : "หมดแล้ว"}
+                          ? tx(locale, "คงเหลือ", "In stock") + " " + reward.stock.toLocaleString(locale === "en" ? "en-US" : "th-TH")
+                          : tx(locale, "หมดแล้ว", "Out of stock")}
                       </Badge>
                     </div>
 
                     <p className="mt-2 font-mono text-lg font-bold text-[#F5A524] tnum">
-                      {reward.cost_points.toLocaleString("th-TH")} แต้ม
+                      {reward.cost_points.toLocaleString(locale === "en" ? "en-US" : "th-TH")} {tx(locale, "แต้ม", "points")}
                     </p>
 
-                    {reward.description && (
+                    {pickLocalized(locale, reward.description, reward.description_en) && (
                       <p className="mt-3 line-clamp-3 whitespace-pre-line text-sm leading-6 text-ink/60">
-                        {reward.description}
+                        {pickLocalized(locale, reward.description, reward.description_en)}
                       </p>
                     )}
 
                     <div className="mt-auto pt-5">
                       {canRedeem ? (
-                        <RewardRedeemButton reward={reward} balance={balance} />
+                        <RewardRedeemButton reward={{ ...reward, name: pickLocalized(locale, reward.name, reward.name_en), description: pickLocalized(locale, reward.description, reward.description_en) }} balance={balance} locale={locale} />
                       ) : (
                         <div className="rounded-xl bg-lane/60 px-3 py-3 text-center text-sm font-semibold text-ink/45">
                           {!inStock
-                            ? "รางวัลหมดแล้ว"
-                            : "แต้มไม่เพียงพอ ขาดอีก " +
-                              missingPoints.toLocaleString("th-TH") +
-                              " แต้ม"}
+                            ? tx(locale, "รางวัลหมดแล้ว", "Reward is out of stock")
+                            : tx(locale, "แต้มไม่เพียงพอ ขาดอีก", "Not enough points. You need") +
+                              " " + missingPoints.toLocaleString(locale === "en" ? "en-US" : "th-TH") +
+                              " " + tx(locale, "แต้ม", "more points")}
                         </div>
                       )}
                     </div>

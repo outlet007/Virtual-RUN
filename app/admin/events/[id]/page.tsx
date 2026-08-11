@@ -41,6 +41,7 @@ export const dynamic = "force-dynamic";
 type PackageRow = {
   id: string;
   name: string;
+  name_en: string | null;
   target_distance_km: number;
   price: number;
   activity_types: string[];
@@ -54,6 +55,7 @@ type PackageRow = {
 type MedalRow = {
   id: string;
   name: string;
+  name_en: string | null;
   tier: string;
   bonus_points: number;
   image_url: string | null;
@@ -64,6 +66,8 @@ type MedalRow = {
 type PhysicalMedalRow = {
   id: string;
   name: string;
+  name_en: string | null;
+  description_en: string | null;
   tier: string;
   bonus_points: number;
   image_url: string | null;
@@ -151,7 +155,7 @@ export default async function EventDashboardPage({
   const { data: event } = await db
     .from("events")
     .select(
-      "id, title, bib_prefix, description, cover_image, cover_position_x, cover_position_y, poster_image, pricing, start_date, end_date, status, packages(id, name, target_distance_km, price, activity_types, has_physical_medal, digital_medal_id, digital_medal:medals!packages_digital_medal_id_fkey(id, name), physical_medal_id, physical_medal:physical_medals!packages_physical_medal_id_fkey(id, name)), medals(id, name, tier, bonus_points, image_url, unlock_rule, sort_order), physical_medals(id, name, tier, bonus_points, image_url, unlock_rule, sort_order)",
+      "id, title, title_en, bib_prefix, description, description_en, cover_image, cover_position_x, cover_position_y, poster_image, pricing, start_date, end_date, status, packages(id, name, name_en, target_distance_km, price, activity_types, has_physical_medal, digital_medal_id, digital_medal:medals!packages_digital_medal_id_fkey(id, name, name_en), physical_medal_id, physical_medal:physical_medals!packages_physical_medal_id_fkey(id, name, name_en)), medals(id, name, name_en, tier, bonus_points, image_url, unlock_rule, sort_order), physical_medals(id, name, name_en, description_en, tier, bonus_points, image_url, unlock_rule, sort_order)",
     )
     .eq("id", id)
     .single();
@@ -341,8 +345,10 @@ export default async function EventDashboardPage({
             event={{
               id: event.id,
               title: event.title,
+              title_en: event.title_en,
               bib_prefix: event.bib_prefix,
               description: event.description,
+              description_en: event.description_en,
               cover_image: event.cover_image,
               cover_position_x: event.cover_position_x,
               cover_position_y: event.cover_position_y,
@@ -535,10 +541,8 @@ export default async function EventDashboardPage({
                   )}
                 </div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div>
-                    <Label>ชื่อแพ็กเกจ</Label>
-                    <Input name="name" defaultValue={p.name} required />
-                  </div>
+                  <div><Label>ชื่อแพ็กเกจ (ไทย)</Label><Input name="name" defaultValue={p.name} required /></div>
+                  <div><Label>Package Name (English)</Label><Input name="name_en" defaultValue={p.name_en ?? ""} /></div>
                   <div>
                     <Label>ระยะเป้าหมาย (km)</Label>
                     <Input
@@ -604,10 +608,8 @@ export default async function EventDashboardPage({
           <Card className="space-y-3">
             <p className="text-sm font-semibold">+ เพิ่มแพ็กเกจใหม่</p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <Label>ชื่อแพ็กเกจ</Label>
-                <Input name="name" required />
-              </div>
+              <div><Label>ชื่อแพ็กเกจ (ไทย)</Label><Input name="name" required /></div>
+              <div><Label>Package Name (English)</Label><Input name="name_en" /></div>
               <div>
                 <Label>ระยะเป้าหมาย (km)</Label>
                 <Input name="target_distance_km" type="number" min="1" required />
@@ -681,10 +683,8 @@ export default async function EventDashboardPage({
                       </div>
                     </div>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <div>
-                        <Label>ชื่อเหรียญ</Label>
-                        <Input name="name" defaultValue={m.name} required />
-                      </div>
+                      <div><Label>ชื่อเหรียญ (ไทย)</Label><Input name="name" defaultValue={m.name} required /></div>
+                      <div><Label>Medal Name (English)</Label><Input name="name_en" defaultValue={m.name_en ?? ""} /></div>
                       <div>
                         <Label>ระยะสะสมที่ต้องถึง (km)</Label>
                         <Input
@@ -730,10 +730,8 @@ export default async function EventDashboardPage({
           <Card className="space-y-3">
             <p className="text-sm font-semibold">+ เพิ่มเหรียญใหม่</p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <Label>ชื่อเหรียญ</Label>
-                <Input name="name" required />
-              </div>
+              <div><Label>ชื่อเหรียญ (ไทย)</Label><Input name="name" required /></div>
+              <div><Label>Medal Name (English)</Label><Input name="name_en" /></div>
               <div>
                 <Label>ระดับ</Label>
                 <Select name="tier" defaultValue="bronze">
@@ -822,10 +820,9 @@ export default async function EventDashboardPage({
                               </div>
                             </div>
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                              <div>
-                                <Label>ชื่อเหรียญ</Label>
-                                <Input name="name" defaultValue={medal.name} required />
-                              </div>
+                              <div><Label>ชื่อเหรียญจริง (ไทย)</Label><Input name="name" defaultValue={medal.name} required /></div>
+                              <div><Label>Physical Medal Name (English)</Label><Input name="name_en" defaultValue={medal.name_en ?? ""} /></div>
+                              <div><Label>Description (English)</Label><Input name="description_en" defaultValue={medal.description_en ?? ""} /></div>
                               <div>
                                 <Label>ระยะสะสมที่ต้องถึง (km)</Label>
                                 <Input
@@ -881,10 +878,9 @@ export default async function EventDashboardPage({
                   <Card className="space-y-3">
                     <p className="text-sm font-semibold">+ เพิ่มเหรียญใหม่</p>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <div>
-                        <Label>ชื่อเหรียญ</Label>
-                        <Input name="name" required />
-                      </div>
+                      <div><Label>ชื่อเหรียญจริง (ไทย)</Label><Input name="name" required /></div>
+                      <div><Label>Physical Medal Name (English)</Label><Input name="name_en" /></div>
+                      <div><Label>Description (English)</Label><Input name="description_en" /></div>
                       <div>
                         <Label>ระดับ</Label>
                         <Select name="tier" defaultValue="bronze">

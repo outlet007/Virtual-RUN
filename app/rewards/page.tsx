@@ -3,13 +3,17 @@ import { Gift } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Badge, Button, HeadingIcon, LinkButton } from "@/components/ui";
 import { redeemReward } from "@/lib/actions/rewards";
+import { getLocale } from "@/lib/i18n/server";
+import { pickLocalized, tx } from "@/lib/i18n/shared";
 
 export const dynamic = "force-dynamic";
 
 type RewardRow = {
   id: string;
   name: string;
+  name_en: string | null;
   description: string | null;
+  description_en: string | null;
   image_url: string | null;
   cost_points: number;
   stock: number;
@@ -21,7 +25,7 @@ export default async function RewardsPage({
   searchParams: Promise<{ error?: string; redeemed?: string }>;
 }) {
   const { error, redeemed } = await searchParams;
-  const supabase = await createClient();
+  const [supabase, locale] = await Promise.all([createClient(), getLocale()]);
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -29,7 +33,7 @@ export default async function RewardsPage({
 
   const { data: rewardsRaw } = await supabase
     .from("rewards")
-    .select("id, name, description, image_url, cost_points, stock")
+    .select("id, name, name_en, description, description_en, image_url, cost_points, stock")
     .order("cost_points", { ascending: true });
   const rewards = (rewardsRaw ?? []) as RewardRow[];
 
@@ -39,7 +43,7 @@ export default async function RewardsPage({
   return (
     <div className="mx-auto max-w-lg space-y-6">
       <LinkButton href="/dashboard" variant="ghost" icon="back">
-        แดชบอร์ด
+        {tx(locale, "แดชบอร์ด", "Dashboard")}
       </LinkButton>
 
       <Card className="bg-ink text-paper">
@@ -58,7 +62,7 @@ export default async function RewardsPage({
 
       <h1 className="flex items-center gap-2 font-display text-xl font-bold">
         <HeadingIcon name="gift" />
-        แลกแต้มเป็นรางวัล
+        {tx(locale, "แลกแต้มเป็นรางวัล", "Redeem rewards")}
       </h1>
 
       {rewards.length === 0 ? (
@@ -74,7 +78,7 @@ export default async function RewardsPage({
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={r.image_url}
-                      alt={r.name}
+                      alt={pickLocalized(locale, r.name, r.name_en)}
                       className="h-24 w-24 shrink-0 rounded-xl border border-lane object-cover"
                     />
                   ) : (
@@ -83,11 +87,11 @@ export default async function RewardsPage({
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold">{r.name}</p>
+                    <p className="font-semibold">{pickLocalized(locale, r.name, r.name_en)}</p>
                     <p className="font-mono text-sm text-ink/50 tnum">{r.cost_points} แต้ม</p>
-                    {r.description && (
+                    {pickLocalized(locale, r.description, r.description_en) && (
                       <p className="mt-2 whitespace-pre-line text-sm leading-6 text-ink/65">
-                        {r.description}
+                        {pickLocalized(locale, r.description, r.description_en)}
                       </p>
                     )}
                     <Badge
@@ -102,7 +106,7 @@ export default async function RewardsPage({
                 <form action={redeemReward} className="flex justify-end">
                   <input type="hidden" name="reward_id" value={r.id} />
                   <Button type="submit" disabled={!canRedeem} icon="gift">
-                    แลก
+                    {tx(locale, "แลก", "Redeem")}
                   </Button>
                 </form>
               </Card>

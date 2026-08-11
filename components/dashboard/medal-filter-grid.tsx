@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ListFilter, Medal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MedalHexagon, type MedalEntry } from "./medal-hexagon";
+import { tx, type Locale } from "@/lib/i18n/shared";
 
 const tierLabel: Record<string, string> = {
   bronze: "บรอนซ์",
@@ -14,7 +15,7 @@ const tierLabel: Record<string, string> = {
 
 const tierOrder = ["bronze", "silver", "gold", "legendary"];
 
-export function MedalFilterGrid({ entries }: { entries: MedalEntry[] }) {
+export function MedalFilterGrid({ entries, locale }: { entries: MedalEntry[]; locale: Locale }) {
   const presentTiers = new Set(entries.map((entry) => entry.tier));
   const tiersPresent = [
     ...tierOrder.filter((tier) => presentTiers.has(tier)),
@@ -36,7 +37,7 @@ export function MedalFilterGrid({ entries }: { entries: MedalEntry[] }) {
           )}
         >
           <ListFilter className="size-4" aria-hidden="true" />
-          ทั้งหมด
+          {tx(locale, "ทั้งหมด", "All")}
         </button>
         {tiersPresent.map((t) => (
           <button
@@ -49,17 +50,17 @@ export function MedalFilterGrid({ entries }: { entries: MedalEntry[] }) {
             )}
           >
             <Medal className="size-4" aria-hidden="true" />
-            {tierLabel[t] ?? t}
+            {locale === "en" ? t[0].toUpperCase() + t.slice(1) : tierLabel[t] ?? t}
           </button>
         ))}
       </div>
 
       {filtered.length === 0 ? (
-        <p className="text-center text-sm text-ink/40">ไม่มีเหรียญในหมวดนี้</p>
+        <p className="text-center text-sm text-ink/40">{tx(locale, "ไม่มีเหรียญในหมวดนี้", "No medals in this category")}</p>
       ) : (
         <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-5">
           {filtered.map((entry) => (
-            <MedalHexagon key={entry.key} entry={entry} />
+            <MedalHexagon key={entry.key} entry={entry} locale={locale} />
           ))}
         </div>
       )}

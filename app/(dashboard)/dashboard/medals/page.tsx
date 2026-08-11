@@ -5,12 +5,16 @@ import { MedalFilterGrid } from "@/components/dashboard/medal-filter-grid";
 import { HeadingIcon } from "@/components/ui";
 import type { MedalEntry } from "@/components/dashboard/medal-hexagon";
 import { isEventRegistrationOpen } from "@/lib/event-registration";
+import { getLocale } from "@/lib/i18n/server";
+import { pickLocalized } from "@/lib/i18n/shared";
+import { tx } from "@/lib/i18n/shared";
 
 export const dynamic = "force-dynamic";
 
 type MedalRow = {
   id: string;
   name: string;
+  name_en: string | null;
   tier: string;
   image_url: string | null;
   unlock_rule: { target_km?: number } | null;
@@ -24,6 +28,7 @@ type RegRow = {
 type EventRow = {
   id: string;
   title: string;
+  title_en: string | null;
   status: string;
   end_date: string;
   medals: MedalRow[];
@@ -36,7 +41,7 @@ type Sub = {
 };
 
 export default async function MedalsPage() {
-  const supabase = await createClient();
+  const [supabase, locale] = await Promise.all([createClient(), getLocale()]);
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -47,7 +52,7 @@ export default async function MedalsPage() {
       supabase
         .from("events")
         .select(
-          "id, title, status, end_date, medals(id, name, tier, image_url, unlock_rule, sort_order), packages(id)",
+          "id, title, title_en, status, end_date, medals(id, name, name_en, tier, image_url, unlock_rule, sort_order), packages(id)",
         ),
       supabase
         .from("registrations")
@@ -107,7 +112,7 @@ export default async function MedalsPage() {
         )
         .map((m) => ({
           key: `${event.id}-${m.id}`,
-          name: m.name,
+          name: pickLocalized(locale, m.name, m.name_en),
           tier: m.tier,
           imageUrl: m.image_url,
           earned: earnedMap.has(m.id),
@@ -115,7 +120,7 @@ export default async function MedalsPage() {
           progressKm: registration ? approvedByReg.get(registration.id) ?? 0 : 0,
           targetKm: m.unlock_rule?.target_km ?? 0,
           eventId: event.id,
-          eventTitle: event.title,
+          eventTitle: pickLocalized(locale, event.title, event.title_en),
           registrationStatus: registration?.status ?? null,
           registrationOpen,
           registrationHref:
@@ -133,16 +138,16 @@ export default async function MedalsPage() {
         <div>
           <h2 className="flex items-center gap-2 font-display text-xl font-bold">
             <HeadingIcon name="medal" />
-            เหรียญรางวัลของฉัน
+            {tx(locale, "เหรียญรางวัลของฉัน", "My medals")}
           </h2>
-          <p className="mt-1 text-sm text-muted">เก็บเหรียญให้ครบทุกความสำเร็จในเส้นทางนักวิ่งของคุณ</p>
+          <p className="mt-1 text-sm text-muted">{tx(locale, "เก็บเหรียญให้ครบทุกความสำเร็จในเส้นทางนักวิ่งของคุณ", "Collect medals for every achievement on your running journey")}</p>
         </div>
         <div className="flex items-center gap-3 rounded-2xl border border-lane bg-white px-5 py-3">
           <span className="grid h-10 w-10 place-items-center rounded-full bg-medal-soft text-medal">
             <MedalIcon className="h-5 w-5" />
           </span>
           <div>
-            <p className="text-xs text-ink/40">เหรียญที่ได้รับ</p>
+            <p className="text-xs text-ink/40">{tx(locale, "เหรียญที่ได้รับ", "Medals earned")}</p>
             <p className="font-mono text-lg font-bold tnum">
               {earnedCount} / {entries.length}
             </p>
@@ -152,10 +157,10 @@ export default async function MedalsPage() {
 
       {entries.length === 0 ? (
         <p className="text-center text-sm text-ink/40">
-          ยังไม่มีงานที่เปิดให้สะสมเหรียญดิจิทัลในขณะนี้
+          {tx(locale, "ยังไม่มีงานที่เปิดให้สะสมเหรียญดิจิทัลในขณะนี้", "No events currently offer digital medals")}
         </p>
       ) : (
-        <MedalFilterGrid entries={entries} />
+        <MedalFilterGrid entries={entries} locale={locale} />
       )}
     </div>
   );

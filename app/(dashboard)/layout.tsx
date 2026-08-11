@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { calculateLevelProgress, type LevelDefinition } from "@/lib/levels";
+import { getLocale } from "@/lib/i18n/server";
+import { pickLocalized } from "@/lib/i18n/shared";
 
 type RankSummary = {
   total_users: number;
@@ -18,7 +20,7 @@ export default async function UserDashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
+  const [supabase, locale] = await Promise.all([createClient(), getLocale()]);
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -47,9 +49,12 @@ export default async function UserDashboardLayout({
 
   const { data: levelsRaw } = await supabase
     .from("levels")
-    .select("level_number, name, min_xp")
+    .select("level_number, name, name_en, min_xp")
     .order("level_number");
-  const levels = (levelsRaw ?? []) as LevelDefinition[];
+  const levels = ((levelsRaw ?? []) as LevelDefinition[]).map((level) => ({
+    ...level,
+    name: pickLocalized(locale, level.name, level.name_en),
+  }));
 
   const { data: rankRows } = await supabase.rpc("get_my_rank_summary");
   const rankSummary = ((rankRows ?? [])[0] as RankSummary | undefined) ?? null;
@@ -61,6 +66,7 @@ export default async function UserDashboardLayout({
         avatarUrl={profile?.avatar_url ?? null}
         levelProgress={calculateLevelProgress(points, levels)}
         rankSummary={rankSummary}
+        locale={locale}
       />
       <div className="min-w-0 flex-1">{children}</div>
     </div>

@@ -10,6 +10,7 @@ type LevelRow = {
   id: string;
   level_number: number;
   name: string;
+  name_en: string | null;
   min_xp: number;
 };
 
@@ -28,7 +29,7 @@ export default async function AdminLevelsPage({
   const db = createAdminClient();
   const { data } = await db
     .from("levels")
-    .select("id, level_number, name, min_xp")
+    .select("id, level_number, name, name_en, min_xp")
     .order("level_number");
   const levels = (data ?? []) as LevelRow[];
 
@@ -89,9 +90,10 @@ export default async function AdminLevelsPage({
                   />
                 </div>
                 <div>
-                  <Label>ชื่อ Level</Label>
+                  <Label>ชื่อ Level (ไทย)</Label>
                   <Input name="name" maxLength={50} defaultValue={level.name} required />
                 </div>
+                <div><Label>Level Name (English)</Label><Input name="name_en" maxLength={50} defaultValue={level.name_en ?? ""} /></div>
                 <div>
                   <Label>XP ขั้นต่ำเพื่อปลดล็อก</Label>
                   <Input

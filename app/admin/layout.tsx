@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { HeadingIcon } from "@/components/ui";
 import { ADMIN_ROLE_LABELS, requireAdmin } from "@/lib/auth/admin";
+import { getLocale } from "@/lib/i18n/server";
+import { tx } from "@/lib/i18n/shared";
 
 const operationalTabs = [
   { href: "/admin/registrations", label: "ผู้สมัคร" },
@@ -40,6 +42,7 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const { role } = await requireAdmin();
+  const locale = await getLocale();
   const tabs =
     role === "super_admin"
       ? superAdminTabs
@@ -56,7 +59,7 @@ export default async function AdminLayout({
         <div className="mt-1 flex flex-wrap items-center gap-3">
           <h1 className="flex items-center gap-2 font-display text-2xl font-bold">
             <HeadingIcon name="dashboard" />
-            แผงควบคุม
+            {tx(locale, "แผงควบคุม", "Admin dashboard")}
           </h1>
           <span className="rounded-full bg-primary-soft px-3 py-1 text-xs font-semibold text-primary-dark">
             {ADMIN_ROLE_LABELS[role]}
@@ -70,7 +73,22 @@ export default async function AdminLayout({
             href={t.href}
             className="shrink-0 whitespace-nowrap rounded-lg px-3 py-2 font-medium hover:bg-lane/60"
           >
-            {t.label}
+            {locale === "en"
+              ? ({
+                  "/admin": "Overview",
+                  "/admin/registrations": "Registrations",
+                  "/admin/submissions": "Submissions",
+                  "/admin/payments": "Payments",
+                  "/admin/shipments": "Shipments",
+                  "/admin/events": "Events",
+                  "/admin/articles": "Articles",
+                  "/admin/rewards": "Rewards",
+                  "/admin/levels": "Levels",
+                  "/admin/admins": "Administrators",
+                  "/admin/hero-banners": "Home Banners",
+                  "/admin/settings": "Settings",
+                } as Record<string, string>)[t.href] ?? t.label
+              : t.label}
           </Link>
         ))}
       </nav>

@@ -4,8 +4,8 @@ import {
   FeaturedArticleBanner,
   type FeaturedArticleSlide,
 } from "@/components/articles/featured-article-banner";
+import { CategoryBadge } from "@/components/articles/category-badge";
 import {
-  Badge,
   Button,
   Card,
   HeadingIcon,
@@ -14,6 +14,8 @@ import {
   Select,
 } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
+import { getLocale } from "@/lib/i18n/server";
+import { formatLocalizedDate, pickLocalized, tx } from "@/lib/i18n/shared";
 
 export const dynamic = "force-dynamic";
 
@@ -22,13 +24,22 @@ type Relation<T> = T | T[] | null;
 type PublicArticleRow = {
   id: string;
   title: string;
+  title_en: string | null;
   slug: string;
   excerpt: string | null;
+  excerpt_en: string | null;
   banner_image_url: string | null;
   banner_position_x: number;
   banner_position_y: number;
   published_at: string;
-  category: Relation<{ id: string; name: string; slug: string }>;
+  category: Relation<{
+    id: string;
+    name: string;
+    name_en: string | null;
+    slug: string;
+    badge_background_color: string;
+    badge_text_color: string;
+  }>;
 };
 
 function firstRelation<T>(value: Relation<T>) {
@@ -44,19 +55,19 @@ export default async function ArticlesPage({
   const q = (sp.q ?? "").trim();
   const categorySlug = (sp.category ?? "").trim();
   const page = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
-  const supabase = await createClient();
+  const [supabase, locale] = await Promise.all([createClient(), getLocale()]);
   const [{ data: categories, error: categoryError }, { data: featuredRaw, error: featuredError }] =
     await Promise.all([
       supabase
         .from("content_categories")
-        .select("id, name, slug, description")
+        .select("id, name, name_en, slug, description, description_en")
         .eq("is_active", true)
         .order("sort_order")
         .order("name"),
       supabase
         .from("content_articles")
         .select(
-          "id, title, slug, excerpt, banner_image_url, banner_position_x, banner_position_y, category:content_categories(name)",
+          "id, title, title_en, slug, excerpt, excerpt_en, banner_image_url, banner_position_x, banner_position_y, category:content_categories(name, name_en, badge_background_color, badge_text_color)",
         )
         .eq("status", "published")
         .eq("is_featured", true)
@@ -71,13 +82,15 @@ export default async function ArticlesPage({
     const category = firstRelation(article.category);
     return {
       id: article.id,
-      title: article.title,
+      title: pickLocalized(locale, article.title, article.title_en),
       slug: article.slug,
-      excerpt: article.excerpt,
+      excerpt: pickLocalized(locale, article.excerpt, article.excerpt_en),
       bannerImageUrl: article.banner_image_url,
       bannerPositionX: article.banner_position_x,
       bannerPositionY: article.banner_position_y,
-      categoryName: category?.name ?? null,
+      categoryName: category ? pickLocalized(locale, category.name, category.name_en) : null,
+      categoryBackgroundColor: category?.badge_background_color ?? null,
+      categoryTextColor: category?.badge_text_color ?? null,
     };
   });
 
@@ -85,7 +98,7 @@ export default async function ArticlesPage({
   let query = supabase
     .from("content_articles")
     .select(
-      "id, title, slug, excerpt, banner_image_url, banner_position_x, banner_position_y, published_at, category:content_categories(id, name, slug)",
+      "id, title, title_en, slug, excerpt, excerpt_en, banner_image_url, banner_position_x, banner_position_y, published_at, category:content_categories(id, name, name_en, slug, badge_background_color, badge_text_color)",
       { count: "exact" },
     )
     .eq("status", "published")
@@ -95,7 +108,12 @@ export default async function ArticlesPage({
   if (selectedCategory) query = query.eq("category_id", selectedCategory.id);
   const safeSearch = q.replace(/[,%()]/g, " ").trim();
   if (safeSearch) {
-    query = query.or(`title.ilike.%${safeSearch}%,excerpt.ilike.%${safeSearch}%`);
+    query = query.or(
+      "title.ilike.%" + safeSearch +
+        "%,title_en.ilike.%" + safeSearch +
+        "%,excerpt.ilike.%" + safeSearch +
+        "%,excerpt_en.ilike.%" + safeSearch + "%",
+    );
   }
   const from = (page - 1) * PAGE_SIZE;
   const { data, count, error } = await query.range(from, from + PAGE_SIZE - 1);
@@ -118,10 +136,10 @@ export default async function ArticlesPage({
       <div>
         <h1 className="flex items-center gap-2 font-display text-2xl font-bold">
           <HeadingIcon name="article" />
-          บทความและเกร็ดความรู้
+          {tx(locale, "บทความและเกร็ดความรู้", "Articles and insights")}
         </h1>
         <p className="mt-1 text-sm text-muted">
-          ข่าวประชาสัมพันธ์ เกร็ดความรู้ และข้อมูลที่น่าสนใจจาก Virtual RUN
+          {tx(locale, "ข่าวประชาสัมพันธ์ เกร็ดความรู้ และข้อมูลที่น่าสนใจจาก Virtual RUN", "News, practical insights, and stories from Virtual RUN")}
         </p>
       </div>
 
@@ -129,7 +147,7 @@ export default async function ArticlesPage({
         <form method="get" className="space-y-4">
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_260px_auto] lg:items-end">
             <div>
-              <Label htmlFor="public-article-search">ค้นหาบทความ</Label>
+              <Label htmlFor="public-article-search">{tx(locale, "ค้นหาบทความ", "Search articles")}</Label>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink/40" />
                 <Input
@@ -137,33 +155,33 @@ export default async function ArticlesPage({
                   name="q"
                   defaultValue={q}
                   className="pl-9"
-                  placeholder="ชื่อหรือเนื้อหาที่สนใจ"
+                  placeholder={tx(locale, "ชื่อหรือเนื้อหาที่สนใจ", "Title or topic")}
                 />
               </div>
             </div>
             <div>
-              <Label htmlFor="public-article-category">หมวดหมู่</Label>
+              <Label htmlFor="public-article-category">{tx(locale, "หมวดหมู่", "Category")}</Label>
               <Select
                 id="public-article-category"
                 name="category"
                 defaultValue={categorySlug}
               >
-                <option value="">ทุกหมวดหมู่</option>
+                <option value="">{tx(locale, "ทุกหมวดหมู่", "All categories")}</option>
                 {(categories ?? []).map((category) => (
                   <option key={category.id} value={category.slug}>
-                    {category.name}
+                    {pickLocalized(locale, category.name, category.name_en)}
                   </option>
                 ))}
               </Select>
             </div>
-            <Button type="submit" icon="search">ค้นหา</Button>
+            <Button type="submit" icon="search">{tx(locale, "ค้นหา", "Search")}</Button>
           </div>
           {(q || categorySlug) && (
             <Link
               href="/articles"
               className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-lane px-4 text-sm font-semibold hover:bg-lane/50"
             >
-              <RotateCcw className="size-4" /> ล้างการค้นหา
+              <RotateCcw className="size-4" /> {tx(locale, "ล้างการค้นหา", "Clear search")}
             </Link>
           )}
         </form>
@@ -178,7 +196,7 @@ export default async function ArticlesPage({
 
       {articles.length === 0 ? (
         <Card className="py-12 text-center text-ink/50">
-          ยังไม่มีบทความที่ตรงกับเงื่อนไข
+          {tx(locale, "ยังไม่มีบทความที่ตรงกับเงื่อนไข", "No matching articles")}
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -204,29 +222,30 @@ export default async function ArticlesPage({
                       </div>
                     )}
                     {category && (
-                      <Badge className="absolute left-3 top-3 bg-primary text-ink shadow-sm">
-                        {category.name}
-                      </Badge>
+                      <CategoryBadge
+                        backgroundColor={category.badge_background_color}
+                        textColor={category.badge_text_color}
+                        className="absolute left-3 top-3 shadow-sm"
+                      >
+                        {pickLocalized(locale, category.name, category.name_en)}
+                      </CategoryBadge>
                     )}
                   </div>
                   <div className="flex flex-1 flex-col gap-2 p-5">
                     <h2 className="flex items-start gap-2 font-display font-bold">
                       <HeadingIcon name="article" className="mt-0.5 size-4" />
-                      <span className="line-clamp-2">{article.title}</span>
+                      <span className="line-clamp-2">{pickLocalized(locale, article.title, article.title_en)}</span>
                     </h2>
                     <p className="inline-flex items-center gap-1.5 font-mono text-xs text-ink/45 tnum">
                       <CalendarDays className="size-3.5 shrink-0" aria-hidden="true" />
-                      {new Date(article.published_at).toLocaleDateString("th-TH", {
-                        dateStyle: "medium",
-                        timeZone: "Asia/Bangkok",
-                      })}
+                      {formatLocalizedDate(locale, article.published_at)}
                     </p>
-                    {article.excerpt && (
-                      <p className="line-clamp-2 text-sm text-muted">{article.excerpt}</p>
+                    {pickLocalized(locale, article.excerpt, article.excerpt_en) && (
+                      <p className="line-clamp-2 text-sm text-muted">{pickLocalized(locale, article.excerpt, article.excerpt_en)}</p>
                     )}
                     <span className="mt-auto inline-flex w-fit items-center gap-1 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-ink transition group-hover:bg-primary-hover">
                       <ChevronRight className="size-4" aria-hidden="true" />
-                      อ่านบทความ
+                      {tx(locale, "อ่านบทความ", "Read article")}
                     </span>
                   </div>
                 </Card>
@@ -237,22 +256,22 @@ export default async function ArticlesPage({
       )}
 
       {pageCount > 1 && (
-        <nav className="flex items-center justify-center gap-3" aria-label="หน้าบทความ">
+        <nav className="flex items-center justify-center gap-3" aria-label={tx(locale, "หน้าบทความ", "Article pages")}>
           {page > 1 && (
             <Link
               href={buildPageHref(page - 1)}
               className="rounded-xl border border-lane px-4 py-2 text-sm font-semibold hover:bg-lane/50"
             >
-              ← ก่อนหน้า
+              ← {tx(locale, "ก่อนหน้า", "Previous")}
             </Link>
           )}
-          <span className="font-mono text-sm text-ink/50 tnum">หน้า {page} / {pageCount}</span>
+          <span className="font-mono text-sm text-ink/50 tnum">{tx(locale, "หน้า", "Page")} {page} / {pageCount}</span>
           {page < pageCount && (
             <Link
               href={buildPageHref(page + 1)}
               className="rounded-xl border border-lane px-4 py-2 text-sm font-semibold hover:bg-lane/50"
             >
-              ถัดไป →
+              {tx(locale, "ถัดไป", "Next")} →
             </Link>
           )}
         </nav>

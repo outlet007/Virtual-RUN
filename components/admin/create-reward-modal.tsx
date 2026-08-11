@@ -79,14 +79,16 @@ export function CreateRewardModal({
                   <ImageUploadField name="image_file" label="รูปรางวัล" />
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <div className="sm:col-span-2">
-                      <Label>ชื่อรางวัล</Label>
+                      <Label>ชื่อรางวัล (ไทย)</Label>
                       <Input name="name" required autoFocus />
                     </div>
+                    <div className="sm:col-span-2"><Label>Reward Name (English)</Label><Input name="name_en" /></div>
                     <div>
                       <Label>แต้มที่ใช้แลก</Label>
                       <Input name="cost_points" type="number" min="1" required />
                     </div>
                   </div>
+                  <div><Label>Description (English)</Label><Textarea name="description_en" rows={3} /></div>
                   <div>
                     <Label>รายละเอียดรางวัล</Label>
                     <Textarea

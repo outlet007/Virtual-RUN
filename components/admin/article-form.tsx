@@ -15,25 +15,32 @@ import { toDateTimeLocal } from "@/lib/content";
 export type ArticleFormCategory = {
   id: string;
   name: string;
+  name_en?: string | null;
 };
 
 export type ArticleFormValue = {
   id: string;
   title: string;
+  title_en: string | null;
   slug: string;
   category_id: string | null;
   excerpt: string | null;
+  excerpt_en: string | null;
   content_html: string;
+  content_html_en: string | null;
   banner_image_url: string | null;
   banner_position_x: number;
   banner_position_y: number;
   cta_label: string | null;
+  cta_label_en: string | null;
   cta_url: string | null;
   status: string;
   is_featured: boolean;
   published_at: string | null;
   seo_title: string | null;
+  seo_title_en: string | null;
   seo_description: string | null;
+  seo_description_en: string | null;
 };
 
 export function ArticleForm({
@@ -61,15 +68,15 @@ export function ArticleForm({
           <HeadingIcon name="article" />
           เนื้อหาบทความ
         </h2>
-        <div>
-          <Label htmlFor="article-title">ชื่อบทความ</Label>
-          <Input
-            id="article-title"
-            name="title"
-            defaultValue={article?.title ?? ""}
-            maxLength={240}
-            required
-          />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <Label htmlFor="article-title">ชื่อบทความ (ไทย)</Label>
+            <Input id="article-title" name="title" defaultValue={article?.title ?? ""} maxLength={240} required />
+          </div>
+          <div>
+            <Label htmlFor="article-title-en">Article Title (English)</Label>
+            <Input id="article-title-en" name="title_en" defaultValue={article?.title_en ?? ""} maxLength={240} />
+          </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
@@ -99,24 +106,27 @@ export function ArticleForm({
             </Select>
           </div>
         </div>
-        <div>
-          <Label htmlFor="article-excerpt">คำโปรย</Label>
-          <Textarea
-            id="article-excerpt"
-            name="excerpt"
-            defaultValue={article?.excerpt ?? ""}
-            maxLength={500}
-            rows={3}
-            placeholder="สรุปสั้น ๆ สำหรับหน้าแสดงรายการและ SEO"
-          />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <Label htmlFor="article-excerpt">คำโปรย (ไทย)</Label>
+            <Textarea id="article-excerpt" name="excerpt" defaultValue={article?.excerpt ?? ""} maxLength={500} rows={3} />
+          </div>
+          <div>
+            <Label htmlFor="article-excerpt-en">Excerpt (English)</Label>
+            <Textarea id="article-excerpt-en" name="excerpt_en" defaultValue={article?.excerpt_en ?? ""} maxLength={500} rows={3} />
+          </div>
         </div>
         <div>
-          <Label>รายละเอียด</Label>
+          <Label>รายละเอียด (ไทย)</Label>
           <RichTextEditor
             name="content_html"
             defaultValue={article?.content_html}
             uploadTarget="content"
           />
+        </div>
+        <div>
+          <Label>Content (English)</Label>
+          <RichTextEditor name="content_html_en" defaultValue={article?.content_html_en ?? ""} uploadTarget="content" />
         </div>
       </Card>
 
@@ -151,7 +161,7 @@ export function ArticleForm({
           <HeadingIcon name="link" />
           ปุ่ม CTA และลิงก์
         </h2>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
           <div>
             <Label htmlFor="cta-label">ข้อความบนปุ่ม</Label>
             <Input
@@ -161,6 +171,10 @@ export function ArticleForm({
               maxLength={80}
               placeholder="อ่านรายละเอียดเพิ่มเติม"
             />
+          </div>
+          <div>
+            <Label htmlFor="cta-label-en">Button Text (English)</Label>
+            <Input id="cta-label-en" name="cta_label_en" defaultValue={article?.cta_label_en ?? ""} maxLength={80} />
           </div>
           <div>
             <Label htmlFor="cta-url">ลิงก์ปุ่ม</Label>
@@ -226,6 +240,10 @@ export function ArticleForm({
           />
         </div>
         <div>
+          <Label htmlFor="seo-title-en">SEO Title (English)</Label>
+          <Input id="seo-title-en" name="seo_title_en" defaultValue={article?.seo_title_en ?? ""} maxLength={240} />
+        </div>
+        <div>
           <Label htmlFor="seo-description">SEO Description</Label>
           <Textarea
             id="seo-description"
@@ -236,11 +254,15 @@ export function ArticleForm({
             placeholder="เว้นว่างเพื่อใช้คำโปรย"
           />
         </div>
+        <div>
+          <Label htmlFor="seo-description-en">SEO Description (English)</Label>
+          <Textarea id="seo-description-en" name="seo_description_en" defaultValue={article?.seo_description_en ?? ""} maxLength={500} rows={3} />
+        </div>
       </Card>
 
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <Link
-          href="/admin/articles"
+          href="/admin/articles?view=articles"
           className="inline-flex min-h-11 items-center justify-center rounded-xl border border-lane px-5 py-2 text-sm font-semibold transition hover:bg-lane/50"
         >
           ยกเลิก

@@ -3,13 +3,15 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, HeadingIcon, Input, Label, LinkButton } from "@/components/ui";
 import { createSubmission } from "@/lib/actions/submission";
 import { SubmissionSubmitButton } from "@/components/submission-submit-button";
+import { getLocale } from "@/lib/i18n/server";
+import { pickLocalized, tx } from "@/lib/i18n/shared";
 
 export const dynamic = "force-dynamic";
 
 type Reg = {
   id: string;
-  packages: { name: string } | null;
-  events: { title: string } | null;
+  packages: { name: string; name_en: string | null } | null;
+  events: { title: string; title_en: string | null } | null;
 };
 
 export default async function SubmitPage({
@@ -18,7 +20,7 @@ export default async function SubmitPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
-  const supabase = await createClient();
+  const [supabase, locale] = await Promise.all([createClient(), getLocale()]);
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -26,7 +28,7 @@ export default async function SubmitPage({
 
   const { data: regsRaw } = await supabase
     .from("registrations")
-    .select("id, packages(name), events(title)")
+    .select("id, packages(name, name_en), events(title, title_en)")
     .eq("user_id", user.id)
     .eq("status", "confirmed");
 
@@ -36,11 +38,11 @@ export default async function SubmitPage({
   return (
     <div className="max-w-lg space-y-6">
       <LinkButton href="/dashboard" variant="ghost" icon="chevronLeft">
-        แดชบอร์ด
+        {tx(locale, "แดชบอร์ด", "Dashboard")}
       </LinkButton>
       <h1 className="flex items-center gap-2 font-display text-2xl font-bold">
         <HeadingIcon name="upload" />
-        บันทึกผลวิ่ง
+        {tx(locale, "บันทึกผลวิ่ง", "Submit activity")}
       </h1>
 
       {error && (
@@ -51,16 +53,16 @@ export default async function SubmitPage({
 
       {regs.length === 0 ? (
         <Card className="text-center text-ink/50">
-          ต้องสมัครงาน (ที่ยืนยันแล้ว) ก่อนจึงบันทึกผลได้ —{" "}
+          {tx(locale, "ต้องสมัครงาน (ที่ยืนยันแล้ว) ก่อนจึงบันทึกผลได้", "You need a confirmed event registration before submitting an activity")} —{" "}
           <a href="/" className="text-primary-dark underline">
-            ไปดูงานวิ่ง
+            {tx(locale, "ไปดูงานวิ่ง", "Browse events")}
           </a>
         </Card>
       ) : (
         <form action={createSubmission}>
           <Card className="space-y-4">
             <div>
-              <Label>งานที่จะบันทึกผล</Label>
+              <Label>{tx(locale, "งานที่จะบันทึกผล", "Event")}</Label>
               <select
                 name="registration_id"
                 required
@@ -68,25 +70,25 @@ export default async function SubmitPage({
               >
                 {regs.map((r) => (
                   <option key={r.id} value={r.id}>
-                    {r.events?.title} — {r.packages?.name}
+                    {r.events ? pickLocalized(locale, r.events.title, r.events.title_en) : ""} — {r.packages ? pickLocalized(locale, r.packages.name, r.packages.name_en) : ""}
                   </option>
                 ))}
               </select>
             </div>
 
             <div>
-              <Label>ประเภท</Label>
+              <Label>{tx(locale, "ประเภท", "Type")}</Label>
               <select
                 name="activity_type"
                 className="h-11 w-full rounded-xl border border-lane bg-white px-3 text-sm outline-none focus:border-primary"
               >
-                <option value="run">วิ่ง</option>
-                <option value="walk">เดิน</option>
+                <option value="run">{tx(locale, "วิ่ง", "Run")}</option>
+                <option value="walk">{tx(locale, "เดิน", "Walk")}</option>
               </select>
             </div>
 
             <div>
-              <Label>ระยะ (km)</Label>
+              <Label>{tx(locale, "ระยะ (km)", "Distance (km)")}</Label>
               <Input
                 name="distance_km"
                 type="number"
@@ -98,7 +100,7 @@ export default async function SubmitPage({
             </div>
 
             <div>
-              <Label>เวลา (ชั่วโมง : นาที : วินาที)</Label>
+              <Label>{tx(locale, "เวลา (ชั่วโมง : นาที : วินาที)", "Duration (hours : minutes : seconds)")}</Label>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <Input
                   name="duration_hours"
@@ -108,8 +110,8 @@ export default async function SubmitPage({
                   max="99"
                   inputMode="numeric"
                   defaultValue="0"
-                  aria-label="ชั่วโมง"
-                  placeholder="ชม."
+                  aria-label={tx(locale, "ชั่วโมง", "Hours")}
+                  placeholder={tx(locale, "ชม.", "hr")}
                   required
                 />
                 <Input
@@ -120,8 +122,8 @@ export default async function SubmitPage({
                   max="59"
                   inputMode="numeric"
                   defaultValue="0"
-                  aria-label="นาที"
-                  placeholder="นาที"
+                  aria-label={tx(locale, "นาที", "Minutes")}
+                  placeholder={tx(locale, "นาที", "min")}
                   required
                 />
                 <Input
@@ -132,23 +134,23 @@ export default async function SubmitPage({
                   max="59"
                   inputMode="numeric"
                   defaultValue="0"
-                  aria-label="วินาที"
-                  placeholder="วินาที"
+                  aria-label={tx(locale, "วินาที", "Seconds")}
+                  placeholder={tx(locale, "วินาที", "sec")}
                   required
                 />
               </div>
               <p className="mt-1 text-xs text-ink/40">
-                ตัวอย่าง 1 ชั่วโมง 30 นาที กรอก 01 : 30 : 00
+                {tx(locale, "ตัวอย่าง 1 ชั่วโมง 30 นาที กรอก 01 : 30 : 00", "Example: enter 01 : 30 : 00 for 1 hour 30 minutes")}
               </p>
             </div>
 
             <div>
-              <Label>วันที่วิ่ง</Label>
+              <Label>{tx(locale, "วันที่วิ่ง", "Activity date")}</Label>
               <Input name="activity_date" type="date" defaultValue={today} required />
             </div>
 
             <div>
-              <Label>อัปโหลดรูปหลักฐาน (screenshot จากแอปวิ่ง)</Label>
+              <Label>{tx(locale, "อัปโหลดรูปหลักฐาน (screenshot จากแอปวิ่ง)", "Upload evidence (screenshot from your activity app)")}</Label>
               <input
                 name="evidence_file"
                 type="file"
@@ -157,11 +159,11 @@ export default async function SubmitPage({
                 className="block w-full text-sm text-ink/70 file:mr-3 file:rounded-lg file:border-0 file:bg-lane file:px-3 file:py-2 file:text-sm file:font-medium hover:file:bg-lane/70"
               />
               <p className="mt-1 text-xs text-ink/40">
-                รองรับ PNG, JPG และ WebP — ระบบ OCR จะอ่านระยะจากภาพและเปรียบเทียบกับค่าที่กรอก
+                {tx(locale, "รองรับ PNG, JPG และ WebP — ระบบ OCR จะอ่านระยะจากภาพและเปรียบเทียบกับค่าที่กรอก", "PNG, JPG, and WebP supported. OCR reads the distance and compares it with your entry.")}
               </p>
             </div>
 
-            <SubmissionSubmitButton />
+            <SubmissionSubmitButton locale={locale} />
           </Card>
         </form>
       )}

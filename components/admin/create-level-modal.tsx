@@ -76,7 +76,7 @@ export function CreateLevelModal({
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-[120px_minmax(0,1fr)_minmax(180px,0.7fr)]">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
                       <Label>Level</Label>
                       <Input
@@ -89,9 +89,10 @@ export function CreateLevelModal({
                       />
                     </div>
                     <div>
-                      <Label>ชื่อ Level</Label>
+                      <Label>ชื่อ Level (ไทย)</Label>
                       <Input name="name" maxLength={50} required />
                     </div>
+                    <div><Label>Level Name (English)</Label><Input name="name_en" maxLength={50} /></div>
                     <div>
                       <Label>XP ขั้นต่ำเพื่อปลดล็อก</Label>
                       <Input

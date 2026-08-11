@@ -4,14 +4,16 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, Badge, HeadingIcon } from "@/components/ui";
 import { formatBaht } from "@/lib/utils";
 import { generatePromptPayQrDataUrl } from "@/lib/promptpay";
+import { getLocale } from "@/lib/i18n/server";
+import { pickLocalized, tx } from "@/lib/i18n/shared";
 
 export const dynamic = "force-dynamic";
 
 type RegRow = {
   id: string;
   bib_number: string | null;
-  packages: { name: string } | null;
-  events: { title: string } | null;
+  packages: { name: string; name_en: string | null } | null;
+  events: { title: string; title_en: string | null } | null;
 };
 type PaymentRow = {
   amount: number;
@@ -25,7 +27,7 @@ export default async function PayPage({
   params: Promise<{ registrationId: string }>;
 }) {
   const { registrationId } = await params;
-  const supabase = await createClient();
+  const [supabase, locale] = await Promise.all([createClient(), getLocale()]);
 
   const {
     data: { user },
@@ -34,7 +36,7 @@ export default async function PayPage({
 
   const { data: regRaw } = await supabase
     .from("registrations")
-    .select("id, bib_number, packages(name), events(title)")
+    .select("id, bib_number, packages(name, name_en), events(title, title_en)")
     .eq("id", registrationId)
     .single();
 
@@ -55,20 +57,20 @@ export default async function PayPage({
   return (
     <div className="mx-auto max-w-md space-y-6">
       <Link href="/dashboard" className="text-sm text-ink/50 hover:text-ink">
-        ← แดชบอร์ด
+        ← {tx(locale, "แดชบอร์ด", "Dashboard")}
       </Link>
 
       <div>
-        <p className="text-sm text-ink/50">{reg.events?.title}</p>
+        <p className="text-sm text-ink/50">{reg.events ? pickLocalized(locale, reg.events.title, reg.events.title_en) : ""}</p>
         <h1 className="flex items-center gap-2 font-display text-2xl font-bold">
           <HeadingIcon name="creditCard" />
-          {reg.packages?.name}
+          {reg.packages ? pickLocalized(locale, reg.packages.name, reg.packages.name_en) : ""}
         </h1>
       </div>
 
       {payment.status === "pending" && (
         <Card className="space-y-4 text-center">
-          <Badge className="bg-medal-soft text-medal">รอชำระเงิน</Badge>
+          <Badge className="bg-medal-soft text-medal">{tx(locale, "รอชำระเงิน", "Awaiting payment")}</Badge>
           <p className="font-mono text-3xl font-bold tnum">
             {formatBaht(Number(payment.amount))}
           </p>
@@ -79,12 +81,11 @@ export default async function PayPage({
             className="mx-auto h-64 w-64 rounded-xl border border-lane"
           />
           <p className="text-sm text-muted">
-            สแกนจ่ายผ่านแอปธนาคารได้เลย — ระบบยังไม่ยืนยันอัตโนมัติ
-            แอดมินจะตรวจสอบและยืนยันให้หลังเห็นเงินเข้าจริง
+            {tx(locale, "สแกนจ่ายผ่านแอปธนาคารได้เลย — ระบบยังไม่ยืนยันอัตโนมัติ แอดมินจะตรวจสอบและยืนยันให้หลังเห็นเงินเข้าจริง", "Scan with your banking app. Payment is reviewed and confirmed manually by an administrator.")}
           </p>
           {payment.charge_ref && (
             <p className="font-mono text-xs text-ink/40 tnum">
-              อ้างอิง {payment.charge_ref}
+              {tx(locale, "อ้างอิง", "Reference")} {payment.charge_ref}
             </p>
           )}
         </Card>
@@ -92,19 +93,19 @@ export default async function PayPage({
 
       {payment.status === "paid" && (
         <Card className="space-y-3 text-center">
-          <Badge className="bg-primary-soft text-primary-dark">ยืนยันการชำระเงินแล้ว</Badge>
+          <Badge className="bg-primary-soft text-primary-dark">{tx(locale, "ยืนยันการชำระเงินแล้ว", "Payment confirmed")}</Badge>
           {reg.bib_number && (
             <p className="font-mono text-2xl font-bold tnum">BIB {reg.bib_number}</p>
           )}
-          <p className="text-sm text-muted">เริ่มบันทึกผลวิ่งได้จากแดชบอร์ดเลย</p>
+          <p className="text-sm text-muted">{tx(locale, "เริ่มบันทึกผลวิ่งได้จากแดชบอร์ดเลย", "You can now submit activities from your dashboard.")}</p>
         </Card>
       )}
 
       {payment.status === "failed" && (
         <Card className="space-y-3 text-center">
-          <Badge className="bg-red-50 text-red-600">การชำระเงินถูกปฏิเสธ</Badge>
+          <Badge className="bg-red-50 text-red-600">{tx(locale, "การชำระเงินถูกปฏิเสธ", "Payment rejected")}</Badge>
           <p className="text-sm text-muted">
-            ติดต่อผู้จัดงานถ้าคิดว่าเป็นความผิดพลาด
+            {tx(locale, "ติดต่อผู้จัดงานถ้าคิดว่าเป็นความผิดพลาด", "Contact the organizer if you believe this is an error.")}
           </p>
         </Card>
       )}

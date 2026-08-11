@@ -9,7 +9,9 @@ export const dynamic = "force-dynamic";
 type RewardRow = {
   id: string;
   name: string;
+  name_en: string | null;
   description: string | null;
+  description_en: string | null;
   image_url: string | null;
   cost_points: number;
   stock: number;
@@ -39,7 +41,7 @@ export default async function AdminRewardsPage({
   const db = createAdminClient();
 
   const [{ data: rewardsRaw }, { data: redemptionsRaw }] = await Promise.all([
-    db.from("rewards").select("id, name, description, image_url, cost_points, stock").order("cost_points"),
+    db.from("rewards").select("id, name, name_en, description, description_en, image_url, cost_points, stock").order("cost_points"),
     db
       .from("redemptions")
       .select("id, points_spent, status, users(name, email), rewards(name)")
@@ -117,9 +119,10 @@ export default async function AdminRewardsPage({
                 />
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div className="sm:col-span-2">
-                    <Label>ชื่อรางวัล</Label>
+                    <Label>ชื่อรางวัล (ไทย)</Label>
                     <Input name="name" defaultValue={rw.name} required />
                   </div>
+                  <div className="sm:col-span-2"><Label>Reward Name (English)</Label><Input name="name_en" defaultValue={rw.name_en ?? ""} /></div>
                   <div>
                     <Label>แต้มที่ใช้แลก</Label>
                     <Input name="cost_points" type="number" min="1" defaultValue={rw.cost_points} required />
@@ -134,6 +137,7 @@ export default async function AdminRewardsPage({
                     placeholder="อธิบายรายละเอียด เงื่อนไข หรือสิ่งที่ผู้ใช้จะได้รับ"
                   />
                 </div>
+                <div><Label>Description (English)</Label><Textarea name="description_en" rows={3} defaultValue={rw.description_en ?? ""} /></div>
                 <div>
                   <Label>จำนวนคงเหลือ</Label>
                   <Input name="stock" type="number" min="0" defaultValue={rw.stock} />

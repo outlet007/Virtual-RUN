@@ -9,8 +9,10 @@ import { updateEvent } from "@/lib/actions/admin";
 type EventForModal = {
   id: string;
   title: string;
+  title_en: string | null;
   bib_prefix: string;
   description: string | null;
+  description_en: string | null;
   cover_image: string | null;
   cover_position_x: number;
   cover_position_y: number;
@@ -67,9 +69,9 @@ export function EditEventModal({ event }: { event: EventForModal }) {
                     <X className="h-5 w-5" />
                   </button>
                 </div>
-                <div>
-                  <Label>ชื่องาน</Label>
-                  <Input name="title" defaultValue={event.title} required />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div><Label>ชื่องาน (ไทย)</Label><Input name="title" defaultValue={event.title} required /></div>
+                  <div><Label>Event Name (English)</Label><Input name="title_en" defaultValue={event.title_en ?? ""} /></div>
                 </div>
                 <div>
                   <Label>คำนำหน้า BIB</Label>
@@ -84,10 +86,8 @@ export function EditEventModal({ event }: { event: EventForModal }) {
                   />
                   <p className="mt-1 text-xs text-ink/45">ตัวอักษรอังกฤษหรือตัวเลข 2–8 ตัว</p>
                 </div>
-                <div>
-                  <Label>รายละเอียด</Label>
-                  <RichTextEditor name="description" defaultValue={event.description} />
-                </div>
+                <div><Label>รายละเอียด (ไทย)</Label><RichTextEditor name="description" defaultValue={event.description} /></div>
+                <div><Label>Description (English)</Label><RichTextEditor name="description_en" defaultValue={event.description_en} /></div>
                 <div className="space-y-4">
                   <ImageUploadField
                     name="cover_image_file"

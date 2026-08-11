@@ -9,6 +9,7 @@ type LevelCandidate = {
   id?: string;
   level_number: number;
   name: string;
+  name_en: string | null;
   min_xp: number;
 };
 
@@ -21,6 +22,7 @@ function parseCandidate(formData: FormData, errorPath = "/admin/levels"): LevelC
   const id = String(formData.get("id") ?? "").trim() || undefined;
   const level_number = Number(formData.get("level_number"));
   const name = String(formData.get("name") ?? "").trim();
+  const name_en = String(formData.get("name_en") ?? "").trim() || null;
   const min_xp = Number(formData.get("min_xp"));
 
   if (!Number.isInteger(level_number) || level_number < 1 || level_number > 999) {
@@ -33,7 +35,7 @@ function parseCandidate(formData: FormData, errorPath = "/admin/levels"): LevelC
     fail("XP ขั้นต่ำต้องเป็นจำนวนเต็มระหว่าง 0–1,000,000,000", errorPath);
   }
 
-  return { id, level_number, name, min_xp };
+  return { id, level_number, name, name_en, min_xp };
 }
 
 async function validateLevelSequence(candidate: LevelCandidate, errorPath = "/admin/levels") {
@@ -78,6 +80,7 @@ export async function createLevel(formData: FormData) {
   const { error } = await db.from("levels").insert({
     level_number: candidate.level_number,
     name: candidate.name,
+    name_en: candidate.name_en,
     min_xp: candidate.min_xp,
   });
   if (error) {
@@ -101,6 +104,7 @@ export async function updateLevel(formData: FormData) {
     .update({
       level_number: candidate.level_number,
       name: candidate.name,
+      name_en: candidate.name_en,
       min_xp: candidate.min_xp,
       updated_at: new Date().toISOString(),
     })

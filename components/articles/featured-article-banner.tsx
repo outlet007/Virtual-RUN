@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Newspaper } from "lucide-react";
+import { CategoryBadge } from "@/components/articles/category-badge";
 
 export type FeaturedArticleSlide = {
   id: string;
@@ -13,6 +14,8 @@ export type FeaturedArticleSlide = {
   bannerPositionX: number;
   bannerPositionY: number;
   categoryName: string | null;
+  categoryBackgroundColor: string | null;
+  categoryTextColor: string | null;
 };
 
 export function FeaturedArticleBanner({
@@ -76,9 +79,13 @@ export function FeaturedArticleBanner({
           <div className="relative mx-auto flex min-h-[420px] max-w-[1500px] items-end px-4 pb-14 pt-8 text-paper sm:min-h-[480px] sm:px-8 sm:pb-16">
             <div className="max-w-4xl">
               {slide.categoryName && (
-                <span className="mb-3 inline-flex rounded-full bg-primary px-3 py-1 text-sm font-bold text-ink shadow-sm">
+                <CategoryBadge
+                  backgroundColor={slide.categoryBackgroundColor}
+                  textColor={slide.categoryTextColor}
+                  className="mb-3 px-3 py-1 text-sm font-bold shadow-sm"
+                >
                   {slide.categoryName}
-                </span>
+                </CategoryBadge>
               )}
               <h2 className="font-display text-3xl font-bold leading-tight text-white drop-shadow-md sm:text-4xl">
                 {slide.title}

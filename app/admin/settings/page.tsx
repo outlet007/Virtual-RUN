@@ -22,7 +22,7 @@ export default async function AdminSettingsPage({
   const { data: settingsRow } = await db
     .from("system_settings")
     .select(
-      "site_name, logo_url, favicon_url, color_ink, color_primary, color_accent, color_medal, cookie_consent_enabled, cookie_consent_message, cookie_policy_url, cookie_consent_button_label, content_background_url, content_background_position_x, content_background_position_y, content_background_display, content_background_inset_top, content_background_inset_bottom, content_overlay_color, content_overlay_opacity, submission_max_distance_km, submission_daily_limit",
+      "site_name, site_name_en, logo_url, header_show_site_name, favicon_url, color_ink, color_primary, color_accent, color_medal, cookie_consent_enabled, cookie_consent_message, cookie_consent_message_en, cookie_policy_url, cookie_consent_button_label, cookie_consent_button_label_en, privacy_policy_text, privacy_policy_text_en, content_background_url, content_background_position_x, content_background_position_y, content_background_display, content_background_inset_top, content_background_inset_bottom, content_overlay_color, content_overlay_opacity, submission_max_distance_km, submission_daily_limit",
     )
     .eq("id", 1)
     .single();
@@ -94,18 +94,37 @@ export default async function AdminSettingsPage({
             <HeadingIcon name="sparkles" className="size-4" />
             แบรนด์ระบบ
           </h3>
-          <div>
-            <Label>ชื่อระบบ</Label>
-            <Input name="site_name" defaultValue={settings.site_name} required />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div><Label>ชื่อระบบ (ไทย)</Label><Input name="site_name" defaultValue={settings.site_name} required /></div>
+            <div><Label>Site Name (English)</Label><Input name="site_name_en" defaultValue={settings.site_name_en ?? ""} /></div>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <ImageUploadField name="logo_file" label="โลโก้" defaultImageUrl={settings.logo_url} />
+            <div className="space-y-2">
+              <ImageUploadField
+                name="logo_file"
+                label="โลโก้"
+                defaultImageUrl={settings.logo_url}
+                previewVariant="logo"
+              />
+              <p className="text-xs text-ink/40">
+                รองรับทั้งรูปแนวยาวและรูปสี่เหลี่ยม โดย Header จะแสดงภาพครบโดยไม่ครอป
+              </p>
+            </div>
             <ImageUploadField
               name="favicon_file"
               label="Favicon"
               defaultImageUrl={settings.favicon_url}
             />
           </div>
+          <label className="flex items-start gap-2 text-sm font-medium text-ink/70">
+            <input
+              type="checkbox"
+              name="header_show_site_name"
+              defaultChecked={settings.header_show_site_name}
+              className="mt-0.5 h-4 w-4 rounded border-lane accent-ink"
+            />
+            แสดงชื่อระบบข้างโลโก้บน Header
+          </label>
 
           <h3 className="flex items-center gap-2 font-display font-bold">
             <HeadingIcon name="palette" className="size-4" />
@@ -120,6 +139,38 @@ export default async function AdminSettingsPage({
             />
             <ColorField name="color_accent" label="สี accent" defaultValue={settings.color_accent} />
             <ColorField name="color_medal" label="สีเหรียญ (medal)" defaultValue={settings.color_medal} />
+          </div>
+
+          <div className="space-y-4 border-t border-lane pt-5">
+            <div>
+              <h3 className="flex items-center gap-2 font-display font-bold">
+                <HeadingIcon name="shield" className="size-4" />
+                นโยบายความเป็นส่วนตัว
+              </h3>
+              <p className="mt-1 text-sm text-ink/50">
+                ข้อความนี้จะแสดงในหน้าต่าง Modal เมื่อผู้สมัครคลิกนโยบายความเป็นส่วนตัว
+              </p>
+            </div>
+            <div>
+              <Label>นโยบายความเป็นส่วนตัว (ไทย)</Label>
+              <Textarea
+                name="privacy_policy_text"
+                rows={10}
+                maxLength={20000}
+                defaultValue={settings.privacy_policy_text}
+                required
+              />
+            </div>
+            <div>
+              <Label>Privacy Policy (English)</Label>
+              <Textarea
+                name="privacy_policy_text_en"
+                rows={10}
+                maxLength={20000}
+                defaultValue={settings.privacy_policy_text_en}
+                required
+              />
+            </div>
           </div>
 
           <div className="space-y-4 border-t border-lane pt-5">
@@ -270,7 +321,7 @@ export default async function AdminSettingsPage({
               เปิดใช้งาน Cookie Consent
             </label>
             <div>
-              <Label>ข้อความแจ้งการใช้ Cookie</Label>
+              <Label>ข้อความแจ้งการใช้ Cookie (ไทย)</Label>
               <Textarea
                 name="cookie_consent_message"
                 rows={3}
@@ -283,6 +334,10 @@ export default async function AdminSettingsPage({
               </p>
             </div>
             <div>
+              <Label>Cookie Notice (English)</Label>
+              <Textarea name="cookie_consent_message_en" rows={3} maxLength={1000} defaultValue={settings.cookie_consent_message_en ?? ""} />
+            </div>
+            <div>
               <Label>URL นโยบาย Cookie</Label>
               <Input
                 name="cookie_policy_url"
@@ -293,7 +348,7 @@ export default async function AdminSettingsPage({
               <p className="mt-1 text-xs text-ink/40">เว้นว่างได้ หากยังไม่มีหน้านโยบาย Cookie</p>
             </div>
             <div>
-              <Label>ข้อความบนปุ่มยอมรับ</Label>
+              <Label>ข้อความบนปุ่มยอมรับ (ไทย)</Label>
               <Input
                 name="cookie_consent_button_label"
                 maxLength={50}
@@ -301,6 +356,7 @@ export default async function AdminSettingsPage({
                 required
               />
             </div>
+            <div><Label>Accept Button Text (English)</Label><Input name="cookie_consent_button_label_en" maxLength={50} defaultValue={settings.cookie_consent_button_label_en ?? ""} /></div>
           </div>
 
           <Button className="w-full" type="submit" icon="save">

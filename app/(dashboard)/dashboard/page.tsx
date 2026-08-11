@@ -5,14 +5,16 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, HeadingIcon, LinkButton, Button, Select } from "@/components/ui";
 import { formatKm, formatDate } from "@/lib/utils";
 import { assignPendingActivity } from "@/lib/actions/strava";
+import { getLocale } from "@/lib/i18n/server";
+import { pickLocalized, tx } from "@/lib/i18n/shared";
 
 export const dynamic = "force-dynamic";
 
 type Reg = {
   id: string;
   status: string;
-  packages: { name: string } | null;
-  events: { title: string } | null;
+  packages: { name: string; name_en: string | null } | null;
+  events: { title: string; title_en: string | null } | null;
 };
 type Sub = {
   registration_id: string;
@@ -40,7 +42,7 @@ export default async function DashboardPage({
   }>;
 }) {
   const { welcome, submitted, ocr, assigned, error } = await searchParams;
-  const supabase = await createClient();
+  const [supabase, locale] = await Promise.all([createClient(), getLocale()]);
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -54,7 +56,7 @@ export default async function DashboardPage({
 
   const { data: regsRaw } = await supabase
     .from("registrations")
-    .select("id, status, packages(name), events(title)")
+    .select("id, status, packages(name, name_en), events(title, title_en)")
     .eq("user_id", user.id)
     .order("registered_at", { ascending: false });
 
@@ -86,32 +88,32 @@ export default async function DashboardPage({
     <div className="space-y-8">
       {welcome && (
         <div className="flex items-center gap-2 rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
-          <PartyPopper className="h-4 w-4 shrink-0" /> สมัครสำเร็จ! เริ่มบันทึกผลวิ่งได้เลย
+          <PartyPopper className="h-4 w-4 shrink-0" /> {tx(locale, "สมัครสำเร็จ! เริ่มบันทึกผลวิ่งได้เลย", "Registration complete! You can now submit activities.")}
         </div>
       )}
       {submitted && (
         <div className="flex items-center gap-2 rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
           {submitted === "approved" ? (
             <>
-              <CheckCircle2 className="h-4 w-4 shrink-0" /> บันทึกผลสำเร็จ — ระยะถูกเพิ่มเข้ายอดสะสมแล้ว
+              <CheckCircle2 className="h-4 w-4 shrink-0" /> {tx(locale, "บันทึกผลสำเร็จ — ระยะถูกเพิ่มเข้ายอดสะสมแล้ว", "Activity approved and added to your total distance.")}
             </>
           ) : (
             <>
               <FileText className="h-4 w-4 shrink-0" />{" "}
               {ocr === "mismatch"
-                ? "บันทึกผลแล้ว — ระยะที่ OCR อ่านได้ไม่ตรงกับค่าที่กรอก รอเจ้าหน้าที่ตรวจสอบ"
+                ? tx(locale, "บันทึกผลแล้ว — ระยะที่ OCR อ่านได้ไม่ตรงกับค่าที่กรอก รอเจ้าหน้าที่ตรวจสอบ", "Submitted. The OCR distance differs from your entry and is awaiting review.")
                 : ocr === "unreadable"
-                  ? "บันทึกผลแล้ว — OCR อ่านระยะจากภาพไม่ชัด รอเจ้าหน้าที่ตรวจสอบ"
+                  ? tx(locale, "บันทึกผลแล้ว — OCR อ่านระยะจากภาพไม่ชัด รอเจ้าหน้าที่ตรวจสอบ", "Submitted. OCR could not clearly read the distance and it is awaiting review.")
                   : ocr === "error"
-                    ? "บันทึกผลแล้ว — ระบบ OCR ประมวลผลภาพไม่สำเร็จ รอเจ้าหน้าที่ตรวจสอบ"
-                    : "บันทึกผลแล้ว — รอผู้จัดงานตรวจสอบ"}
+                    ? tx(locale, "บันทึกผลแล้ว — ระบบ OCR ประมวลผลภาพไม่สำเร็จ รอเจ้าหน้าที่ตรวจสอบ", "Submitted. OCR processing failed and it is awaiting review.")
+                    : tx(locale, "บันทึกผลแล้ว — รอผู้จัดงานตรวจสอบ", "Submitted and awaiting organizer review.")}
             </>
           )}
         </div>
       )}
       {assigned && (
         <div className="flex items-center gap-2 rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
-          <CheckCircle2 className="h-4 w-4 shrink-0" /> จับคู่กิจกรรมกับใบสมัครแล้ว
+          <CheckCircle2 className="h-4 w-4 shrink-0" /> {tx(locale, "จับคู่กิจกรรมกับใบสมัครแล้ว", "Activity matched to the registration.")}
         </div>
       )}
       {error && (
@@ -137,12 +139,12 @@ export default async function DashboardPage({
             <p className="truncate font-display text-lg font-bold">{profile?.name ?? "—"}</p>
             <p className="truncate text-sm text-ink/50">{profile?.email ?? user.email}</p>
             {profile?.created_at && (
-              <p className="text-xs text-ink/40">สมาชิกตั้งแต่ {formatDate(profile.created_at)}</p>
+              <p className="text-xs text-ink/40">{tx(locale, "สมาชิกตั้งแต่", "Member since")} {formatDate(profile.created_at)}</p>
             )}
           </div>
         </div>
         <LinkButton href="/profile" variant="ghost" icon="edit">
-          แก้ไขโปรไฟล์
+        {tx(locale, "แก้ไขโปรไฟล์", "Edit profile")}
         </LinkButton>
       </Card>
 
@@ -151,10 +153,10 @@ export default async function DashboardPage({
         <section className="space-y-3">
           <h2 className="flex items-center gap-2 font-display text-xl font-bold">
             <HeadingIcon name="activity" />
-            กิจกรรมจาก Strava ที่ต้องเลือกใบสมัคร
+            {tx(locale, "กิจกรรมจาก Strava ที่ต้องเลือกใบสมัคร", "Strava activities needing an event")}
           </h2>
           <p className="text-sm text-ink/50">
-            ระบบจับคู่อัตโนมัติไม่ได้ (ไม่มี หรือมีมากกว่า 1 ใบสมัครที่ตรงช่วงวันงาน) เลือกเองได้เลย
+            {tx(locale, "ระบบจับคู่อัตโนมัติไม่ได้ (ไม่มี หรือมีมากกว่า 1 ใบสมัครที่ตรงช่วงวันงาน) เลือกเองได้เลย", "Automatic matching was not possible. Choose the correct registration below.")}
           </p>
           <div className="space-y-3">
             {pendingActivities.map((p) => (
@@ -177,14 +179,14 @@ export default async function DashboardPage({
                 <form action={assignPendingActivity} className="flex flex-col gap-2 sm:flex-row sm:items-center">
                   <input type="hidden" name="pending_id" value={p.id} />
                   <Select name="registration_id" required className="w-full sm:w-56">
-                    <option value="">เลือกใบสมัคร...</option>
+                    <option value="">{tx(locale, "เลือกใบสมัคร...", "Choose registration...")}</option>
                     {confirmedRegs.map((r) => (
                       <option key={r.id} value={r.id}>
-                        {r.events?.title} — {r.packages?.name}
+                        {r.events ? pickLocalized(locale, r.events.title, r.events.title_en) : ""} — {r.packages ? pickLocalized(locale, r.packages.name, r.packages.name_en) : ""}
                       </option>
                     ))}
                   </Select>
-                  <Button type="submit" icon="confirm">เลือก</Button>
+                  <Button type="submit" icon="confirm">{tx(locale, "เลือก", "Choose")}</Button>
                 </form>
               </Card>
             ))}
@@ -195,7 +197,7 @@ export default async function DashboardPage({
       {/* สรุปยอดรวม */}
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-ink text-paper">
-          <p className="text-xs uppercase tracking-wider text-paper">ระยะสะสมรวม</p>
+          <p className="text-xs uppercase tracking-wider text-paper">{tx(locale, "ระยะสะสมรวม", "Total distance")}</p>
           <p className="mt-1 font-mono text-4xl font-bold text-primary tnum">
             {formatKm(totalApproved)}
             <span className="ml-1 text-base font-normal text-paper">km</span>
@@ -203,19 +205,19 @@ export default async function DashboardPage({
         </Card>
         <Link href="/dashboard/events">
           <Card className="hover:border-primary/40">
-            <p className="text-xs uppercase tracking-wider text-ink/40">งานที่สมัคร</p>
+            <p className="text-xs uppercase tracking-wider text-ink/40">{tx(locale, "งานที่สมัคร", "Joined events")}</p>
             <p className="mt-1 font-mono text-4xl font-bold tnum">{regs.length}</p>
           </Card>
         </Link>
         <Link href="/dashboard/history">
           <Card className="hover:border-primary/40">
-            <p className="text-xs uppercase tracking-wider text-ink/40">รอตรวจสอบ</p>
+            <p className="text-xs uppercase tracking-wider text-ink/40">{tx(locale, "รอตรวจสอบ", "Pending review")}</p>
             <p className="mt-1 font-mono text-4xl font-bold text-medal tnum">{pendingCount}</p>
           </Card>
         </Link>
         <Link href="/dashboard/rewards">
           <Card className="hover:border-primary/40">
-            <p className="text-xs uppercase tracking-wider text-ink/40">แต้มสะสมของฉัน</p>
+            <p className="text-xs uppercase tracking-wider text-ink/40">{tx(locale, "แต้มสะสมของฉัน", "My points")}</p>
             <p className="mt-1 font-mono text-4xl font-bold text-[#F5A524] tnum">{points}</p>
           </Card>
         </Link>
@@ -227,7 +229,7 @@ export default async function DashboardPage({
           icon="upload"
           className="w-full justify-center py-6 text-[24px] leading-none [&_svg]:size-6"
         >
-          บันทึกผลวิ่ง
+          {tx(locale, "บันทึกผลวิ่ง", "Submit activity")}
         </LinkButton>
       </div>
     </div>

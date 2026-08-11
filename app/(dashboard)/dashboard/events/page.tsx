@@ -4,6 +4,8 @@ import { Flag } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Badge, HeadingIcon, LinkButton, TrackProgress } from "@/components/ui";
 import { formatKm } from "@/lib/utils";
+import { getLocale } from "@/lib/i18n/server";
+import { pickLocalized, tx } from "@/lib/i18n/shared";
 
 export const dynamic = "force-dynamic";
 
@@ -11,8 +13,8 @@ type Reg = {
   id: string;
   bib_number: string | null;
   status: string;
-  packages: { name: string; target_distance_km: number; has_physical_medal: boolean } | null;
-  events: { title: string } | null;
+  packages: { name: string; name_en: string | null; target_distance_km: number; has_physical_medal: boolean } | null;
+  events: { title: string; title_en: string | null } | null;
 };
 type Sub = {
   registration_id: string;
@@ -21,7 +23,7 @@ type Sub = {
 };
 
 export default async function MyEventsPage() {
-  const supabase = await createClient();
+  const [supabase, locale] = await Promise.all([createClient(), getLocale()]);
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -30,7 +32,7 @@ export default async function MyEventsPage() {
   const { data: regsRaw } = await supabase
     .from("registrations")
     .select(
-      "id, bib_number, status, packages(name, target_distance_km, has_physical_medal), events(title)",
+      "id, bib_number, status, packages(name, name_en, target_distance_km, has_physical_medal), events(title, title_en)",
     )
     .eq("user_id", user.id)
     .order("registered_at", { ascending: false });
@@ -59,16 +61,16 @@ export default async function MyEventsPage() {
         <div>
           <h2 className="flex items-center gap-2 font-display text-xl font-bold">
             <HeadingIcon name="calendarCheck" />
-            งานของฉัน
+            {tx(locale, "งานของฉัน", "My events")}
           </h2>
-          <p className="mt-1 text-sm text-muted">งานที่สมัครไว้ทั้งหมด พร้อมความคืบหน้าสะสมระยะ</p>
+          <p className="mt-1 text-sm text-muted">{tx(locale, "งานที่สมัครไว้ทั้งหมด พร้อมความคืบหน้าสะสมระยะ", "All joined events with distance progress")}</p>
         </div>
-        <LinkButton href="/dashboard/submit" icon="upload">บันทึกผลวิ่ง</LinkButton>
+        <LinkButton href="/dashboard/submit" icon="upload">{tx(locale, "บันทึกผลวิ่ง", "Submit activity")}</LinkButton>
       </div>
 
       {regs.length === 0 ? (
         <Card className="text-center text-ink/50">
-          ยังไม่ได้สมัครงาน — <a href="/" className="text-primary-dark underline">ไปดูงานวิ่ง</a>
+          {tx(locale, "ยังไม่ได้สมัครงาน", "You have not joined an event yet")} — <a href="/" className="text-primary-dark underline">{tx(locale, "ไปดูงานวิ่ง", "Browse events")}</a>
         </Card>
       ) : (
         <div className="space-y-4">
@@ -80,8 +82,8 @@ export default async function MyEventsPage() {
               <Card key={r.id} className="space-y-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm text-ink/50">{r.events?.title}</p>
-                    <p className="font-display text-lg font-bold">{r.packages?.name}</p>
+                    <p className="text-sm text-ink/50">{r.events ? pickLocalized(locale, r.events.title, r.events.title_en) : ""}</p>
+                    <p className="font-display text-lg font-bold">{r.packages ? pickLocalized(locale, r.packages.name, r.packages.name_en) : ""}</p>
                   </div>
                   <div className="text-right">
                     {r.bib_number && (
@@ -90,7 +92,7 @@ export default async function MyEventsPage() {
                     {r.status === "pending" ? (
                       <Link href={`/dashboard/pay/${r.id}`}>
                         <Badge className="bg-medal-soft text-medal hover:underline">
-                          รอชำระเงิน →
+                          {tx(locale, "รอชำระเงิน", "Awaiting payment")} →
                         </Badge>
                       </Link>
                     ) : (
@@ -101,10 +103,10 @@ export default async function MyEventsPage() {
                       >
                         {finished ? (
                           <span className="inline-flex items-center gap-1">
-                            <Flag className="h-3 w-3" /> ครบเป้า
+                            <Flag className="h-3 w-3" /> {tx(locale, "ครบเป้า", "Goal reached")}
                           </span>
                         ) : (
-                          "กำลังสะสม"
+                          tx(locale, "กำลังสะสม", "In progress")
                         )}
                       </Badge>
                     )}

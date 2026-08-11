@@ -21,7 +21,7 @@ export default async function EditArticlePage({
   const [{ data: article, error }, { data: categories, error: categoriesError }] =
     await Promise.all([
       db.from("content_articles").select("*").eq("id", id).single(),
-      db.from("content_categories").select("id, name").order("sort_order").order("name"),
+      db.from("content_categories").select("id, name, name_en").order("sort_order").order("name"),
     ]);
   if (error || !article) notFound();
   if (categoriesError) throw new Error(categoriesError.message);

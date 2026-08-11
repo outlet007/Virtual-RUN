@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { RotateCcw, Search } from "lucide-react";
 import {
   Badge,
@@ -12,14 +13,21 @@ import {
   Textarea,
 } from "@/components/ui";
 import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
+import { CategoryBadge } from "@/components/articles/category-badge";
+import { ColorField } from "@/components/admin/color-field";
+import { CreateArticleModal } from "@/components/admin/create-article-modal";
+import { CreateCategoryModal } from "@/components/admin/create-category-modal";
+import { EditArticleModal } from "@/components/admin/edit-article-modal";
+import { ArticleForm, type ArticleFormValue } from "@/components/admin/article-form";
 import {
   ContentViewsChart,
   type ContentDailyAnalyticsPoint,
 } from "@/components/admin/content-views-chart";
 import {
-  createContentCategory,
   deleteContentArticle,
   deleteContentCategory,
+  createContentArticle,
+  updateContentArticle,
   updateContentCategory,
 } from "@/lib/actions/content";
 import { requireManager } from "@/lib/auth/admin";
@@ -42,22 +50,26 @@ type ArticleRow = {
   is_featured: boolean;
   published_at: string | null;
   updated_at: string;
-  category: Relation<{ id: string; name: string }>;
+  category: Relation<{
+    id: string;
+    name: string;
+    badge_background_color: string;
+    badge_text_color: string;
+  }>;
 };
 type CategoryRow = {
   id: string;
   name: string;
+  name_en: string | null;
   slug: string;
   description: string | null;
+  description_en: string | null;
   sort_order: number;
   is_active: boolean;
+  badge_background_color: string;
+  badge_text_color: string;
 };
-type OverviewRow = {
-  total_views: number | string;
-  unique_visitors: number | string;
-  views_30d: number | string;
-  unique_visitors_30d: number | string;
-};
+
 type DailyRow = {
   view_date: string;
   views: number | string;
@@ -71,7 +83,7 @@ type TopArticleRow = {
   views: number | string;
   unique_visitors: number | string;
 };
-type DimensionRow = { device_type?: string; referrer_host?: string; views: number | string };
+
 
 const statusClass: Record<ContentStatus, string> = {
   draft: "bg-lane text-muted",
@@ -96,29 +108,30 @@ function bangkokDateKey(date: Date) {
   }).format(date);
 }
 
-const deviceLabels: Record<string, string> = {
-  desktop: "เดสก์ท็อป",
-  mobile: "มือถือ",
-  tablet: "แท็บเล็ต",
-  bot: "Bot / Crawler",
-  unknown: "ไม่ทราบ",
-};
 
 export default async function AdminArticlesPage({
   searchParams,
 }: {
   searchParams: Promise<{
     q?: string;
+    view?: string;
+    create?: string;
+    create_category?: string;
+    edit?: string;
     status?: string;
     categoryId?: string;
     error?: string;
     category_saved?: string;
     category_deleted?: string;
     article_deleted?: string;
+    article_saved?: string;
   }>;
 }) {
   await requireManager();
   const sp = await searchParams;
+  const view = ["overview", "articles", "categories"].includes(sp.view ?? "")
+    ? (sp.view as "overview" | "articles" | "categories")
+    : "overview";
   const q = (sp.q ?? "").trim();
   const status = sp.status && sp.status !== "all"
     ? normalizeContentStatus(sp.status)
@@ -133,42 +146,46 @@ export default async function AdminArticlesPage({
   const [
     articlesResult,
     categoriesResult,
-    overviewResult,
     dailyResult,
     topResult,
-    deviceResult,
-    referrerResult,
   ] = await Promise.all([
     db
       .from("content_articles")
       .select(
-        "id, title, slug, excerpt, status, is_featured, published_at, updated_at, category:content_categories(id, name)",
+        "id, title, slug, excerpt, status, is_featured, published_at, updated_at, category:content_categories(id, name, badge_background_color, badge_text_color)",
       )
       .order("updated_at", { ascending: false }),
     db.from("content_categories").select("*").order("sort_order").order("name"),
-    db.rpc("get_content_analytics_overview"),
     db.rpc("get_content_daily_analytics", {
       p_start_date: startDateKey,
       p_end_date: today,
     }),
-    db.rpc("get_content_top_articles", { p_start_date: startDateKey, p_limit: 10 }),
-    db.rpc("get_content_device_analytics", { p_start_date: startDateKey }),
-    db.rpc("get_content_referrer_analytics", { p_start_date: startDateKey, p_limit: 8 }),
+        db.rpc("get_content_top_articles", { p_start_date: startDateKey, p_limit: 10 }),
   ]);
 
   const firstError = [
     articlesResult.error,
     categoriesResult.error,
-    overviewResult.error,
     dailyResult.error,
     topResult.error,
-    deviceResult.error,
-    referrerResult.error,
   ].find(Boolean);
   if (firstError) throw new Error(firstError.message);
 
   const articles = (articlesResult.data ?? []) as unknown as ArticleRow[];
   const categories = (categoriesResult.data ?? []) as CategoryRow[];
+
+  const editArticleId = view === "articles" ? (sp.edit ?? "").trim() : "";
+  let editArticle: ArticleFormValue | null = null;
+  if (editArticleId) {
+    const { data, error } = await db
+      .from("content_articles")
+      .select("*")
+      .eq("id", editArticleId)
+      .maybeSingle();
+    if (error || !data) notFound();
+    editArticle = data as ArticleFormValue;
+  }
+
   const searchNeedle = normalizeSearch(q);
   const filteredArticles = articles.filter((article) => {
     const category = firstRelation(article.category);
@@ -180,7 +197,7 @@ export default async function AdminArticlesPage({
     );
   });
 
-  const overview = ((overviewResult.data ?? [])[0] ?? {}) as OverviewRow;
+
   const dailyData: ContentDailyAnalyticsPoint[] = (
     (dailyResult.data ?? []) as DailyRow[]
   ).map((row) => ({
@@ -198,65 +215,56 @@ export default async function AdminArticlesPage({
     views: Number(row.views),
     uniqueVisitors: Number(row.unique_visitors),
   }));
-  const topArticles = (topResult.data ?? []) as TopArticleRow[];
-  const deviceRows = (deviceResult.data ?? []) as DimensionRow[];
-  const referrerRows = (referrerResult.data ?? []) as DimensionRow[];
-  const publishedCount = articles.filter((article) => article.status === "published").length;
-  const draftCount = articles.filter((article) => article.status === "draft").length;
-  const summary = [
-    { label: "บทความทั้งหมด", value: articles.length },
-    { label: "เผยแพร่แล้ว", value: publishedCount },
-    { label: "ฉบับร่าง", value: draftCount },
-    { label: "เข้าชม 30 วัน", value: Number(overview.views_30d ?? 0) },
-    { label: "ผู้เยี่ยมชม 30 วัน", value: Number(overview.unique_visitors_30d ?? 0) },
-  ];
+    const topArticles = (topResult.data ?? []) as TopArticleRow[];
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="flex items-center gap-2 font-display text-xl font-bold">
-            <HeadingIcon name="article" />
-            จัดการบทความ
-          </h2>
-          <p className="mt-1 text-sm text-muted">
-            ข่าวประชาสัมพันธ์ เกร็ดความรู้ เนื้อหา Banner, CTA, SEO และสถิติการเข้าชม
-          </p>
-        </div>
-        <LinkButton href="/admin/articles/new" icon="add">
-          สร้างบทความใหม่
-        </LinkButton>
+      <div>
+        <h2 className="flex items-center gap-2 font-display text-xl font-bold">
+          <HeadingIcon name="article" />
+          จัดการบทความ
+        </h2>
+        <p className="mt-1 text-sm text-muted">
+          ข่าวประชาสัมพันธ์ เกร็ดความรู้ เนื้อหา Banner, CTA, SEO และสถิติการเข้าชม
+        </p>
       </div>
 
-      {sp.error && (
+      {sp.error && sp.create !== "1" && sp.create_category !== "1" && !sp.edit && (
         <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{sp.error}</div>
       )}
-      {(sp.category_saved || sp.category_deleted || sp.article_deleted) && (
+      {(sp.category_saved || sp.category_deleted || sp.article_deleted || sp.article_saved) && (
         <div className="rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
           บันทึกการเปลี่ยนแปลงแล้ว
         </div>
       )}
 
-      <section aria-labelledby="content-overview-heading">
-        <h3
-          id="content-overview-heading"
-          className="mb-3 flex items-center gap-2 font-display text-lg font-bold"
-        >
-          <HeadingIcon name="overview" />
-          ภาพรวมเนื้อหา
-        </h3>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          {summary.map((item) => (
-            <Card key={item.label}>
-              <p className="text-xs uppercase tracking-wider text-ink/45">{item.label}</p>
-              <p className="mt-1 font-mono text-3xl font-bold tnum">
-                {item.value.toLocaleString("th-TH")}
-              </p>
-            </Card>
-          ))}
-        </div>
-      </section>
+<nav
+        aria-label="เมนูย่อยการจัดการบทความ"
+        className="flex max-w-full gap-1 overflow-x-auto border-b border-lane pb-2 text-sm"
+      >
+        {[
+          { id: "overview", label: "ภาพรวม" },
+          { id: "articles", label: "บทความ" },
+          { id: "categories", label: "หมวดหมู่" },
+        ].map((item) => (
+          <Link
+            key={item.id}
+            href={"/admin/articles?view=" + item.id}
+            aria-current={view === item.id ? "page" : undefined}
+            className={
+              "shrink-0 whitespace-nowrap rounded-lg px-4 py-2 font-semibold transition " +
+              (view === item.id
+                ? "bg-ink text-paper"
+                : "text-ink/60 hover:bg-lane/60 hover:text-ink")
+            }
+          >
+            {item.label}
+          </Link>
+        ))}
+      </nav>
 
+      {view === "overview" && (
+        <>
       <section aria-labelledby="content-views-heading">
         <div className="mb-3">
           <h3
@@ -275,7 +283,7 @@ export default async function AdminArticlesPage({
         </Card>
       </section>
 
-      <div className="grid gap-4 xl:grid-cols-[2fr_1fr]">
+      <div>
         <section aria-labelledby="top-content-heading">
           <h3
             id="top-content-heading"
@@ -326,52 +334,37 @@ export default async function AdminArticlesPage({
           </Card>
         </section>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
-          <Card>
-            <h3 className="flex items-center gap-2 font-display font-bold">
-              <HeadingIcon name="activity" className="size-4" />
-              อุปกรณ์ที่ใช้
-            </h3>
-            <ul className="mt-3 space-y-2 text-sm">
-              {deviceRows.map((row) => (
-                <li key={row.device_type} className="flex justify-between gap-3">
-                  <span className="text-ink/60">{deviceLabels[row.device_type ?? "unknown"]}</span>
-                  <strong className="font-mono tnum">{Number(row.views).toLocaleString("th-TH")}</strong>
-                </li>
-              ))}
-              {deviceRows.length === 0 && <li className="text-ink/45">ยังไม่มีข้อมูล</li>}
-            </ul>
-          </Card>
-          <Card>
-            <h3 className="flex items-center gap-2 font-display font-bold">
-              <HeadingIcon name="link" className="size-4" />
-              แหล่งที่มา
-            </h3>
-            <ul className="mt-3 space-y-2 text-sm">
-              {referrerRows.map((row) => (
-                <li key={row.referrer_host} className="flex justify-between gap-3">
-                  <span className="min-w-0 truncate text-ink/60">{row.referrer_host}</span>
-                  <strong className="font-mono tnum">{Number(row.views).toLocaleString("th-TH")}</strong>
-                </li>
-              ))}
-              {referrerRows.length === 0 && <li className="text-ink/45">Direct / ยังไม่มีข้อมูล</li>}
-            </ul>
-          </Card>
-        </div>
       </div>
 
+        </>
+      )}
+
+      {view === "articles" && (
       <section aria-labelledby="article-list-heading" className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 id="article-list-heading" className="flex items-center gap-2 font-display text-lg font-bold">
             <HeadingIcon name="clipboard" />
             รายการบทความ
           </h3>
-          <span className="font-mono text-sm text-ink/45 tnum">
-            {filteredArticles.length} รายการ
-          </span>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <span className="font-mono text-sm text-ink/45 tnum">
+              {filteredArticles.length} รายการ
+            </span>
+            <CreateArticleModal
+              initialOpen={sp.create === "1"}
+              error={view === "articles" ? sp.error : undefined}
+            >
+              <ArticleForm
+                action={createContentArticle}
+                categories={categories}
+                submitLabel="สร้างบทความ"
+              />
+            </CreateArticleModal>
+          </div>
         </div>
         <Card>
           <form method="get" className="space-y-4">
+            <input type="hidden" name="view" value="articles" />
             <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px_220px_auto] lg:items-end">
               <div>
                 <Label htmlFor="article-search">ค้นหา</Label>
@@ -408,7 +401,7 @@ export default async function AdminArticlesPage({
             </div>
             {(q || status !== "all" || categoryId) && (
               <Link
-                href="/admin/articles"
+                href="/admin/articles?view=articles"
                 className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-lane px-4 text-sm font-semibold hover:bg-lane/50"
               >
                 <RotateCcw className="size-4" /> ล้างการค้นหา
@@ -438,7 +431,16 @@ export default async function AdminArticlesPage({
                         <p className="font-semibold">{article.title}</p>
                         <p className="mt-1 truncate font-mono text-xs text-ink/45">/{article.slug}</p>
                       </td>
-                      <td className="px-4 py-4 text-ink/60">{category?.name ?? "—"}</td>
+                      <td className="px-4 py-4 text-ink/60">
+                        {category ? (
+                          <CategoryBadge
+                            backgroundColor={category.badge_background_color}
+                            textColor={category.badge_text_color}
+                          >
+                            {category.name}
+                          </CategoryBadge>
+                        ) : "—"}
+                      </td>
                       <td className="px-4 py-4">
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge className={statusClass[article.status]}>
@@ -459,7 +461,7 @@ export default async function AdminArticlesPage({
                       <td className="px-4 py-4">
                         <div className="flex justify-end gap-2">
                           <LinkButton
-                            href={`/admin/articles/${article.id}`}
+                            href={"/admin/articles?view=articles&edit=" + article.id}
                             variant="ghost"
                             icon="edit"
                             className="min-h-9 px-3 py-1"
@@ -492,39 +494,40 @@ export default async function AdminArticlesPage({
           </div>
         </Card>
       </section>
+      )}
 
+      {editArticle && (
+        <EditArticleModal
+          articleTitle={editArticle.title}
+          publishedHref={editArticle.status === "published" ? "/articles/" + editArticle.slug : undefined}
+          error={sp.error}
+        >
+          <ArticleForm
+            action={updateContentArticle}
+            article={editArticle}
+            categories={categories}
+            submitLabel="บันทึกบทความ"
+          />
+        </EditArticleModal>
+      )}
+
+      {view === "categories" && (
       <section aria-labelledby="category-management-heading" className="space-y-4">
-        <div>
-          <h3 id="category-management-heading" className="flex items-center gap-2 font-display text-lg font-bold">
-            <HeadingIcon name="package" />
-            จัดการหมวดหมู่
-          </h3>
-          <p className="mt-1 text-sm text-ink/50">
-            ใช้แบ่งข่าวประชาสัมพันธ์ เกร็ดความรู้ และเนื้อหาประเภทอื่น
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 id="category-management-heading" className="flex items-center gap-2 font-display text-lg font-bold">
+              <HeadingIcon name="package" />
+              จัดการหมวดหมู่
+            </h3>
+            <p className="mt-1 text-sm text-ink/50">
+              ใช้แบ่งข่าวประชาสัมพันธ์ เกร็ดความรู้ และเนื้อหาประเภทอื่น
+            </p>
+          </div>
+          <CreateCategoryModal
+            initialOpen={sp.create_category === "1"}
+            error={view === "categories" && sp.create_category === "1" ? sp.error : undefined}
+          />
         </div>
-        <Card>
-          <form action={createContentCategory} className="grid gap-3 lg:grid-cols-[1fr_1fr_100px_auto] lg:items-end">
-            <div>
-              <Label>ชื่อหมวดหมู่</Label>
-              <Input name="name" required />
-            </div>
-            <div>
-              <Label>Slug</Label>
-              <Input name="slug" placeholder="เว้นว่างเพื่อสร้างอัตโนมัติ" />
-            </div>
-            <div>
-              <Label>ลำดับ</Label>
-              <Input name="sort_order" type="number" min={0} defaultValue={0} />
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="inline-flex items-center gap-2 text-sm">
-                <input type="checkbox" name="is_active" defaultChecked /> เปิดใช้
-              </label>
-              <Button type="submit" icon="add">เพิ่มหมวดหมู่</Button>
-            </div>
-          </form>
-        </Card>
         <div className="space-y-3">
           {categories.map((category) => (
             <Card key={category.id}>
@@ -532,9 +535,10 @@ export default async function AdminArticlesPage({
                 <input type="hidden" name="id" value={category.id} />
                 <div className="grid gap-3 lg:grid-cols-[1fr_1fr_100px_auto] lg:items-end">
                   <div>
-                    <Label>ชื่อหมวดหมู่</Label>
+                    <Label>ชื่อหมวดหมู่ (ไทย)</Label>
                     <Input name="name" defaultValue={category.name} required />
                   </div>
+                  <div><Label>Category Name (English)</Label><Input name="name_en" defaultValue={category.name_en ?? ""} /></div>
                   <div>
                     <Label>Slug</Label>
                     <Input name="slug" defaultValue={category.slug} required />
@@ -552,6 +556,30 @@ export default async function AdminArticlesPage({
                   <Label>คำอธิบาย</Label>
                   <Textarea name="description" rows={2} maxLength={500} defaultValue={category.description ?? ""} />
                 </div>
+                <div><Label>Description (English)</Label><Textarea name="description_en" rows={2} maxLength={500} defaultValue={category.description_en ?? ""} /></div>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
+                  <ColorField
+                    name="badge_background_color"
+                    label="สีพื้น Badge"
+                    defaultValue={category.badge_background_color}
+                  />
+                  <ColorField
+                    name="badge_text_color"
+                    label="สีตัวอักษร Badge"
+                    defaultValue={category.badge_text_color}
+                  />
+                  <div>
+                    <Label>ตัวอย่าง</Label>
+                    <div className="flex min-h-11 items-center">
+                      <CategoryBadge
+                        backgroundColor={category.badge_background_color}
+                        textColor={category.badge_text_color}
+                      >
+                        {category.name}
+                      </CategoryBadge>
+                    </div>
+                  </div>
+                </div>
                 <div className="flex flex-wrap justify-end gap-2">
                   <Button type="submit" variant="ghost" icon="save">บันทึกหมวดหมู่</Button>
                   <ConfirmDeleteButton
@@ -566,6 +594,7 @@ export default async function AdminArticlesPage({
           ))}
         </div>
       </section>
+      )}
     </div>
   );
 }

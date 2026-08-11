@@ -16,22 +16,14 @@ import {
   Gift,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const items = [
-  { href: "/dashboard", label: "แดชบอร์ด", icon: LayoutDashboard },
-  { href: "/dashboard/events", label: "งานของฉัน", icon: ClipboardList },
-  { href: "/dashboard/medals", label: "เหรียญรางวัล", icon: Medal },
-  { href: "/dashboard/stats", label: "สถิติของฉัน", icon: BarChart3 },
-  { href: "/dashboard/history", label: "ประวัติการเข้าร่วม", icon: History },
-  { href: "/dashboard/rewards", label: "แลกแต้มเป็นรางวัล", icon: Gift },
-  { href: "/profile", label: "ตั้งค่าโปรไฟล์", icon: Settings },
-];
+import { tx, type Locale } from "@/lib/i18n/shared";
 
 export function DashboardSidebar({
   name,
   avatarUrl,
   levelProgress,
   rankSummary,
+  locale,
 }: {
   name: string;
   avatarUrl: string | null;
@@ -53,11 +45,21 @@ export function DashboardSidebar({
     approved_runs: number;
     approved_runs_rank: number;
   } | null;
+  locale: Locale;
 }) {
   const pathname = usePathname();
   const pct = levelProgress.isMaxLevel
     ? 100
     : Math.min(100, Math.round((levelProgress.currentXp / levelProgress.xpPerLevel) * 100));
+  const items = [
+    { href: "/dashboard", label: tx(locale, "แดชบอร์ด", "Dashboard"), icon: LayoutDashboard },
+    { href: "/dashboard/events", label: tx(locale, "งานของฉัน", "My events"), icon: ClipboardList },
+    { href: "/dashboard/medals", label: tx(locale, "เหรียญรางวัล", "Medals"), icon: Medal },
+    { href: "/dashboard/stats", label: tx(locale, "สถิติของฉัน", "My stats"), icon: BarChart3 },
+    { href: "/dashboard/history", label: tx(locale, "ประวัติการเข้าร่วม", "History"), icon: History },
+    { href: "/dashboard/rewards", label: tx(locale, "แลกแต้มเป็นรางวัล", "Rewards"), icon: Gift },
+    { href: "/profile", label: tx(locale, "ตั้งค่าโปรไฟล์", "Profile settings"), icon: Settings },
+  ];
 
   return (
     <div className="w-full shrink-0 space-y-4 lg:w-56">
@@ -74,7 +76,7 @@ export function DashboardSidebar({
           )}
           <Link
             href="/profile"
-            aria-label="แก้ไขโปรไฟล์"
+            aria-label={tx(locale, "แก้ไขโปรไฟล์", "Edit profile")}
             className="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full bg-primary text-ink transition hover:bg-primary-hover"
           >
             <Pencil className="h-3.5 w-3.5" />
@@ -99,17 +101,17 @@ export function DashboardSidebar({
             <div className="mb-2 flex items-center justify-between gap-2">
               <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#FAFAF8]">
                 <Trophy className="size-3.5 text-primary" aria-hidden="true" />
-                อันดับของฉัน
+                {tx(locale, "อันดับของฉัน", "My ranking")}
               </span>
               <span className="text-[10px] text-[#FAFAF8] tnum">
-                จาก {rankSummary.total_users.toLocaleString("th-TH")} คน
+                {tx(locale, "จาก", "of")} {rankSummary.total_users.toLocaleString(locale === "en" ? "en-US" : "th-TH")} {tx(locale, "คน", "users")}
               </span>
             </div>
             <div className="space-y-1.5 text-xs">
               <div className="flex items-center justify-between gap-2 rounded-lg bg-white/10 px-2.5 py-2">
                 <span className="inline-flex min-w-0 items-center gap-1.5 text-[#FAFAF8]">
                   <Trophy className="size-3 shrink-0" aria-hidden="true" />
-                  คะแนน {rankSummary.points.toLocaleString("th-TH")}
+                  {tx(locale, "คะแนน", "Points")} {rankSummary.points.toLocaleString(locale === "en" ? "en-US" : "th-TH")}
                 </span>
                 <strong className="shrink-0 font-mono text-[#FEC81D] tnum">
                   #{rankSummary.points_rank.toLocaleString("th-TH")}
@@ -118,7 +120,7 @@ export function DashboardSidebar({
               <div className="flex items-center justify-between gap-2 rounded-lg bg-white/10 px-2.5 py-2">
                 <span className="inline-flex min-w-0 items-center gap-1.5 text-[#FAFAF8]">
                   <Route className="size-3 shrink-0" aria-hidden="true" />
-                  ระยะ {Number(rankSummary.distance_km).toLocaleString("th-TH", { maximumFractionDigits: 1 })} กม.
+                  {tx(locale, "ระยะ", "Distance")} {Number(rankSummary.distance_km).toLocaleString(locale === "en" ? "en-US" : "th-TH", { maximumFractionDigits: 1 })} {tx(locale, "กม.", "km")}
                 </span>
                 <strong className="shrink-0 font-mono text-[#FEC81D] tnum">
                   #{rankSummary.distance_rank.toLocaleString("th-TH")}
@@ -127,7 +129,7 @@ export function DashboardSidebar({
               <div className="flex items-center justify-between gap-2 rounded-lg bg-white/10 px-2.5 py-2">
                 <span className="inline-flex min-w-0 items-center gap-1.5 text-[#FAFAF8]">
                   <Footprints className="size-3 shrink-0" aria-hidden="true" />
-                  กิจกรรม {rankSummary.approved_runs.toLocaleString("th-TH")} ครั้ง
+                  {tx(locale, "กิจกรรม", "Activities")} {rankSummary.approved_runs.toLocaleString(locale === "en" ? "en-US" : "th-TH")}
                 </span>
                 <strong className="shrink-0 font-mono text-[#FEC81D] tnum">
                   #{rankSummary.approved_runs_rank.toLocaleString("th-TH")}

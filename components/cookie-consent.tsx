@@ -42,7 +42,7 @@ export function CookieConsent({
 
   return (
     <aside
-      aria-label="Cookie consent"
+      aria-label="Cookie Consent"
       className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-ink px-3 text-paper shadow-[0_-8px_30px_rgba(0,0,0,0.18)] sm:px-4"
     >
       <div className="mx-auto flex min-h-12 max-w-[1500px] flex-col items-center justify-center gap-2 sm:flex-row">

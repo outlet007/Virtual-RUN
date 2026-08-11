@@ -6,6 +6,10 @@ import {
   normalizeContentLink,
   sanitizeContentHtml,
 } from "../lib/content.ts";
+import {
+  DEFAULT_CATEGORY_BADGE_BACKGROUND_COLOR,
+  normalizeCategoryBadgeColor,
+} from "../lib/category-badge.ts";
 
 test("creates stable URL-safe content slugs", () => {
   assert.equal(createContentSlug("Hello, Virtual RUN!"), "hello-virtual-run");
@@ -29,4 +33,10 @@ test("sanitizes article HTML and secures links", () => {
 test("estimates at least one reading minute", () => {
   assert.equal(estimateReadingMinutes("<p>สั้น</p>"), 1);
   assert.equal(estimateReadingMinutes(`<p>${"ก".repeat(701)}</p>`), 2);
+});
+
+test("normalizes valid category badge colors and rejects unsafe values", () => {
+  assert.equal(normalizeCategoryBadgeColor("#a1b2c3"), "#A1B2C3");
+  assert.equal(normalizeCategoryBadgeColor(" red "), null);
+  assert.equal(DEFAULT_CATEGORY_BADGE_BACKGROUND_COLOR, "#FEC81D");
 });

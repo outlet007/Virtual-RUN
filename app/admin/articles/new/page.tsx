@@ -16,7 +16,7 @@ export default async function NewArticlePage({
   const db = createAdminClient();
   const { data: categories, error } = await db
     .from("content_categories")
-    .select("id, name")
+    .select("id, name, name_en")
     .order("sort_order")
     .order("name");
   if (error) throw new Error(error.message);

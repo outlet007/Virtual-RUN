@@ -8,6 +8,8 @@ import { EventBibLeaderboard } from "@/components/events/event-bib-leaderboard";
 import { buildEventBibLeaderboard } from "@/lib/event-bib-leaderboard";
 import { formatBaht, formatDate, stripHtml } from "@/lib/utils";
 import { isEventRegistrationOpen } from "@/lib/event-registration";
+import { getLocale } from "@/lib/i18n/server";
+import { pickLocalized, tx } from "@/lib/i18n/shared";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +31,7 @@ export default async function EventDetailPage({
 }) {
   const { id } = await params;
   const { error } = await searchParams;
-  const supabase = await createClient();
+  const [supabase, locale] = await Promise.all([createClient(), getLocale()]);
   const db = createAdminClient();
 
   const [{ data: event }, { data: leaderboardRows, error: leaderboardError }] =
@@ -37,7 +39,7 @@ export default async function EventDetailPage({
       supabase
         .from("events")
         .select(
-          "id, title, description, cover_image, cover_position_x, cover_position_y, poster_image, pricing, start_date, end_date, status, packages(id, name, target_distance_km, price, has_physical_medal, digital_medal:medals!packages_digital_medal_id_fkey(id, name), physical_medal:physical_medals!packages_physical_medal_id_fkey(id, name))",
+          "id, title, title_en, description, description_en, cover_image, cover_position_x, cover_position_y, poster_image, pricing, start_date, end_date, status, packages(id, name, name_en, target_distance_km, price, has_physical_medal, digital_medal:medals!packages_digital_medal_id_fkey(id, name, name_en), physical_medal:physical_medals!packages_physical_medal_id_fkey(id, name, name_en))",
         )
         .eq("id", id)
         .single(),
@@ -49,6 +51,8 @@ export default async function EventDetailPage({
     ]);
 
   if (!event) notFound();
+  const eventTitle = pickLocalized(locale, event.title, event.title_en);
+  const eventDescription = pickLocalized(locale, event.description, event.description_en);
   if (leaderboardError) throw new Error(leaderboardError.message);
   const registrationOpen = isEventRegistrationOpen(event);
   const packages = (event.packages ?? []).map((packageRow) => ({
@@ -115,19 +119,19 @@ export default async function EventDetailPage({
                   : "w-fit text-sm bg-[rgb(255,93,0)] text-white shadow-sm"
               }
             >
-              {event.pricing === "free" ? "ฟรี" : "มีค่าสมัคร"}
+              {event.pricing === "free" ? tx(locale, "ฟรี", "Free") : tx(locale, "มีค่าสมัคร", "Paid")}
             </Badge>
             <h1 className="mt-3 flex items-center gap-3 font-display text-3xl font-bold leading-tight text-white drop-shadow-md sm:text-4xl">
               <HeadingIcon name="calendar" className="size-7 text-primary sm:size-8" />
-              {event.title}
+              {eventTitle}
             </h1>
             <p className="mt-3 inline-flex items-center gap-1.5 font-mono text-sm font-medium text-white/90 drop-shadow-sm tnum">
               <CalendarDays className="h-4 w-4 shrink-0" aria-hidden="true" />{" "}
               {formatDate(event.start_date)} – {formatDate(event.end_date)}
             </p>
-            {event.description && (
+            {eventDescription && (
               <p className="mt-2 line-clamp-2 max-w-2xl text-sm leading-relaxed text-white/85 drop-shadow-sm sm:text-base">
-                {stripHtml(event.description)}
+                {stripHtml(eventDescription)}
               </p>
             )}
           </div>
@@ -139,7 +143,7 @@ export default async function EventDetailPage({
         href="/"
         className="inline-flex w-fit items-center gap-1 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-ink transition hover:bg-primary-hover"
       >
-        <ChevronLeft className="h-4 w-4" /> งานทั้งหมด
+        <ChevronLeft className="h-4 w-4" /> {tx(locale, "งานทั้งหมด", "All events")}
       </Link>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[7fr_3fr]">
@@ -147,12 +151,12 @@ export default async function EventDetailPage({
         <div className="space-y-4">
           <h2 className="flex items-center gap-2 font-display text-xl font-bold">
             <HeadingIcon name="clipboard" />
-            รายละเอียดงาน
+            {tx(locale, "รายละเอียดงาน", "Event details")}
           </h2>
-          {event.description && (
+          {eventDescription && (
             <div
               className="prose prose-sm max-w-none text-muted prose-headings:font-display prose-headings:text-ink prose-img:rounded-xl"
-              dangerouslySetInnerHTML={{ __html: event.description }}
+              dangerouslySetInnerHTML={{ __html: eventDescription }}
             />
           )}
           {event.poster_image && (
@@ -169,7 +173,7 @@ export default async function EventDetailPage({
         <div id="packages" className="scroll-mt-24 space-y-3">
           <h2 className="flex items-center gap-2 font-display text-xl font-bold">
             <HeadingIcon name="package" />
-            เลือกแพ็กเกจ
+            {tx(locale, "เลือกแพ็กเกจ", "Choose a package")}
           </h2>
           {packages.map((p) => (
             <Card
@@ -178,7 +182,7 @@ export default async function EventDetailPage({
             >
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-display font-bold text-charcoal">{p.name}</span>
+                  <span className="font-display font-bold text-charcoal">{pickLocalized(locale, p.name, p.name_en)}</span>
                   <Badge
                     className={
                       event.pricing === "free" || Number(p.price) === 0
@@ -187,8 +191,8 @@ export default async function EventDetailPage({
                     }
                   >
                     {event.pricing === "free" || Number(p.price) === 0
-                      ? "ฟรี"
-                      : "มีค่าสมัคร"}
+                      ? tx(locale, "ฟรี", "Free")
+                      : tx(locale, "มีค่าสมัคร", "Paid")}
                   </Badge>
                 </div>
                 {(p.digital_medal || p.has_physical_medal) && (
@@ -196,20 +200,20 @@ export default async function EventDetailPage({
                     {p.digital_medal && (
                       <Badge
                         className="max-w-full min-w-0 gap-1 bg-sky-100 text-sky-700"
-                        title={`เหรียญดิจิทัล: ${p.digital_medal.name}`}
+                        title={tx(locale, "เหรียญดิจิทัล", "Digital medal") + ": " + pickLocalized(locale, p.digital_medal.name, p.digital_medal.name_en)}
                       >
                         <Medal className="h-3 w-3 shrink-0" />
-                        <span className="truncate">เหรียญดิจิทัล: {p.digital_medal.name}</span>
+                        <span className="truncate">{tx(locale, "เหรียญดิจิทัล", "Digital medal")}: {pickLocalized(locale, p.digital_medal.name, p.digital_medal.name_en)}</span>
                       </Badge>
                     )}
                     {p.has_physical_medal && (
                       <Badge
                         className="max-w-full min-w-0 gap-1 bg-orange-100 text-orange-700"
-                        title={`เหรียญจริง${p.physical_medal ? `: ${p.physical_medal.name}` : ""}`}
+                        title={tx(locale, "เหรียญจริง", "Physical medal") + (p.physical_medal ? ": " + pickLocalized(locale, p.physical_medal.name, p.physical_medal.name_en) : "")}
                       >
                         <Medal className="h-3 w-3 shrink-0" />
                         <span className="truncate">
-                          เหรียญจริง{p.physical_medal ? `: ${p.physical_medal.name}` : ""}
+                          {tx(locale, "เหรียญจริง", "Physical medal")}{p.physical_medal ? ": " + pickLocalized(locale, p.physical_medal.name, p.physical_medal.name_en) : ""}
                         </span>
                       </Badge>
                     )}
@@ -233,7 +237,7 @@ export default async function EventDetailPage({
                     href={`/events/${event.id}/register?package=${p.id}`}
                     className="w-full shrink-0 whitespace-nowrap sm:w-auto sm:px-3"
                     icon="userPlus">
-                    สมัคร
+                    {tx(locale, "สมัคร", "Register")}
                   </LinkButton>
                 ) : (
                   <LinkButton
@@ -241,12 +245,12 @@ export default async function EventDetailPage({
                     variant="ghost"
                     className="w-full shrink-0 whitespace-nowrap sm:w-auto sm:px-3"
                     icon="login">
-                    เข้าสู่ระบบเพื่อสมัคร
+                    {tx(locale, "เข้าสู่ระบบเพื่อสมัคร", "Sign in to register")}
                   </LinkButton>
                 ))}
             </Card>
           ))}
-          <EventBibLeaderboard rows={leaderboard} />
+          <EventBibLeaderboard rows={leaderboard} locale={locale} />
         </div>
       </div>
     </div>

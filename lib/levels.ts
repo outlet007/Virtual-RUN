@@ -1,6 +1,7 @@
 export type LevelDefinition = {
   level_number: number;
   name: string;
+  name_en?: string | null;
   min_xp: number;
 };
 

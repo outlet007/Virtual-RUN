@@ -3,8 +3,9 @@
 import { LoaderCircle } from "lucide-react";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui";
+import { tx, type Locale } from "@/lib/i18n/shared";
 
-export function SubmissionSubmitButton() {
+export function SubmissionSubmitButton({ locale }: { locale: Locale }) {
   const { pending } = useFormStatus();
 
   return (
@@ -12,10 +13,10 @@ export function SubmissionSubmitButton() {
       {pending ? (
         <>
           <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-          กำลังอ่านและตรวจสอบรูป...
+          {tx(locale, "กำลังอ่านและตรวจสอบรูป...", "Reading and validating image...")}
         </>
       ) : (
-        "ตรวจสอบและบันทึกผล"
+        tx(locale, "ตรวจสอบและบันทึกผล", "Validate and submit")
       )}
     </Button>
   );

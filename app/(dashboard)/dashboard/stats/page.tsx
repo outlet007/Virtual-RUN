@@ -4,6 +4,8 @@ import { Card, HeadingIcon } from "@/components/ui";
 import { PersonalDistanceChart } from "@/components/dashboard/personal-distance-chart";
 import { buildPersonalDistanceSeries } from "@/lib/personal-stats";
 import { formatKm } from "@/lib/utils";
+import { getLocale } from "@/lib/i18n/server";
+import { tx } from "@/lib/i18n/shared";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +17,7 @@ type Sub = {
 };
 
 export default async function StatsPage() {
-  const supabase = await createClient();
+  const [supabase, locale] = await Promise.all([createClient(), getLocale()]);
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -58,15 +60,15 @@ export default async function StatsPage() {
   );
 
   const stats = [
-    { label: "ระยะสะสมรวม", value: `${formatKm(totalKm)} km` },
-    { label: "ระยะวิ่งสะสม", value: `${formatKm(runKm)} km` },
-    { label: "ระยะเดินสะสม", value: `${formatKm(walkKm)} km` },
-    { label: "แต้มสะสม", value: points },
-    { label: "เหรียญที่ได้รับ", value: medalsCount ?? 0 },
-    { label: "งานที่สมัคร", value: regs.length },
-    { label: "งานที่ยืนยันแล้ว", value: regs.filter((r) => r.status === "confirmed").length },
-    { label: "ผลวิ่งที่บันทึกทั้งหมด", value: subs.length },
-    { label: "ผลวิ่งที่อนุมัติแล้ว", value: approved.length },
+    { label: tx(locale, "ระยะสะสมรวม", "Total distance"), value: `${formatKm(totalKm)} km` },
+    { label: tx(locale, "ระยะวิ่งสะสม", "Running distance"), value: `${formatKm(runKm)} km` },
+    { label: tx(locale, "ระยะเดินสะสม", "Walking distance"), value: `${formatKm(walkKm)} km` },
+    { label: tx(locale, "แต้มสะสม", "Points"), value: points },
+    { label: tx(locale, "เหรียญที่ได้รับ", "Medals earned"), value: medalsCount ?? 0 },
+    { label: tx(locale, "งานที่สมัคร", "Joined events"), value: regs.length },
+    { label: tx(locale, "งานที่ยืนยันแล้ว", "Confirmed events"), value: regs.filter((r) => r.status === "confirmed").length },
+    { label: tx(locale, "ผลวิ่งที่บันทึกทั้งหมด", "All submissions"), value: subs.length },
+    { label: tx(locale, "ผลวิ่งที่อนุมัติแล้ว", "Approved submissions"), value: approved.length },
   ];
 
   return (
@@ -74,22 +76,22 @@ export default async function StatsPage() {
       <div>
         <h2 className="flex items-center gap-2 font-display text-xl font-bold">
           <HeadingIcon name="chart" />
-          สถิติของฉัน
+          {tx(locale, "สถิติของฉัน", "My stats")}
         </h2>
-        <p className="mt-1 text-sm text-muted">ภาพรวมผลงานสะสมทั้งหมดของบัญชีนี้</p>
+        <p className="mt-1 text-sm text-muted">{tx(locale, "ภาพรวมผลงานสะสมทั้งหมดของบัญชีนี้", "Overview of all activity on this account")}</p>
       </div>
       <section aria-labelledby="personal-distance-heading">
         <div className="mb-3">
           <h3 id="personal-distance-heading" className="flex items-center gap-2 font-display text-lg font-bold">
             <HeadingIcon name="activity" />
-            ระยะทาง 30 วันล่าสุด
+            {tx(locale, "ระยะทาง 30 วันล่าสุด", "Distance over the last 30 days")}
           </h3>
           <p className="mt-1 text-sm text-muted">
-            แสดงเฉพาะผลที่อนุมัติแล้ว แยกระหว่างการวิ่งและการเดิน
+            {tx(locale, "แสดงเฉพาะผลที่อนุมัติแล้ว แยกระหว่างการวิ่งและการเดิน", "Approved results only, split between running and walking")}
           </p>
         </div>
         <Card>
-          <PersonalDistanceChart data={distanceSeries} />
+          <PersonalDistanceChart data={distanceSeries} locale={locale} />
         </Card>
       </section>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

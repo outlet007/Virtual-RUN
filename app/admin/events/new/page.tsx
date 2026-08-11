@@ -28,9 +28,9 @@ export default async function NewEventPage({
 
       <form action={createEvent}>
         <Card className="space-y-4">
-          <div>
-            <Label>ชื่องาน</Label>
-            <Input name="title" required />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div><Label>ชื่องาน (ไทย)</Label><Input name="title" required /></div>
+            <div><Label>Event Name (English)</Label><Input name="title_en" /></div>
           </div>
           <div>
             <Label>คำนำหน้า BIB</Label>
@@ -45,10 +45,8 @@ export default async function NewEventPage({
             />
             <p className="mt-1 text-xs text-ink/45">ตัวอักษรอังกฤษหรือตัวเลข 2–8 ตัว</p>
           </div>
-          <div>
-            <Label>รายละเอียด</Label>
-            <RichTextEditor name="description" />
-          </div>
+          <div><Label>รายละเอียด (ไทย)</Label><RichTextEditor name="description" /></div>
+          <div><Label>Description (English)</Label><RichTextEditor name="description_en" /></div>
           <ImageUploadField
             name="cover_image_file"
             label="รูปปกงาน (hero banner)"

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Medal as MedalIcon, Lock, Upload, UserPlus } from "lucide-react";
 import { formatDate } from "@/lib/utils";
+import { tx, type Locale } from "@/lib/i18n/shared";
 
 export type MedalEntry = {
   key: string;
@@ -25,7 +26,7 @@ const tierLabel: Record<string, string> = {
   legendary: "ตำนาน",
 };
 
-export function MedalHexagon({ entry }: { entry: MedalEntry }) {
+export function MedalHexagon({ entry, locale }: { entry: MedalEntry; locale: Locale }) {
   return (
     <div className="flex flex-col items-center text-center">
       <div className="relative flex aspect-square w-full items-center justify-center">
@@ -51,7 +52,7 @@ export function MedalHexagon({ entry }: { entry: MedalEntry }) {
       </div>
       <p className="mt-3 font-display font-bold">{entry.name}</p>
       <p className="text-xs text-ink/50">{entry.eventTitle}</p>
-      <p className="mt-1 text-xs text-ink/40">{tierLabel[entry.tier] ?? entry.tier}</p>
+      <p className="mt-1 text-xs text-ink/40">{locale === "en" ? entry.tier[0].toUpperCase() + entry.tier.slice(1) : tierLabel[entry.tier] ?? entry.tier}</p>
       {entry.earned ? (
         <>
           {entry.unlockedAt && (
@@ -60,7 +61,7 @@ export function MedalHexagon({ entry }: { entry: MedalEntry }) {
             </p>
           )}
           <span className="mt-2 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">
-            สำเร็จแล้ว
+            {tx(locale, "สำเร็จแล้ว", "Completed")}
           </span>
         </>
       ) : (
@@ -74,11 +75,11 @@ export function MedalHexagon({ entry }: { entry: MedalEntry }) {
               className="mt-3 inline-flex min-h-9 items-center justify-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-ink transition hover:bg-primary-hover"
             >
               <UserPlus className="size-4" aria-hidden="true" />
-              สมัครเพื่อปลดล็อก
+              {tx(locale, "สมัครเพื่อปลดล็อก", "Register to unlock")}
             </Link>
           ) : !entry.registrationStatus ? (
             <span className="mt-3 inline-flex min-h-9 items-center justify-center rounded-full bg-lane px-4 py-2 text-xs font-semibold text-muted">
-              งานสิ้นสุดแล้ว
+              {tx(locale, "งานสิ้นสุดแล้ว", "Event ended")}
             </span>
           ) : entry.registrationStatus === "confirmed" ? (
             <Link
@@ -86,11 +87,11 @@ export function MedalHexagon({ entry }: { entry: MedalEntry }) {
               className="mt-3 inline-flex min-h-9 items-center justify-center gap-2 rounded-full border border-primary-dark/20 bg-primary-soft px-4 py-2 text-xs font-semibold text-primary-dark transition hover:bg-primary/30"
             >
               <Upload className="size-4" aria-hidden="true" />
-              ส่งผลวิ่งเพื่อปลดล็อก
+              {tx(locale, "ส่งผลวิ่งเพื่อปลดล็อก", "Submit activity to unlock")}
             </Link>
           ) : (
             <span className="mt-3 inline-flex min-h-9 items-center justify-center rounded-full bg-lane px-4 py-2 text-xs font-semibold text-muted">
-              รอยืนยันการสมัคร
+              {tx(locale, "รอยืนยันการสมัคร", "Awaiting confirmation")}
             </span>
           )}
         </>
