@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { evaluateSubmissionRules } from "@/lib/rules";
 import { loadSubmissionRuleRuntime } from "@/lib/submission-rule-context";
 import { awardForApprovedSubmission } from "@/lib/gamification";
+import { isValidActivityDate } from "@/lib/submission-input";
 import { readRunEvidence } from "@/lib/ocr/run-evidence";
 import {
   createEvidenceFingerprint,
@@ -53,7 +54,7 @@ export async function createSubmission(formData: FormData) {
     !registrationId ||
     !Number.isFinite(distanceKm) ||
     distanceKm <= 0 ||
-    !/^d{4}-d{2}-d{2}$/.test(activityDate) ||
+    !isValidActivityDate(activityDate) ||
     durationSec <= 0
   ) {
     redirect(

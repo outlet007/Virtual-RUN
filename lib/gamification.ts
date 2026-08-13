@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyUser } from "@/lib/notifications";
+import { medalInsertCreatedNewAward } from "@/lib/gamification-guards";
 
 const POINTS_PER_KM = 1;
 
@@ -11,33 +12,18 @@ type MedalRow = {
 };
 
 async function syncSubmissionDistancePoints(
-  userId: string,
-  distanceKm: number,
+  _userId: string,
+  _distanceKm: number,
   submissionId: string,
   approved: boolean,
 ) {
   const db = createAdminClient();
-  const { data: existing } = await db
-    .from("points_ledger")
-    .select("delta")
-    .eq("user_id", userId)
-    .eq("ref_type", "submission")
-    .eq("ref_id", submissionId);
-  const currentPoints = (existing ?? []).reduce(
-    (sum, entry) => sum + Number(entry.delta),
-    0,
-  );
-  const targetPoints = approved ? Math.round(distanceKm * POINTS_PER_KM) : 0;
-  const adjustment = targetPoints - currentPoints;
-
-  if (adjustment !== 0) {
-    await db.from("points_ledger").insert({
-      user_id: userId,
-      delta: adjustment,
-      reason: adjustment > 0 ? "distance" : "distance_reversal",
-      ref_type: "submission",
-      ref_id: submissionId,
-    });
+  const { error } = await db.rpc("sync_submission_distance_points", {
+    p_submission_id: submissionId,
+    p_approved: approved,
+  });
+  if (error) {
+    throw new Error("Unable to synchronize submission points: " + error.message);
   }
 }
 
@@ -111,7 +97,7 @@ export async function awardForApprovedSubmission(
       .from("user_medals")
       .insert({ user_id: userId, medal_id: medal.id });
     // unique(user_id, medal_id) กัน insert ซ้ำ — ชนแล้วเฉยไว้ ไม่ถือเป็น error
-    if (error && error.code !== "23505") continue;
+    if (!medalInsertCreatedNewAward(error)) continue;
 
     if (medal.bonus_points > 0) {
       await db.from("points_ledger").insert({
