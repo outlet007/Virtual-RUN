@@ -110,6 +110,7 @@ export async function awardForApprovedSubmission(
     }
 
     await notifyUser(userId, "medal_unlocked", {
+      dedupeKey: `medal:${medal.id}:unlocked`,
       subject: "ปลดล็อกเหรียญใหม่แล้ว!",
       text: `ยินดีด้วย! คุณปลดล็อกเหรียญ "${medal.name}" แล้ว${medal.bonus_points > 0 ? ` พร้อมแต้มโบนัส ${medal.bonus_points} แต้ม` : ""}`,
     });

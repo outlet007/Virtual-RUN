@@ -39,6 +39,7 @@ export async function manuallyApproveRegistration(formData: FormData) {
   }
 
   await notifyUser(registration.user_id, "registration_confirmed", {
+    dedupeKey: `registration:${registrationId}:confirmed`,
     subject: "ยืนยันการสมัครเรียบร้อยแล้ว",
     text: `การสมัครของคุณได้รับการยืนยันแล้ว หมายเลข BIB คือ ${registration.bib_number}`,
   });

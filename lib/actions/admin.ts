@@ -571,6 +571,7 @@ export async function reviewSubmission(formData: FormData) {
             };
 
     await notifyUser(submission.user_id, "submission_reviewed", {
+      dedupeKey: `submission:${id}:${status}`,
       subject: notification.subject,
       text: notification.text,
     });
@@ -658,28 +659,30 @@ export async function confirmPayment(formData: FormData) {
   const registrationId = String(formData.get("registration_id") ?? "");
   if (!paymentId || !registrationId) err("/admin/payments", "ไม่พบรายการชำระเงิน");
 
-  const { error: payError } = await db
-    .from("payments")
-    .update({ status: "paid", paid_at: new Date().toISOString() })
-    .eq("id", paymentId);
-  if (payError) err("/admin/payments", payError.message);
-
-  const { data: reg, error: regError } = await db
-    .from("registrations")
-    .update({ status: "confirmed" })
-    .eq("id", registrationId)
-    .select("user_id, bib_number")
+  const reviewResult = await db
+    .rpc("review_payment", {
+      p_payment_id: paymentId,
+      p_registration_id: registrationId,
+      p_decision: "confirm",
+    })
     .single();
-  if (regError) err("/admin/payments", regError.message);
+  if (reviewResult.error) err("/admin/payments", reviewResult.error.message);
+  const review = reviewResult.data as {
+    user_id: string;
+    bib_number: string | null;
+    changed: boolean;
+  } | null;
 
-  if (reg) {
-    await notifyUser(reg.user_id, "payment_confirmed", {
+  if (review?.changed) {
+    await notifyUser(review.user_id, "payment_confirmed", {
+      dedupeKey: `payment:${paymentId}:confirmed`,
       subject: "ยืนยันการชำระเงินสำเร็จ",
-      text: `ชำระเงินสำเร็จแล้ว หมายเลข BIB ของคุณคือ ${reg.bib_number}`,
+      text: `ชำระเงินสำเร็จแล้ว หมายเลข BIB ของคุณคือ ${review.bib_number}`,
     });
   }
 
   revalidatePath("/admin/payments");
+  revalidatePath("/admin/dashboard");
   redirect("/admin/payments?confirmed=1");
 }
 
@@ -691,22 +694,17 @@ export async function rejectPayment(formData: FormData) {
   const registrationId = String(formData.get("registration_id") ?? "");
   if (!paymentId || !registrationId) err("/admin/payments", "ไม่พบรายการชำระเงิน");
 
-  const { error: payError } = await db
-    .from("payments")
-    .update({ status: "failed" })
-    .eq("id", paymentId);
-  if (payError) err("/admin/payments", payError.message);
-
-  const { error: regError } = await db
-    .from("registrations")
-    .update({ status: "cancelled" })
-    .eq("id", registrationId);
-  if (regError) err("/admin/payments", regError.message);
+  const { error } = await db.rpc("review_payment", {
+    p_payment_id: paymentId,
+    p_registration_id: registrationId,
+    p_decision: "reject",
+  });
+  if (error) err("/admin/payments", error.message);
 
   revalidatePath("/admin/payments");
+  revalidatePath("/admin/dashboard");
   redirect("/admin/payments?rejected=1");
 }
-
 // ---------- Medals ----------
 
 export async function createMedal(formData: FormData) {
@@ -1055,14 +1053,16 @@ export async function fulfillRedemption(formData: FormData) {
     .from("redemptions")
     .update({ status: "fulfilled" })
     .eq("id", id)
+    .eq("status", "pending")
     .select("user_id, rewards(name)")
-    .single();
+    .maybeSingle();
   if (error) err("/admin/rewards", error.message);
 
   if (redemption) {
     const reward = redemption.rewards as unknown as { name: string } | { name: string }[] | null;
     const rewardName = Array.isArray(reward) ? reward[0]?.name : reward?.name;
     await notifyUser(redemption.user_id, "redemption_fulfilled", {
+      dedupeKey: `redemption:${id}:fulfilled`,
       subject: "รางวัลของคุณพร้อมส่งมอบแล้ว",
       text: `รางวัล "${rewardName ?? ""}" ที่คุณแลกไว้พร้อมส่งมอบ/รับได้แล้ว`,
     });

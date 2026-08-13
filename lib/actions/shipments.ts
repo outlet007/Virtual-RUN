@@ -108,6 +108,7 @@ export async function updateShipmentStatus(formData: FormData) {
     hasReachedShipped && currentStatus !== "shipped" && currentStatus !== "delivered";
   if (newlyShipped) {
     await notifyUser(registration.user_id, "shipment_shipped", {
+      dedupeKey: `shipment:${registrationId}:shipped`,
       subject: "เหรียญของคุณถูกจัดส่งแล้ว",
       text: `เหรียญของคุณถูกจัดส่งแล้วผ่าน ${carrier} เลขพัสดุ ${trackingNo}`,
     });
