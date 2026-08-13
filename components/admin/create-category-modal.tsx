@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { ColorField } from "@/components/admin/color-field";
 import { Button, Card, HeadingIcon, Input, Label } from "@/components/ui";
+import { useDialogFocus } from "@/components/use-dialog-focus";
 import { createContentCategory } from "@/lib/actions/content";
 import {
   DEFAULT_CATEGORY_BADGE_BACKGROUND_COLOR,
@@ -20,21 +21,27 @@ export function CreateCategoryModal({
 }) {
   const [open, setOpen] = useState(initialOpen);
   const [mounted, setMounted] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => setMounted(true), []);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  function closeModal() {
+    setOpen(false);
+  }
+
+  useDialogFocus({
+    open,
+    dialogRef,
+    initialFocusRef: closeRef,
+    returnFocusRef: triggerRef,
+    onClose: closeModal,
+  });
 
   return (
     <>
-      <Button type="button" icon="add" onClick={() => setOpen(true)}>
+      <Button ref={triggerRef} type="button" icon="add" onClick={() => setOpen(true)}>
         เพิ่มหมวดหมู่
       </Button>
 
@@ -43,10 +50,12 @@ export function CreateCategoryModal({
         createPortal(
           <div
             className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-2 backdrop-blur-sm sm:p-4"
-            onClick={() => setOpen(false)}
+            onClick={closeModal}
             role="presentation"
           >
             <div
+              ref={dialogRef}
+              tabIndex={-1}
               className="max-h-[calc(100vh-1rem)] w-full max-w-3xl overflow-y-auto sm:max-h-[calc(100vh-2rem)]"
               onClick={(event) => event.stopPropagation()}
               role="dialog"
@@ -66,8 +75,9 @@ export function CreateCategoryModal({
                       </p>
                     </div>
                     <button
+                      ref={closeRef}
                       type="button"
-                      onClick={() => setOpen(false)}
+                      onClick={closeModal}
                       className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl text-ink/40 transition hover:bg-lane/50 hover:text-ink"
                       aria-label="ปิดหน้าต่างเพิ่มหมวดหมู่"
                     >
@@ -115,7 +125,7 @@ export function CreateCategoryModal({
                   </label>
 
                   <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                    <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+                    <Button type="button" variant="ghost" onClick={closeModal}>
                       ยกเลิก
                     </Button>
                     <Button type="submit" icon="add">

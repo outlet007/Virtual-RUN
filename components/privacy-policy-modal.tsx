@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { Button, Card, HeadingIcon } from "@/components/ui";
+import { useDialogFocus } from "@/components/use-dialog-focus";
 import { tx, type Locale } from "@/lib/i18n/shared";
 
 export function PrivacyPolicyModal({
@@ -17,33 +18,21 @@ export function PrivacyPolicyModal({
   const [mounted, setMounted] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => setMounted(true), []);
 
-  useEffect(() => {
-    if (!open) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    closeRef.current?.focus();
-
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setOpen(false);
-        triggerRef.current?.focus();
-      }
-    }
-
-    window.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [open]);
-
   function closeModal() {
     setOpen(false);
-    triggerRef.current?.focus();
   }
+
+  useDialogFocus({
+    open,
+    dialogRef,
+    initialFocusRef: closeRef,
+    returnFocusRef: triggerRef,
+    onClose: closeModal,
+  });
 
   return (
     <>
@@ -65,6 +54,8 @@ export function PrivacyPolicyModal({
             role="presentation"
           >
             <div
+              ref={dialogRef}
+              tabIndex={-1}
               className="max-h-[calc(100vh-1.5rem)] w-full max-w-2xl overflow-y-auto sm:max-h-[calc(100vh-3rem)]"
               onClick={(event) => event.stopPropagation()}
               role="dialog"

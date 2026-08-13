@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { HeadingIcon, LinkButton } from "@/components/ui";
+import { useDialogFocus } from "@/components/use-dialog-focus";
 
 export function EditArticleModal({
   articleTitle,
@@ -20,25 +21,22 @@ export function EditArticleModal({
   const router = useRouter();
   const [open, setOpen] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => setMounted(true), []);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setOpen(false);
-        router.replace("/admin/articles?view=articles", { scroll: false });
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, router]);
 
   function closeModal() {
     setOpen(false);
     router.replace("/admin/articles?view=articles", { scroll: false });
   }
+
+  useDialogFocus({
+    open,
+    dialogRef,
+    initialFocusRef: closeRef,
+    onClose: closeModal,
+  });
 
   return (
     <>
@@ -51,6 +49,8 @@ export function EditArticleModal({
             role="presentation"
           >
             <div
+              ref={dialogRef}
+              tabIndex={-1}
               className="flex max-h-[calc(100vh-1rem)] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-paper shadow-2xl sm:max-h-[calc(100vh-2rem)]"
               onClick={(event) => event.stopPropagation()}
               role="dialog"
@@ -72,6 +72,7 @@ export function EditArticleModal({
                     </LinkButton>
                   )}
                   <button
+                    ref={closeRef}
                     type="button"
                     onClick={closeModal}
                     className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl text-ink/40 transition hover:bg-lane/50 hover:text-ink"

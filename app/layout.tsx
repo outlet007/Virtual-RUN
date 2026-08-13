@@ -72,7 +72,7 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} style={themeVars}>
-      <body className={`${notoSansThai.variable} font-sans`}>
+      <body className={`${notoSansThai.variable} overflow-x-clip font-sans`}>
         <SiteHeader
           siteName={siteName}
           logoUrl={settings.logo_url}

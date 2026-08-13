@@ -5,7 +5,7 @@ import { getLocale } from "@/lib/i18n/server";
 import { tx } from "@/lib/i18n/shared";
 
 const operationalTabs = [
-  { href: "/admin/registrations", label: "ผู้สมัคร" },
+  { href: "/admin/registrations", label: "สมาชิก" },
   { href: "/admin/submissions", label: "ตรวจผลวิ่ง" },
   { href: "/admin/payments", label: "การชำระเงิน" },
   { href: "/admin/shipments", label: "จัดส่งเหรียญ" },

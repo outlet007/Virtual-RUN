@@ -49,7 +49,7 @@ export default async function AdminRegistrationsPage({
         <div>
           <h2 className="flex items-center gap-2 font-display text-xl font-bold">
             <HeadingIcon name="users" />
-            จัดการผู้สมัคร
+            จัดการสมาชิก
           </h2>
           <p className="mt-1 text-sm text-ink/55">
             รายชื่อผู้ใช้งานทั้งหมดและประเภทบัญชีในระบบ Virtual RUN

@@ -74,16 +74,22 @@ function ButtonIcon({ name }: { name?: ButtonIconName }) {
   return <Icon className="size-4 shrink-0" aria-hidden="true" />;
 }
 
-export function Button({
-  className,
-  variant = "primary",
-  icon,
-  children,
-  ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "ink" | "ghost";
-  icon?: ButtonIconName;
-}) {
+export const Button = React.forwardRef<
+  HTMLButtonElement,
+  React.ButtonHTMLAttributes<HTMLButtonElement> & {
+    variant?: "primary" | "ink" | "ghost";
+    icon?: ButtonIconName;
+  }
+>(function Button(
+  {
+    className,
+    variant = "primary",
+    icon,
+    children,
+    ...props
+  },
+  ref,
+) {
   const styles = {
     primary: "bg-primary text-ink hover:bg-primary-hover",
     ink: "bg-ink text-paper hover:bg-ink/90",
@@ -91,6 +97,7 @@ export function Button({
   }[variant];
   return (
     <button
+      ref={ref}
       className={cn(
         "inline-flex min-h-11 max-w-full items-center justify-center gap-2 rounded-xl px-5 py-2 text-center text-sm font-semibold leading-snug transition disabled:opacity-50",
         styles,
@@ -102,7 +109,7 @@ export function Button({
       {children}
     </button>
   );
-}
+});
 
 export function LinkButton({
   className,
