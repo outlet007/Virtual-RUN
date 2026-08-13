@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { isEventRegistrationOpen } from "@/lib/event-registration";
+import { getRegistrationErrorMessage } from "@/lib/registration-errors";
 
 export async function registerForEvent(formData: FormData) {
   const packageId = String(formData.get("package_id") ?? "");
@@ -14,76 +14,45 @@ export async function registerForEvent(formData: FormData) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // ดึงข้อมูลแพ็กเกจ + งาน
+  // ใช้ event_id สำหรับ redirect เท่านั้น; RPC จะตรวจแพ็กเกจ ราคา และสถานะงานซ้ำใน transaction
   const { data: pkg } = await supabase
     .from("packages")
-    .select("id, event_id, price, has_physical_medal, events(pricing, status, end_date)")
+    .select("event_id")
     .eq("id", packageId)
     .single();
+  if (!pkg) redirect("/?error=" + encodeURIComponent("ไม่พบแพ็กเกจ"));
 
-  if (!pkg) {
-    redirect("/?error=" + encodeURIComponent("ไม่พบแพ็กเกจ"));
-  }
+  const shipping = {
+    recipient: String(formData.get("recipient") ?? ""),
+    phone: String(formData.get("phone") ?? ""),
+    address: String(formData.get("address") ?? ""),
+    province: String(formData.get("province") ?? ""),
+    postal_code: String(formData.get("postal_code") ?? ""),
+  };
 
-  const eventData = Array.isArray(pkg.events) ? pkg.events[0] ?? null : pkg.events;
-  if (!eventData || !isEventRegistrationOpen(eventData)) {
-    redirect(
-      `/events/${pkg.event_id}?error=${encodeURIComponent("งานนี้สิ้นสุดแล้วและไม่เปิดรับสมัคร")}`,
-    );
-  }
-
-  // ที่อยู่จัดส่ง (เฉพาะแพ็กเกจที่มีเหรียญกายภาพ)
-  let shipping = null;
-  if (pkg.has_physical_medal) {
-    shipping = {
-      recipient: String(formData.get("recipient") ?? ""),
-      phone: String(formData.get("phone") ?? ""),
-      address: String(formData.get("address") ?? ""),
-      province: String(formData.get("province") ?? ""),
-      postal_code: String(formData.get("postal_code") ?? ""),
-    };
-  }
-
-  // งานฟรี → confirmed ทันที + ออก BIB | งานเสียเงิน → pending (Phase 4 ต่อ payment)
-  const eventPricing = eventData.pricing;
-  const isFree = eventPricing === "free" || Number(pkg.price) === 0;
-
-  const { data: reg, error } = await supabase
-    .from("registrations")
-    .insert({
-      user_id: user.id,
-      package_id: pkg.id,
-      event_id: pkg.event_id,
-      shipping_address: shipping,
-      status: isFree ? "confirmed" : "pending",
+  const result = await supabase
+    .rpc("register_for_event", {
+      p_package_id: packageId,
+      p_shipping_address: shipping,
     })
-    .select("id")
     .single();
 
-  if (error) {
-    const msg =
-      error.code === "23505"
-        ? "คุณลงทะเบียนแพ็กเกจนี้ไปแล้ว"
-        : error.code === "23514"
-          ? "งานนี้สิ้นสุดแล้วและไม่เปิดรับสมัคร"
-        : error.message;
+  if (result.error) {
+    const msg = getRegistrationErrorMessage(result.error);
     redirect(`/events/${pkg.event_id}?error=${encodeURIComponent(msg)}`);
   }
 
+  const registration = result.data as {
+    registration_id: string;
+    requires_payment: boolean;
+  } | null;
+  if (!registration) redirect("/?error=" + encodeURIComponent("ไม่สามารถสร้างใบสมัครได้"));
+
   revalidatePath("/dashboard");
 
-  if (isFree) {
+  if (!registration.requires_payment) {
     redirect("/dashboard?welcome=1");
   }
 
-  // งานเสียเงิน → สร้างรายการชำระเงินรอ admin ยืนยัน (gen QR เอง ไม่มี payment gateway)
-  await supabase.from("payments").insert({
-    registration_id: reg!.id,
-    amount: pkg.price,
-    method: "promptpay",
-    status: "pending",
-    charge_ref: `VR-${reg!.id.slice(0, 8)}`,
-  });
-
-  redirect(`/dashboard/pay/${reg!.id}`);
+  redirect(`/dashboard/pay/${registration.registration_id}`);
 }
