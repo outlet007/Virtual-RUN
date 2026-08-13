@@ -122,6 +122,7 @@ export default async function RootLayout({
           enabled={settings.cookie_consent_enabled}
           messageHtml={sanitizeCookieConsentHtml(pickLocalized(locale, settings.cookie_consent_message, settings.cookie_consent_message_en))}
           policyUrl={settings.cookie_policy_url}
+          policyLinkLabel={tx(locale, "ที่นี่", "here")}
           buttonLabel={pickLocalized(locale, settings.cookie_consent_button_label, settings.cookie_consent_button_label_en)}
         />
       </body>

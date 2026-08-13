@@ -9,11 +9,13 @@ export function CookieConsent({
   enabled,
   messageHtml,
   policyUrl,
+  policyLinkLabel,
   buttonLabel,
 }: {
   enabled: boolean;
   messageHtml: string;
   policyUrl: string;
+  policyLinkLabel: string;
   buttonLabel: string;
 }) {
   const [visible, setVisible] = useState(false);
@@ -53,7 +55,7 @@ export function CookieConsent({
           />{" "}
           {policyUrl && (
             <a href={policyUrl} className="font-semibold text-primary underline underline-offset-2">
-              ที่นี่
+              {policyLinkLabel}
             </a>
           )}
         </div>

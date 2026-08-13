@@ -2,29 +2,33 @@
 -- รันหลัง migration: events + packages (เปิดให้ลงทะเบียนได้)
 
 with e1 as (
-  insert into public.events (title, description, pricing, start_date, end_date, status)
+  insert into public.events (title, description, title_en, description_en, pricing, start_date, end_date, status)
   values (
     'Sunrise Virtual Run 2026',
     'วิ่งรับอรุณสะสมระยะตลอดเดือน วิ่งที่ไหนเมื่อไหร่ก็ได้ ครบระยะรับเหรียญ',
+    'Sunrise Virtual Run 2026',
+    'Accumulate distance at sunrise throughout the month. Run anywhere, anytime, and earn a medal when you reach your target.',
     'free', '2026-08-01', '2026-08-31', 'open'
   ) returning id
 )
-insert into public.packages (event_id, name, target_distance_km, price, has_physical_medal)
-select id, '10K Challenge', 10, 0, false from e1
+insert into public.packages (event_id, name, name_en, target_distance_km, price, has_physical_medal)
+select id, '10K Challenge', '10K Challenge', 10, 0, false from e1
 union all
-select id, '42K Challenge', 42, 0, true from e1
+select id, '42K Challenge', '42K Challenge', 42, 0, true from e1
 union all
-select id, '100K Collector', 100, 0, true from e1;
+select id, '100K Collector', '100K Collector', 100, 0, true from e1;
 
 with e2 as (
-  insert into public.events (title, description, pricing, start_date, end_date, status)
+  insert into public.events (title, description, title_en, description_en, pricing, start_date, end_date, status)
   values (
     'Bangkok Night Walk',
     'เดินสะสมระยะยามค่ำ เหมาะสำหรับสายเดินและเริ่มต้นออกกำลังกาย',
+    'Bangkok Night Walk',
+    'Build up your distance with evening walks, ideal for walkers and anyone starting an exercise routine.',
     'paid', '2026-09-01', '2026-09-30', 'open'
   ) returning id
 )
-insert into public.packages (event_id, name, target_distance_km, price, has_physical_medal)
-select id, 'Walk 30K', 30, 250, true from e2
+insert into public.packages (event_id, name, name_en, target_distance_km, price, has_physical_medal)
+select id, 'Walk 30K', 'Walk 30K', 30, 250, true from e2
 union all
-select id, 'Walk 60K', 60, 350, true from e2;
+select id, 'Walk 60K', 'Walk 60K', 60, 350, true from e2;
