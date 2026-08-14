@@ -14,7 +14,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isValidBibPrefix, normalizeBibPrefix } from "@/lib/bib";
 import {
   awardForApprovedSubmission,
-  revokeApprovedSubmissionPoints,
 } from "@/lib/gamification";
 import { notifyUser } from "@/lib/notifications";
 import { readRunEvidence } from "@/lib/ocr/run-evidence";
@@ -23,6 +22,15 @@ import {
   sanitizeCookieConsentHtml,
 } from "@/lib/cookie-consent-html";
 import { CONTENT_BACKGROUND_DISPLAYS } from "@/lib/system-settings";
+
+type GuardedReviewResult = {
+  submission_id: string;
+  previous_status: string;
+  submission_status: string;
+  registration_id: string;
+  user_id: string;
+  distance_km: number;
+};
 
 function err(path: string, message: string): never {
   const separator = path.includes("?") ? "&" : "?";
@@ -496,11 +504,12 @@ export async function reprocessSubmissionOcr(formData: FormData) {
 }
 
 export async function reviewSubmission(formData: FormData) {
-  await requireAdmin();
+  const { user: reviewer } = await requireAdmin();
   const db = createAdminClient();
 
   const id = String(formData.get("id") ?? "");
   const decision = String(formData.get("decision") ?? "");
+  const reviewNote = String(formData.get("review_note") ?? "").trim();
 
   if (
     !id ||
@@ -515,38 +524,31 @@ export async function reviewSubmission(formData: FormData) {
         ? "rejected"
         : "pending";
 
-  const { data: previousSubmission, error: previousError } = await db
-    .from("submissions")
-    .select("status, registration_id, user_id, distance_km")
-    .eq("id", id)
+  const { data: submissionRaw, error } = await db
+    .rpc("review_submission_guarded", {
+      p_submission_id: id,
+      p_reviewer_id: reviewer.id,
+      p_status: status,
+      p_review_note: reviewNote || null,
+    })
     .single();
-  if (previousError) err("/admin/submissions", previousError.message);
-
-  const { data: submission, error } = await db
-    .from("submissions")
-    .update({ status })
-    .eq("id", id)
-    .select("registration_id, user_id, distance_km")
-    .single();
+  if (error?.message === "duplicate_approval_reason_required") {
+    err(
+      "/admin/submissions",
+      "การอนุมัติหลักฐานซ้ำแบบ normalized/perceptual ต้องระบุเหตุผลอย่างน้อย 10 ตัวอักษร",
+    );
+  }
   if (error) err("/admin/submissions", error.message);
+  const submission = submissionRaw as GuardedReviewResult | null;
+  if (!submission) err("/admin/submissions", "ไม่พบผลการตรวจที่บันทึก");
 
   if (
     status === "approved" &&
-    previousSubmission.status !== "approved" &&
+    submission.previous_status !== "approved" &&
     submission
   ) {
     await awardForApprovedSubmission(
       submission.registration_id,
-      submission.user_id,
-      Number(submission.distance_km),
-      id,
-    );
-  } else if (
-    previousSubmission.status === "approved" &&
-    status !== "approved" &&
-    submission
-  ) {
-    await revokeApprovedSubmissionPoints(
       submission.user_id,
       Number(submission.distance_km),
       id,

@@ -9,7 +9,7 @@ import {
   Search,
 } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Card, Badge, Button, HeadingIcon, Input, Select } from "@/components/ui";
+import { Card, Badge, Button, HeadingIcon, Input, Select, Textarea } from "@/components/ui";
 import { EvidenceLightbox } from "@/components/admin/evidence-lightbox";
 import { formatKm } from "@/lib/utils";
 import { reprocessSubmissionOcr, reviewSubmission } from "@/lib/actions/admin";
@@ -31,9 +31,10 @@ type SubRow = {
   ocr_status: string;
   ocr_distance_km: number | null;
   ocr_confidence: number | null;
-  duplicate_match_type: "exact" | "normalized" | "perceptual" | null;
+  duplicate_match_type: "exact" | "normalized" | "perceptual" | "activity" | null;
   duplicate_match_submission_id: string | null;
   duplicate_similarity_distance: number | null;
+  review_note: string | null;
   flag_reason: SubmissionFlagReason[];
   status: string;
   source: string;
@@ -106,6 +107,7 @@ const duplicateMatchLabel: Record<string, string> = {
   exact: "ไฟล์ตรงกันทั้งหมด",
   normalized: "ภาพหลัง normalize ตรงกัน",
   perceptual: "ภาพมีลักษณะใกล้เคียงกัน",
+  activity: "ข้อมูลกิจกรรมวัน ระยะ และเวลาตรงกับรายการเดิม",
 };
 
 function formatDuration(totalSeconds: number) {
@@ -177,7 +179,7 @@ export default async function AdminSubmissionsPage({
   let query = db
     .from("submissions")
     .select(
-      "id, distance_km, duration_sec, activity_type, activity_date, evidence_url, ocr_status, ocr_distance_km, ocr_confidence, duplicate_match_type, duplicate_match_submission_id, duplicate_similarity_distance, flag_reason, status, source, users(name, email), registrations(packages(name), events(title))",
+      "id, distance_km, duration_sec, activity_type, activity_date, evidence_url, ocr_status, ocr_distance_km, ocr_confidence, duplicate_match_type, duplicate_match_submission_id, duplicate_similarity_distance, review_note, flag_reason, status, source, users(name, email), registrations(packages(name), events(title))",
     )
     .order("activity_date", { ascending: false });
 
@@ -494,7 +496,7 @@ export default async function AdminSubmissionsPage({
                 </summary>
                 <form
                   action={reviewSubmission}
-                  className="mt-3 flex flex-col gap-3 rounded-xl bg-lane/30 p-3 sm:flex-row sm:items-end"
+                  className="mt-3 grid gap-3 rounded-xl bg-lane/30 p-3 md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)_auto] md:items-end"
                 >
                   <input type="hidden" name="id" value={s.id} />
                   <div className="w-full sm:max-w-xs">
@@ -515,6 +517,25 @@ export default async function AdminSubmissionsPage({
                       <option value="approve">อนุมัติแล้ว</option>
                       <option value="reject">ปฏิเสธแล้ว</option>
                     </Select>
+                  </div>
+                  <div className="w-full">
+                    <label className="mb-1.5 block text-sm font-medium text-ink/70">
+                      เหตุผลการตรวจ
+                    </label>
+                    <Textarea
+                      name="review_note"
+                      rows={2}
+                      minLength={10}
+                      maxLength={2000}
+                      defaultValue={s.review_note ?? ""}
+                      placeholder="ระบุเหตุผลประกอบการอนุมัติหรือปฏิเสธ"
+                    />
+                    {s.duplicate_match_type &&
+                      ["normalized", "perceptual"].includes(s.duplicate_match_type) && (
+                        <p className="mt-1 text-xs font-medium text-amber-700">
+                          ต้องกรอกอย่างน้อย 10 ตัวอักษรก่อนอนุมัติรายการนี้
+                        </p>
+                      )}
                   </div>
                   <Button type="submit" icon="save">บันทึกสถานะ</Button>
                 </form>

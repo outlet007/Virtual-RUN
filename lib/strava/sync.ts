@@ -3,6 +3,7 @@ import { evaluateSubmissionRules } from "@/lib/rules";
 import { getBangkokActivityDate, loadSubmissionRuleRuntime } from "@/lib/submission-rule-context";
 import { refreshAccessToken, type StravaActivity } from "@/lib/strava/api";
 import { awardForApprovedSubmission } from "@/lib/gamification";
+import { createActivityFingerprint } from "@/lib/submission-integrity";
 
 type StravaConnection = {
   id: string;
@@ -47,6 +48,11 @@ type RegistrationMatch = {
   events: { start_date: string; end_date: string } | null;
 };
 
+type GuardedSubmissionResult = {
+  submission_id: string;
+  submission_status: "approved" | "flagged";
+};
+
 // จับคู่กิจกรรมกับ registration ที่ confirmed + อยู่ในช่วงวันงาน + ประเภทตรงกัน
 // ตรงกันพอดี 1 ใบ → สร้าง submission เลย, ไม่ตรงเลย/ตรงมากกว่า 1 → พักไว้ให้ user เลือกเอง
 export async function syncActivityForUser(userId: string, activity: StravaActivity) {
@@ -86,23 +92,26 @@ export async function syncActivityForUser(userId: string, activity: StravaActivi
       eventEndDate: registration.events!.end_date,
       ...ruleRuntime,
     });
-    const status = ruleResult.status;
-    const { data: submission, error } = await db
-      .from("submissions")
-      .insert({
-        registration_id: registration.id,
-        user_id: userId,
-        source: "strava",
-        activity_type: activityType,
-        distance_km: distanceKm,
-        duration_sec: durationSec,
-        activity_date: activityDate.toISOString(),
-        activity_local_date: activityDateStr,
-        flag_reason: ruleResult.reasons,
-        strava_activity_id: String(activity.id),
-        status,
+    const activityFingerprint = createActivityFingerprint({
+      activityType,
+      activityDate: activityDateStr,
+      distanceKm,
+      durationSec,
+    });
+    const { data: submissionRaw, error } = await db
+      .rpc("create_guarded_submission", {
+        p_registration_id: registration.id,
+        p_user_id: userId,
+        p_source: "strava",
+        p_activity_type: activityType,
+        p_distance_km: distanceKm,
+        p_duration_sec: durationSec,
+        p_activity_date: activityDate.toISOString(),
+        p_activity_local_date: activityDateStr,
+        p_flag_reason: ruleResult.reasons,
+        p_activity_fingerprint: activityFingerprint,
+        p_strava_activity_id: String(activity.id),
       })
-      .select("id")
       .single();
 
     if (error) {
@@ -111,8 +120,16 @@ export async function syncActivityForUser(userId: string, activity: StravaActivi
       return;
     }
 
+    const submission = submissionRaw as GuardedSubmissionResult | null;
+    if (!submission) throw new Error("guarded_submission_returned_no_row");
+    const status = submission.submission_status;
     if (status === "approved") {
-      await awardForApprovedSubmission(registration.id, userId, distanceKm, submission.id);
+      await awardForApprovedSubmission(
+        registration.id,
+        userId,
+        distanceKm,
+        submission.submission_id,
+      );
     }
     return;
   }

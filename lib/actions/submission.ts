@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { evaluateSubmissionRules } from "@/lib/rules";
@@ -9,16 +10,20 @@ import { loadSubmissionRuleRuntime } from "@/lib/submission-rule-context";
 import { awardForApprovedSubmission } from "@/lib/gamification";
 import { isValidActivityDate } from "@/lib/submission-input";
 import { readRunEvidence } from "@/lib/ocr/run-evidence";
+import { prepareEvidenceImage } from "@/lib/evidence-fingerprint";
 import {
-  createEvidenceFingerprint,
-  DEFAULT_PHASH_DISTANCE_THRESHOLD,
-} from "@/lib/evidence-fingerprint";
+  createActivityFingerprint,
+  getSubmissionClientIpHash,
+  isDuplicateEvidenceError,
+  type SubmissionActivityType,
+} from "@/lib/submission-integrity";
 
-const EVIDENCE_TYPES = {
-  "image/png": "png",
-  "image/jpeg": "jpg",
-  "image/webp": "webp",
-} as const;
+const EVIDENCE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
+
+type GuardedSubmissionResult = {
+  submission_id: string;
+  submission_status: "approved" | "flagged";
+};
 
 export async function createSubmission(formData: FormData) {
   const supabase = await createClient();
@@ -52,6 +57,7 @@ export async function createSubmission(formData: FormData) {
 
   if (
     !registrationId ||
+    (activityType !== "run" && activityType !== "walk") ||
     !Number.isFinite(distanceKm) ||
     distanceKm <= 0 ||
     !isValidActivityDate(activityDate) ||
@@ -70,8 +76,7 @@ export async function createSubmission(formData: FormData) {
     );
   }
 
-  const extension = EVIDENCE_TYPES[evidenceFile.type as keyof typeof EVIDENCE_TYPES];
-  if (!extension || evidenceFile.size > 5 * 1024 * 1024) {
+  if (!EVIDENCE_TYPES.has(evidenceFile.type) || evidenceFile.size > 5 * 1024 * 1024) {
     redirect(
       "/dashboard/submit?error=" +
         encodeURIComponent("รองรับเฉพาะไฟล์ PNG, JPG หรือ WebP ขนาดไม่เกิน 5 MB"),
@@ -102,6 +107,27 @@ export async function createSubmission(formData: FormData) {
   }
 
   const db = createAdminClient();
+  const requestHeaders = await headers();
+  const { data: rateLimitResult, error: rateLimitError } = await db.rpc(
+    "consume_submission_rate_limit",
+    {
+      p_user_id: user.id,
+      p_ip_hash: getSubmissionClientIpHash(requestHeaders, user.id),
+    },
+  );
+  if (rateLimitError) {
+    redirect(
+      "/dashboard/submit?error=" +
+        encodeURIComponent("ตรวจสอบขีดจำกัดการส่งผลไม่สำเร็จ กรุณาลองอีกครั้ง"),
+    );
+  }
+  if (rateLimitResult !== "allowed") {
+    redirect(
+      "/dashboard/submit?error=" +
+        encodeURIComponent("ส่งผลถี่เกินไป กรุณารอ 10 นาทีแล้วลองอีกครั้ง"),
+    );
+  }
+
   let ruleRuntime;
   try {
     ruleRuntime = await loadSubmissionRuleRuntime(db, registrationId, activityDate);
@@ -122,15 +148,16 @@ export async function createSubmission(formData: FormData) {
   });
 
   const imageBuffer = Buffer.from(await evidenceFile.arrayBuffer());
-  let fingerprint;
+  let preparedEvidence;
   try {
-    fingerprint = await createEvidenceFingerprint(imageBuffer);
+    preparedEvidence = await prepareEvidenceImage(imageBuffer);
   } catch {
     redirect(
       "/dashboard/submit?error=" +
         encodeURIComponent("ไฟล์หลักฐานเสียหายหรือไม่ใช่รูปภาพที่รองรับ"),
     );
   }
+  const { fingerprint } = preparedEvidence;
 
   const { data: exactDuplicate, error: exactDuplicateError } = await db
     .from("submissions")
@@ -162,86 +189,65 @@ export async function createSubmission(formData: FormData) {
         encodeURIComponent("ตรวจสอบหลักฐานซ้ำไม่สำเร็จ กรุณาลองอีกครั้ง"),
     );
   }
-
-  let duplicateMatch:
-    | { type: "normalized" | "perceptual"; submissionId: string; distance: number }
-    | null = normalizedDuplicate
-    ? { type: "normalized", submissionId: normalizedDuplicate.id, distance: 0 }
-    : null;
-
-  if (!duplicateMatch) {
-    const { data: nearMatches, error: nearMatchError } = await db.rpc(
-      "find_near_duplicate_evidence",
-      {
-        candidate_phash: fingerprint.phash,
-        max_distance: DEFAULT_PHASH_DISTANCE_THRESHOLD,
-      },
+  if (normalizedDuplicate) {
+    redirect(
+      "/dashboard/submit?error=" +
+        encodeURIComponent("รูปหลักฐานนี้เคยใช้บันทึกผลแล้ว แม้ข้อมูลไฟล์จะถูกเปลี่ยน"),
     );
-    if (nearMatchError) {
-      redirect(
-        "/dashboard/submit?error=" +
-          encodeURIComponent("ตรวจสอบความคล้ายของหลักฐานไม่สำเร็จ กรุณาลองอีกครั้ง"),
-      );
-    }
-    const nearest = (nearMatches as { submission_id: string; distance: number }[] | null)?.[0];
-    if (nearest) {
-      duplicateMatch = {
-        type: "perceptual",
-        submissionId: nearest.submission_id,
-        distance: nearest.distance,
-      };
-    }
   }
 
-  const ocr = await readRunEvidence(imageBuffer, extension, distanceKm);
+  const ocr = await readRunEvidence(
+    preparedEvidence.storageBuffer,
+    preparedEvidence.storageExtension,
+    distanceKm,
+  );
 
-  // อัปโหลดรูปหลักฐานเข้า storage — เก็บแค่ path ในตาราง (bucket เป็น private)
-  const path = `${user.id}/${crypto.randomUUID()}.${extension}`;
+  // Store only the decoded/re-encoded image in the private bucket.
+  const path = `${user.id}/${crypto.randomUUID()}.${preparedEvidence.storageExtension}`;
   const { error: uploadError } = await supabase.storage
     .from("run-evidence")
-    .upload(path, evidenceFile, { contentType: evidenceFile.type });
+    .upload(path, preparedEvidence.storageBuffer, {
+      contentType: preparedEvidence.storageContentType,
+    });
 
   if (uploadError) {
     redirect("/dashboard/submit?error=" + encodeURIComponent(uploadError.message));
   }
   const evidencePath = path;
+  const activityFingerprint = createActivityFingerprint({
+    activityType: activityType as SubmissionActivityType,
+    activityDate,
+    distanceKm,
+    durationSec,
+  });
 
-  const status = !duplicateMatch && ocr.status === "matched" && ruleResult.status === "approved"
-    ? "approved"
-    : "flagged";
-
-  const { data: submission, error } = await db
-    .from("submissions")
-    .insert({
-      registration_id: registrationId,
-      user_id: user.id,
-      source: "upload",
-      activity_type: activityType,
-      distance_km: distanceKm,
-      duration_sec: durationSec,
-      activity_date: new Date(`${activityDate}T00:00:00+07:00`).toISOString(),
-      activity_local_date: activityDate,
-      flag_reason: ruleResult.reasons,
-      evidence_url: evidencePath,
-      evidence_sha256: fingerprint.sha256,
-      normalized_sha256: fingerprint.normalizedSha256,
-      evidence_phash: fingerprint.phash,
-      duplicate_match_type: duplicateMatch?.type ?? null,
-      duplicate_match_submission_id: duplicateMatch?.submissionId ?? null,
-      duplicate_similarity_distance: duplicateMatch?.distance ?? null,
-      ocr_status: ocr.status,
-      ocr_distance_km: ocr.distanceKm,
-      ocr_confidence: ocr.confidence,
-      ocr_raw_text: ocr.rawText,
-      ocr_processed_at: new Date().toISOString(),
-      status,
+  const { data: submissionRaw, error } = await db
+    .rpc("create_guarded_submission", {
+      p_registration_id: registrationId,
+      p_user_id: user.id,
+      p_source: "upload",
+      p_activity_type: activityType,
+      p_distance_km: distanceKm,
+      p_duration_sec: durationSec,
+      p_activity_date: new Date(`${activityDate}T00:00:00+07:00`).toISOString(),
+      p_activity_local_date: activityDate,
+      p_flag_reason: ruleResult.reasons,
+      p_activity_fingerprint: activityFingerprint,
+      p_evidence_url: evidencePath,
+      p_evidence_sha256: fingerprint.sha256,
+      p_normalized_sha256: fingerprint.normalizedSha256,
+      p_evidence_phash: fingerprint.phash,
+      p_ocr_status: ocr.status,
+      p_ocr_distance_km: ocr.distanceKm,
+      p_ocr_confidence: ocr.confidence,
+      p_ocr_raw_text: ocr.rawText,
+      p_ocr_processed_at: new Date().toISOString(),
     })
-    .select("id")
     .single();
 
   if (error) {
     await db.storage.from("run-evidence").remove([evidencePath]);
-    if (error.code === "23505") {
+    if (isDuplicateEvidenceError(error)) {
       redirect(
         "/dashboard/submit?error=" +
           encodeURIComponent("รูปหลักฐานนี้เคยใช้บันทึกผลแล้ว"),
@@ -250,8 +256,22 @@ export async function createSubmission(formData: FormData) {
     redirect("/dashboard/submit?error=" + encodeURIComponent(error.message));
   }
 
+  const submission = submissionRaw as GuardedSubmissionResult | null;
+  if (!submission) {
+    await db.storage.from("run-evidence").remove([evidencePath]);
+    redirect(
+      "/dashboard/submit?error=" +
+        encodeURIComponent("บันทึกผลไม่สำเร็จ กรุณาลองอีกครั้ง"),
+    );
+  }
+  const status = submission.submission_status;
   if (status === "approved") {
-    await awardForApprovedSubmission(registrationId, user.id, distanceKm, submission!.id);
+    await awardForApprovedSubmission(
+      registrationId,
+      user.id,
+      distanceKm,
+      submission.submission_id,
+    );
   }
 
   revalidatePath("/dashboard");

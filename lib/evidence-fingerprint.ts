@@ -5,6 +5,9 @@ const NORMALIZED_SIZE = 512;
 const PHASH_SAMPLE_SIZE = 32;
 const PHASH_LOW_FREQUENCY_SIZE = 8;
 const MAX_INPUT_PIXELS = 40_000_000;
+const MAX_STORED_DIMENSION = 4096;
+const MAX_STORED_BYTES = 5 * 1024 * 1024;
+const ALLOWED_IMAGE_FORMATS = new Set(["jpeg", "png", "webp"]);
 const DCT_COSINES = Array.from(
   { length: PHASH_LOW_FREQUENCY_SIZE },
   (_, frequency) =>
@@ -25,6 +28,13 @@ export type EvidenceFingerprint = {
 
 export type EvidenceFingerprintCandidate = EvidenceFingerprint & {
   id: string;
+};
+
+export type PreparedEvidenceImage = {
+  fingerprint: EvidenceFingerprint;
+  storageBuffer: Buffer;
+  storageExtension: "jpg";
+  storageContentType: "image/jpeg";
 };
 
 export type EvidenceDuplicateMatch = {
@@ -159,5 +169,50 @@ export async function createEvidenceFingerprint(
     sha256: sha256(imageBuffer),
     normalizedSha256: sha256(normalizedPixels),
     phash: calculatePerceptualHash(perceptualPixels),
+  };
+}
+
+export async function prepareEvidenceImage(
+  imageBuffer: Buffer,
+): Promise<PreparedEvidenceImage> {
+  const inputOptions = {
+    failOn: "warning" as const,
+    limitInputPixels: MAX_INPUT_PIXELS,
+    pages: 1,
+  };
+  const metadata = await sharp(imageBuffer, inputOptions).metadata();
+  if (
+    !metadata.format ||
+    !ALLOWED_IMAGE_FORMATS.has(metadata.format) ||
+    !metadata.width ||
+    !metadata.height
+  ) {
+    throw new Error("Unsupported evidence image format");
+  }
+
+  const [fingerprint, storageBuffer] = await Promise.all([
+    createEvidenceFingerprint(imageBuffer),
+    sharp(imageBuffer, inputOptions)
+      .autoOrient()
+      .flatten({ background: "#ffffff" })
+      .toColourspace("srgb")
+      .resize(MAX_STORED_DIMENSION, MAX_STORED_DIMENSION, {
+        fit: "inside",
+        withoutEnlargement: true,
+        kernel: sharp.kernel.lanczos3,
+      })
+      .jpeg({ quality: 90, mozjpeg: true })
+      .toBuffer(),
+  ]);
+
+  if (storageBuffer.length > MAX_STORED_BYTES) {
+    throw new Error("Prepared evidence image exceeds storage limit");
+  }
+
+  return {
+    fingerprint,
+    storageBuffer,
+    storageExtension: "jpg",
+    storageContentType: "image/jpeg",
   };
 }

@@ -5,6 +5,7 @@ import {
   createEvidenceFingerprint,
   detectEvidenceDuplicate,
   hammingDistanceHex,
+  prepareEvidenceImage,
 } from "../lib/evidence-fingerprint.ts";
 
 async function createBaseImage() {
@@ -123,4 +124,19 @@ test("unrelated images are not flagged as perceptual duplicates", async () => {
     ]),
     null,
   );
+});
+
+test("prepared evidence is decoded and re-encoded as metadata-free JPEG", async () => {
+  const original = await sharp(await createBaseImage())
+    .withMetadata({ comment: "must not survive storage preparation" })
+    .png()
+    .toBuffer();
+  const prepared = await prepareEvidenceImage(original);
+  const metadata = await sharp(prepared.storageBuffer).metadata();
+
+  assert.equal(prepared.storageContentType, "image/jpeg");
+  assert.equal(prepared.storageExtension, "jpg");
+  assert.equal(metadata.format, "jpeg");
+  assert.equal(metadata.comments, undefined);
+  assert.match(prepared.fingerprint.sha256, /^[0-9a-f]{64}$/);
 });

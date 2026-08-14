@@ -7,6 +7,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { evaluateSubmissionRules } from "@/lib/rules";
 import { getBangkokActivityDate, loadSubmissionRuleRuntime } from "@/lib/submission-rule-context";
 import { awardForApprovedSubmission } from "@/lib/gamification";
+import { createActivityFingerprint } from "@/lib/submission-integrity";
+
+type GuardedSubmissionResult = {
+  submission_id: string;
+  submission_status: "approved" | "flagged";
+};
 
 export async function disconnectStrava() {
   const supabase = await createClient();
@@ -72,35 +78,43 @@ export async function assignPendingActivity(formData: FormData) {
     eventEndDate: registrationEvent.end_date,
     ...ruleRuntime,
   });
-  const status = ruleResult.status;
-  const { data: submission, error } = await db
-    .from("submissions")
-    .insert({
-      registration_id: registrationId,
-      user_id: user.id,
-      source: "strava",
-      activity_type: pending!.activity_type,
-      distance_km: pending!.distance_km,
-      duration_sec: pending!.duration_sec,
-      activity_date: pending.activity_date,
-      activity_local_date: activityLocalDate,
-      flag_reason: ruleResult.reasons,
-      strava_activity_id: pending!.strava_activity_id,
-      status,
+  const activityFingerprint = createActivityFingerprint({
+    activityType: pending.activity_type as "run" | "walk",
+    activityDate: activityLocalDate,
+    distanceKm: Number(pending.distance_km),
+    durationSec: Number(pending.duration_sec),
+  });
+  const { data: submissionRaw, error } = await db
+    .rpc("create_guarded_submission", {
+      p_registration_id: registrationId,
+      p_user_id: user.id,
+      p_source: "strava",
+      p_activity_type: pending.activity_type,
+      p_distance_km: pending.distance_km,
+      p_duration_sec: pending.duration_sec,
+      p_activity_date: pending.activity_date,
+      p_activity_local_date: activityLocalDate,
+      p_flag_reason: ruleResult.reasons,
+      p_activity_fingerprint: activityFingerprint,
+      p_strava_activity_id: pending.strava_activity_id,
     })
-    .select("id")
     .single();
 
   if (error) {
     redirect("/dashboard?error=" + encodeURIComponent(error.message));
   }
 
+  const submission = submissionRaw as GuardedSubmissionResult | null;
+  if (!submission) {
+    redirect("/dashboard?error=" + encodeURIComponent("บันทึกกิจกรรมไม่สำเร็จ"));
+  }
+  const status = submission.submission_status;
   if (status === "approved") {
     await awardForApprovedSubmission(
       registrationId,
       user.id,
       Number(pending.distance_km),
-      submission.id,
+      submission.submission_id,
     );
   }
 
