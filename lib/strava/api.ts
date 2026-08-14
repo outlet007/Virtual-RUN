@@ -1,3 +1,5 @@
+import "server-only";
+
 const STRAVA_OAUTH_URL = "https://www.strava.com/oauth/token";
 const STRAVA_API_URL = "https://www.strava.com/api/v3";
 

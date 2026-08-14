@@ -1,3 +1,5 @@
+import "server-only";
+
 import nodemailer from "nodemailer";
 
 let transporter: ReturnType<typeof nodemailer.createTransport> | null = null;

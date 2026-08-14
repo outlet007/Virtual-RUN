@@ -1,3 +1,5 @@
+import "server-only";
+
 // LINE Messaging API ใช้ channel access token ตัวเดียวของแอป (ไม่ใช่ token ต่อ user แบบ Strava)
 // ส่งหาใครก็ได้ที่รู้ line_user_id + เคยเพิ่มเพื่อน OA แล้วเท่านั้น
 export async function sendLineMessage(lineUserId: string, text: string) {

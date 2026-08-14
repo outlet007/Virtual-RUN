@@ -8,7 +8,8 @@ export async function updateSession(request: NextRequest) {
     // SUPABASE_URL (server-only) ให้ override ได้ตอนรันใน Docker — ฝั่ง container
     // ต้องเรียก Supabase ผ่าน host.docker.internal ไม่ใช่ 127.0.0.1 แบบฝั่ง browser
     process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         getAll() {

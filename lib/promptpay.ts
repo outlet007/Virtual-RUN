@@ -1,3 +1,5 @@
+import "server-only";
+
 import generatePayload from "promptpay-qr";
 import QRCode from "qrcode";
 
