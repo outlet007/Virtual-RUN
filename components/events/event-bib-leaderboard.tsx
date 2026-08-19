@@ -51,7 +51,7 @@ export function EventBibLeaderboard({
                 <span className="min-w-0 flex-1 truncate font-mono font-semibold tnum">
                   {row.bibNumber ? `BIB ${row.bibNumber}` : tx(locale, "ยังไม่มีเลข BIB", "No BIB number yet")}
                 </span>
-                <strong className="shrink-0 font-mono text-sm text-primary-dark tnum">
+                <strong className="shrink-0 font-mono text-sm text-[#00954F] tnum">
                   {row.distanceKm.toLocaleString(locale === "en" ? "en-US" : "th-TH", {
                     maximumFractionDigits: 2,
                   })}{" "}

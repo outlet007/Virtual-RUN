@@ -57,15 +57,12 @@ export default async function MyEventsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="flex items-center gap-2 font-display text-xl font-bold">
-            <HeadingIcon name="calendarCheck" />
-            {tx(locale, "งานของฉัน", "My events")}
-          </h2>
-          <p className="mt-1 text-sm text-muted">{tx(locale, "งานที่สมัครไว้ทั้งหมด พร้อมความคืบหน้าสะสมระยะ", "All joined events with distance progress")}</p>
-        </div>
-        <LinkButton href="/dashboard/submit" icon="upload">{tx(locale, "บันทึกผลวิ่ง", "Submit activity")}</LinkButton>
+      <div>
+        <h2 className="flex items-center gap-2 font-display text-xl font-bold">
+          <HeadingIcon name="calendarCheck" />
+          {tx(locale, "งานของฉัน", "My events")}
+        </h2>
+        <p className="mt-1 text-sm text-muted">{tx(locale, "งานที่สมัครไว้ทั้งหมด พร้อมความคืบหน้าสะสมระยะ — กดบันทึกผลวิ่งของงานนั้นๆ ได้เลยในแต่ละรายการ", "All joined events with distance progress — submit an activity for a specific event right from its card")}</p>
       </div>
 
       {regs.length === 0 ? (
@@ -98,7 +95,7 @@ export default async function MyEventsPage() {
                     ) : (
                       <Badge
                         className={
-                          finished ? "bg-green-100 text-green-700" : "bg-lane text-muted"
+                          finished ? "bg-[#12b76a] text-white" : "bg-lane text-muted"
                         }
                       >
                         {finished ? (
@@ -114,11 +111,16 @@ export default async function MyEventsPage() {
                 </div>
                 <div>
                   <div className="mb-1 flex justify-between font-mono text-sm tnum">
-                    <span className="font-bold text-primary-dark">{formatKm(done)} km</span>
+                    <span className="font-bold text-[#00954f]">{formatKm(done)} km</span>
                     <span className="text-ink/40">/ {target} km</span>
                   </div>
                   <TrackProgress current={done} target={target} />
                 </div>
+                {r.status === "confirmed" && (
+                  <LinkButton href={`/dashboard/submit/${r.id}`} icon="upload" className="w-full">
+                    {tx(locale, "บันทึกผลวิ่งงานนี้", "Submit activity for this event")}
+                  </LinkButton>
+                )}
               </Card>
             );
           })}

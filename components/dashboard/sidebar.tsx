@@ -83,7 +83,7 @@ export function DashboardSidebar({
           </Link>
         </div>
         <p className="mt-[1.2rem] truncate font-display text-base font-bold">{name}</p>
-        <span className="mt-2 inline-block rounded-full bg-white/15 px-3 py-1 text-xs font-semibold">
+        <span className="mt-2 inline-block rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-primary">
           Level {levelProgress.level} · {levelProgress.levelName}
         </span>
         <div className="mt-[1.2rem]">

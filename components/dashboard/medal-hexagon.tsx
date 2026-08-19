@@ -83,7 +83,7 @@ export function MedalHexagon({ entry, locale }: { entry: MedalEntry; locale: Loc
             </span>
           ) : entry.registrationStatus === "confirmed" ? (
             <Link
-              href="/dashboard/submit"
+              href="/dashboard/events"
               className="mt-3 inline-flex min-h-9 items-center justify-center gap-2 rounded-full border border-primary-dark/20 bg-primary-soft px-4 py-2 text-xs font-semibold text-primary-dark transition hover:bg-primary/30"
             >
               <Upload className="size-4" aria-hidden="true" />

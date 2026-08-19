@@ -25,11 +25,14 @@ import {
   createPackage,
   updatePackage,
   deletePackage,
+  movePackage,
   deleteEvent,
   createMedal,
   updateMedal,
+  moveMedal,
   createPhysicalMedal,
   updatePhysicalMedal,
+  movePhysicalMedal,
 } from "@/lib/actions/admin";
 import { manuallyApproveRegistration } from "@/lib/actions/admin-registrations";
 import { registrationStatusLabel, type ShippingAddress } from "@/lib/admin/registrations";
@@ -50,6 +53,7 @@ type PackageRow = {
   digital_medal: { id: string; name: string } | null;
   physical_medal_id: string | null;
   physical_medal: { id: string; name: string } | null;
+  sort_order: number;
 };
 
 type MedalRow = {
@@ -134,12 +138,15 @@ export default async function EventDashboardPage({
     package_added?: string;
     package_saved?: string;
     package_deleted?: string;
+    package_reordered?: string;
     medal_added?: string;
     medal_saved?: string;
     medal_deleted?: string;
+    medal_reordered?: string;
     physical_medal_added?: string;
     physical_medal_saved?: string;
     physical_medal_deleted?: string;
+    physical_medal_reordered?: string;
     registration_approved?: string;
     registration_q?: string;
     registration_status?: string;
@@ -155,21 +162,23 @@ export default async function EventDashboardPage({
   const { data: event } = await db
     .from("events")
     .select(
-      "id, title, title_en, bib_prefix, description, description_en, cover_image, cover_position_x, cover_position_y, poster_image, pricing, start_date, end_date, status, packages(id, name, name_en, target_distance_km, price, activity_types, has_physical_medal, digital_medal_id, digital_medal:medals!packages_digital_medal_id_fkey(id, name, name_en), physical_medal_id, physical_medal:physical_medals!packages_physical_medal_id_fkey(id, name, name_en)), medals(id, name, name_en, tier, bonus_points, image_url, unlock_rule, sort_order), physical_medals(id, name, name_en, description_en, tier, bonus_points, image_url, unlock_rule, sort_order)",
+      "id, title, title_en, bib_prefix, description, description_en, cover_image, cover_position_x, cover_position_y, poster_image, pricing, start_date, end_date, status, packages(id, name, name_en, target_distance_km, price, activity_types, has_physical_medal, digital_medal_id, digital_medal:medals!packages_digital_medal_id_fkey(id, name, name_en), physical_medal_id, physical_medal:physical_medals!packages_physical_medal_id_fkey(id, name, name_en), sort_order), medals(id, name, name_en, tier, bonus_points, image_url, unlock_rule, sort_order), physical_medals(id, name, name_en, description_en, tier, bonus_points, image_url, unlock_rule, sort_order)",
     )
     .eq("id", id)
     .single();
 
   if (!event) notFound();
-  const packages = (event.packages ?? []).map((packageRow) => ({
-    ...packageRow,
-    digital_medal: Array.isArray(packageRow.digital_medal)
-      ? packageRow.digital_medal[0] ?? null
-      : packageRow.digital_medal,
-    physical_medal: Array.isArray(packageRow.physical_medal)
-      ? packageRow.physical_medal[0] ?? null
-      : packageRow.physical_medal,
-  })) as PackageRow[];
+  const packages = (event.packages ?? [])
+    .map((packageRow) => ({
+      ...packageRow,
+      digital_medal: Array.isArray(packageRow.digital_medal)
+        ? packageRow.digital_medal[0] ?? null
+        : packageRow.digital_medal,
+      physical_medal: Array.isArray(packageRow.physical_medal)
+        ? packageRow.physical_medal[0] ?? null
+        : packageRow.physical_medal,
+    }))
+    .sort((a, b) => a.sort_order - b.sort_order) as PackageRow[];
   const medals = [...((event.medals ?? []) as MedalRow[])].sort(
     (a, b) =>
       a.sort_order - b.sort_order ||
@@ -194,7 +203,7 @@ export default async function EventDashboardPage({
         .order("registered_at", { ascending: false }),
       db
         .from("submissions")
-        .select("id, status, distance_km, user_id, users(name, email), registrations!inner(event_id)")
+        .select("id, status, distance_km, user_id, users!submissions_user_id_fkey(name, email), registrations!inner(event_id)")
         .eq("registrations.event_id", id),
       db
         .from("payments")
@@ -519,26 +528,50 @@ export default async function EventDashboardPage({
         {sp.package_deleted && (
           <p className="mt-1 text-sm text-primary-dark">ลบแพ็กเกจแล้ว</p>
         )}
+        {sp.package_reordered && (
+          <p className="mt-1 text-sm text-primary-dark">ย้ายลำดับแพ็กเกจแล้ว</p>
+        )}
 
         <div className="mt-3 space-y-3">
-          {packages.map((p) => (
+          {packages.map((p, index) => (
             <form key={p.id} action={updatePackage}>
               <input type="hidden" name="id" value={p.id} />
               <input type="hidden" name="event_id" value={event.id} />
               <Card className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="font-display font-bold text-charcoal">{p.name}</span>
-                  {p.digital_medal && (
-                    <Badge className="gap-1 bg-sky-100 text-sky-700">
-                      <Medal className="h-3 w-3" /> เหรียญดิจิทัล: {p.digital_medal.name}
-                    </Badge>
-                  )}
-                  {p.has_physical_medal && (
-                    <Badge className="gap-1 bg-orange-100 text-orange-700">
-                      <Medal className="h-3 w-3" /> เหรียญจริง
-                      {p.physical_medal ? `: ${p.physical_medal.name}` : ""}
-                    </Badge>
-                  )}
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge className="bg-lane text-muted">ลำดับ {index + 1}</Badge>
+                    <span className="font-display font-bold text-charcoal">{p.name}</span>
+                    {p.digital_medal && (
+                      <Badge className="gap-1 bg-sky-100 text-sky-700">
+                        <Medal className="h-3 w-3" /> เหรียญดิจิทัล: {p.digital_medal.name}
+                      </Badge>
+                    )}
+                    {p.has_physical_medal && (
+                      <Badge className="gap-1 bg-orange-100 text-orange-700">
+                        <Medal className="h-3 w-3" /> เหรียญจริง
+                        {p.physical_medal ? `: ${p.physical_medal.name}` : ""}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="submit"
+                      variant="ghost"
+                      formAction={movePackage.bind(null, p.id, event.id, "up")}
+                      disabled={index === 0}
+                      icon="up">
+                      เลื่อนขึ้น
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant="ghost"
+                      formAction={movePackage.bind(null, p.id, event.id, "down")}
+                      disabled={index === packages.length - 1}
+                      icon="down">
+                      เลื่อนลง
+                    </Button>
+                  </div>
                 </div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div><Label>ชื่อแพ็กเกจ (ไทย)</Label><Input name="name" defaultValue={p.name} required /></div>
@@ -649,9 +682,10 @@ export default async function EventDashboardPage({
                 {sp.medal_added && <p className="mt-1 text-sm text-primary-dark">เพิ่มเหรียญแล้ว</p>}
                 {sp.medal_saved && <p className="mt-1 text-sm text-primary-dark">บันทึกเหรียญแล้ว</p>}
                 {sp.medal_deleted && <p className="mt-1 text-sm text-primary-dark">ลบเหรียญแล้ว</p>}
+                {sp.medal_reordered && <p className="mt-1 text-sm text-primary-dark">ย้ายลำดับเหรียญแล้ว</p>}
 
         <div className="mt-3 space-y-3">
-          {medals.map((m) => (
+          {medals.map((m, index) => (
             <form key={m.id} action={updateMedal}>
               <input type="hidden" name="id" value={m.id} />
               <input type="hidden" name="event_id" value={event.id} />
@@ -673,9 +707,25 @@ export default async function EventDashboardPage({
                         <Badge className="bg-medal-soft text-medal">
                           {tierLabel[m.tier] ?? m.tier}
                         </Badge>
-                        <Badge className="bg-lane text-muted">ลำดับ {m.sort_order}</Badge>
+                        <Badge className="bg-lane text-muted">ลำดับ {index + 1}</Badge>
                       </div>
                       <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="ghost"
+                          type="submit"
+                          formAction={moveMedal.bind(null, m.id, event.id, "up")}
+                          disabled={index === 0}
+                          icon="up">
+                          เลื่อนขึ้น
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          type="submit"
+                          formAction={moveMedal.bind(null, m.id, event.id, "down")}
+                          disabled={index === medals.length - 1}
+                          icon="down">
+                          เลื่อนลง
+                        </Button>
                         <Button variant="ghost" type="submit" icon="save">
                           บันทึกเหรียญนี้
                         </Button>
@@ -697,7 +747,7 @@ export default async function EventDashboardPage({
                         />
                       </div>
                     </div>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div>
                         <Label>ระดับ</Label>
                         <Select name="tier" defaultValue={m.tier}>
@@ -710,10 +760,6 @@ export default async function EventDashboardPage({
                       <div>
                         <Label>แต้มโบนัส</Label>
                         <Input name="bonus_points" type="number" min="0" defaultValue={m.bonus_points} />
-                      </div>
-                      <div>
-                        <Label>ลำดับการแสดง</Label>
-                        <Input name="sort_order" type="number" min="0" defaultValue={m.sort_order} />
                       </div>
                     </div>
                   </div>
@@ -742,7 +788,7 @@ export default async function EventDashboardPage({
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <Label>ระยะสะสมที่ต้องถึง (km)</Label>
                 <Input name="target_km" type="number" min="0.1" step="0.1" required />
@@ -750,10 +796,6 @@ export default async function EventDashboardPage({
               <div>
                 <Label>แต้มโบนัส</Label>
                 <Input name="bonus_points" type="number" min="0" defaultValue={0} />
-              </div>
-              <div>
-                <Label>ลำดับการแสดง</Label>
-                <Input name="sort_order" type="number" min="0" defaultValue={medals.length + 1} />
               </div>
             </div>
             <ImageUploadField name="image_url_file" label="รูปเหรียญ" />
@@ -780,9 +822,12 @@ export default async function EventDashboardPage({
                 {sp.physical_medal_deleted && (
                   <p className="mt-1 text-sm text-primary-dark">ลบเหรียญจริงแล้ว</p>
                 )}
+                {sp.physical_medal_reordered && (
+                  <p className="mt-1 text-sm text-primary-dark">ย้ายลำดับเหรียญจริงแล้ว</p>
+                )}
 
                 <div className="mt-3 space-y-3">
-                  {physicalMedals.map((medal) => (
+                  {physicalMedals.map((medal, index) => (
                     <form key={medal.id} action={updatePhysicalMedal}>
                       <input type="hidden" name="id" value={medal.id} />
                       <input type="hidden" name="event_id" value={event.id} />
@@ -809,10 +854,26 @@ export default async function EventDashboardPage({
                                   {tierLabel[medal.tier] ?? medal.tier}
                                 </Badge>
                                 <Badge className="bg-lane text-muted">
-                                  ลำดับ {medal.sort_order}
+                                  ลำดับ {index + 1}
                                 </Badge>
                               </div>
                               <div className="flex flex-wrap gap-2">
+                                <Button
+                                  variant="ghost"
+                                  type="submit"
+                                  formAction={movePhysicalMedal.bind(null, medal.id, event.id, "up")}
+                                  disabled={index === 0}
+                                  icon="up">
+                                  เลื่อนขึ้น
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  type="submit"
+                                  formAction={movePhysicalMedal.bind(null, medal.id, event.id, "down")}
+                                  disabled={index === physicalMedals.length - 1}
+                                  icon="down">
+                                  เลื่อนลง
+                                </Button>
                                 <Button variant="ghost" type="submit" icon="save">
                                   บันทึกเหรียญนี้
                                 </Button>
@@ -835,7 +896,7 @@ export default async function EventDashboardPage({
                                 />
                               </div>
                             </div>
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                               <div>
                                 <Label>ระดับ</Label>
                                 <Select name="tier" defaultValue={medal.tier}>
@@ -852,15 +913,6 @@ export default async function EventDashboardPage({
                                   type="number"
                                   min="0"
                                   defaultValue={medal.bonus_points}
-                                />
-                              </div>
-                              <div>
-                                <Label>ลำดับการแสดง</Label>
-                                <Input
-                                  name="sort_order"
-                                  type="number"
-                                  min="0"
-                                  defaultValue={medal.sort_order}
                                 />
                               </div>
                             </div>
@@ -891,7 +943,7 @@ export default async function EventDashboardPage({
                         </Select>
                       </div>
                     </div>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div>
                         <Label>ระยะสะสมที่ต้องถึง (km)</Label>
                         <Input name="target_km" type="number" min="0.1" step="0.1" required />
@@ -899,15 +951,6 @@ export default async function EventDashboardPage({
                       <div>
                         <Label>แต้มโบนัส</Label>
                         <Input name="bonus_points" type="number" min="0" defaultValue={0} />
-                      </div>
-                      <div>
-                        <Label>ลำดับการแสดง</Label>
-                        <Input
-                          name="sort_order"
-                          type="number"
-                          min="0"
-                          defaultValue={physicalMedals.length + 1}
-                        />
                       </div>
                     </div>
                     <ImageUploadField name="image_url_file" label="รูปเหรียญ" />

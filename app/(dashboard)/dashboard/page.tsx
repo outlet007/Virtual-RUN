@@ -212,20 +212,20 @@ export default async function DashboardPage({
         <Link href="/dashboard/history">
           <Card className="hover:border-primary/40">
             <p className="text-xs uppercase tracking-wider text-ink/40">{tx(locale, "รอตรวจสอบ", "Pending review")}</p>
-            <p className="mt-1 font-mono text-4xl font-bold text-medal tnum">{pendingCount}</p>
+            <p className="mt-1 font-mono text-4xl font-bold text-[#fec81d] tnum">{pendingCount}</p>
           </Card>
         </Link>
         <Link href="/dashboard/rewards">
           <Card className="hover:border-primary/40">
             <p className="text-xs uppercase tracking-wider text-ink/40">{tx(locale, "แต้มสะสมของฉัน", "My points")}</p>
-            <p className="mt-1 font-mono text-4xl font-bold text-[#F5A524] tnum">{points}</p>
+            <p className="mt-1 font-mono text-4xl font-bold text-[#fec81d] tnum">{points}</p>
           </Card>
         </Link>
       </section>
 
       <div>
         <LinkButton
-          href="/dashboard/submit"
+          href="/dashboard/events"
           icon="upload"
           className="w-full justify-center py-6 text-[24px] leading-none [&_svg]:size-6"
         >

@@ -76,7 +76,7 @@ export default async function AdminOverviewPage({
     db.from("registrations").select("registered_at").gte("registered_at", registrationRangeStart.toISOString()),
     db
       .from("submissions")
-      .select("distance_km, user_id, users(name, email), registrations!inner(event_id, events(id, title))")
+      .select("distance_km, user_id, users!submissions_user_id_fkey(name, email), registrations!inner(event_id, events(id, title))")
       .eq("status", "approved"),
   ]);
 

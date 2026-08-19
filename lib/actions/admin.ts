@@ -357,6 +357,15 @@ export async function createPackage(formData: FormData) {
   const has_physical_medal = Boolean(physical_medal_id);
   const price = await getPackagePrice(db, event_id, formData);
 
+  const { data: lastPackage } = await db
+    .from("packages")
+    .select("sort_order")
+    .eq("event_id", event_id)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const sort_order = (lastPackage?.sort_order ?? -1) + 1;
+
   const { error } = await db.from("packages").insert({
     event_id,
     name,
@@ -367,6 +376,7 @@ export async function createPackage(formData: FormData) {
     has_physical_medal,
     digital_medal_id,
     physical_medal_id,
+    sort_order,
   });
 
   if (error) err(`/admin/events/${event_id}?tab=packages`, error.message);
@@ -448,6 +458,45 @@ export async function deletePackage(formData: FormData) {
   revalidatePath(`/admin/events/${eventId}`);
   revalidatePath("/");
   redirect(`/admin/events/${eventId}?tab=packages&package_deleted=1`);
+}
+
+export async function movePackage(
+  packageId: string,
+  eventId: string,
+  direction: "up" | "down",
+  _formData: FormData,
+) {
+  await requireManager();
+  const db = createAdminClient();
+
+  if (!packageId || !eventId) {
+    err(`/admin/events/${eventId}?tab=packages`, "ข้อมูลการย้ายลำดับไม่ถูกต้อง");
+  }
+
+  const { data, error } = await db
+    .from("packages")
+    .select("id, sort_order, created_at")
+    .eq("event_id", eventId)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+  if (error) err(`/admin/events/${eventId}?tab=packages`, error.message);
+
+  const packages = data ?? [];
+  const currentIndex = packages.findIndex((p) => p.id === packageId);
+  const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+  if (currentIndex >= 0 && targetIndex >= 0 && targetIndex < packages.length) {
+    [packages[currentIndex], packages[targetIndex]] = [packages[targetIndex], packages[currentIndex]];
+    for (const [index, p] of packages.entries()) {
+      if (p.sort_order === index) continue;
+      const { error: updateError } = await db.from("packages").update({ sort_order: index }).eq("id", p.id);
+      if (updateError) err(`/admin/events/${eventId}?tab=packages`, updateError.message);
+    }
+  }
+
+  revalidatePath(`/admin/events/${eventId}`);
+  revalidatePath("/");
+  revalidatePath(`/events/${eventId}`);
+  redirect(`/admin/events/${eventId}?tab=packages&package_reordered=1`);
 }
 
 // ---------- Submissions ----------
@@ -719,7 +768,6 @@ export async function createMedal(formData: FormData) {
   const tier = String(formData.get("tier") ?? "bronze");
   const targetKm = Number(formData.get("target_km") ?? 0);
   const bonusPoints = Number(formData.get("bonus_points") ?? 0);
-  const sortOrder = Math.max(0, Math.round(Number(formData.get("sort_order") ?? 0) || 0));
 
   if (!eventId || !name || targetKm <= 0) {
     err(`/admin/events/${eventId}?tab=medals`, "กรอกชื่อเหรียญและระยะเป้าหมายให้ถูกต้อง");
@@ -731,6 +779,15 @@ export async function createMedal(formData: FormData) {
   } catch (e) {
     err(`/admin/events/${eventId}?tab=medals`, (e as Error).message);
   }
+
+  const { data: lastMedal } = await db
+    .from("medals")
+    .select("sort_order")
+    .eq("event_id", eventId)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const sortOrder = (lastMedal?.sort_order ?? -1) + 1;
 
   const { error } = await db.from("medals").insert({
     event_id: eventId,
@@ -759,7 +816,6 @@ export async function updateMedal(formData: FormData) {
   const tier = String(formData.get("tier") ?? "bronze");
   const targetKm = Number(formData.get("target_km") ?? 0);
   const bonusPoints = Number(formData.get("bonus_points") ?? 0);
-  const sortOrder = Math.max(0, Math.round(Number(formData.get("sort_order") ?? 0) || 0));
 
   if (!id || !eventId || !name || targetKm <= 0) {
     err(`/admin/events/${eventId}?tab=medals`, "กรอกชื่อเหรียญและระยะเป้าหมายให้ถูกต้อง");
@@ -782,13 +838,50 @@ export async function updateMedal(formData: FormData) {
       unlock_rule: { type: "distance", target_km: targetKm },
       bonus_points: bonusPoints,
       image_url: imageUrl,
-      sort_order: sortOrder,
     })
     .eq("id", id);
   if (error) err(`/admin/events/${eventId}?tab=medals`, error.message);
 
   revalidatePath(`/admin/events/${eventId}`);
   redirect(`/admin/events/${eventId}?tab=medals&medal_saved=1`);
+}
+
+export async function moveMedal(
+  medalId: string,
+  eventId: string,
+  direction: "up" | "down",
+  _formData: FormData,
+) {
+  await requireManager();
+  const db = createAdminClient();
+
+  if (!medalId || !eventId) {
+    err(`/admin/events/${eventId}?tab=medals`, "ข้อมูลการย้ายลำดับไม่ถูกต้อง");
+  }
+
+  const { data, error } = await db
+    .from("medals")
+    .select("id, sort_order")
+    .eq("event_id", eventId)
+    .order("sort_order", { ascending: true })
+    .order("id", { ascending: true });
+  if (error) err(`/admin/events/${eventId}?tab=medals`, error.message);
+
+  const medals = data ?? [];
+  const currentIndex = medals.findIndex((m) => m.id === medalId);
+  const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+  if (currentIndex >= 0 && targetIndex >= 0 && targetIndex < medals.length) {
+    [medals[currentIndex], medals[targetIndex]] = [medals[targetIndex], medals[currentIndex]];
+    for (const [index, m] of medals.entries()) {
+      if (m.sort_order === index) continue;
+      const { error: updateError } = await db.from("medals").update({ sort_order: index }).eq("id", m.id);
+      if (updateError) err(`/admin/events/${eventId}?tab=medals`, updateError.message);
+    }
+  }
+
+  revalidatePath(`/admin/events/${eventId}`);
+  revalidatePath("/dashboard/medals");
+  redirect(`/admin/events/${eventId}?tab=medals&medal_reordered=1`);
 }
 
 export async function deleteMedal(formData: FormData) {
@@ -827,7 +920,6 @@ export async function createPhysicalMedal(formData: FormData) {
   const tier = String(formData.get("tier") ?? "bronze");
   const targetKm = Number(formData.get("target_km") ?? 0);
   const bonusPoints = Number(formData.get("bonus_points") ?? 0);
-  const sortOrder = Math.max(0, Math.round(Number(formData.get("sort_order") ?? 0) || 0));
 
   if (!eventId || !name || targetKm <= 0) {
     err(
@@ -842,6 +934,15 @@ export async function createPhysicalMedal(formData: FormData) {
   } catch (e) {
     err(`/admin/events/${eventId}?tab=physical-medals`, (e as Error).message);
   }
+
+  const { data: lastPhysicalMedal } = await db
+    .from("physical_medals")
+    .select("sort_order")
+    .eq("event_id", eventId)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const sortOrder = (lastPhysicalMedal?.sort_order ?? -1) + 1;
 
   const { error } = await db.from("physical_medals").insert({
     event_id: eventId,
@@ -872,7 +973,6 @@ export async function updatePhysicalMedal(formData: FormData) {
   const tier = String(formData.get("tier") ?? "bronze");
   const targetKm = Number(formData.get("target_km") ?? 0);
   const bonusPoints = Number(formData.get("bonus_points") ?? 0);
-  const sortOrder = Math.max(0, Math.round(Number(formData.get("sort_order") ?? 0) || 0));
 
   if (!id || !eventId || !name || targetKm <= 0) {
     err(
@@ -899,7 +999,6 @@ export async function updatePhysicalMedal(formData: FormData) {
       unlock_rule: { type: "distance", target_km: targetKm },
       bonus_points: bonusPoints,
       image_url: imageUrl,
-      sort_order: sortOrder,
     })
     .eq("id", id)
     .eq("event_id", eventId);
@@ -908,6 +1007,50 @@ export async function updatePhysicalMedal(formData: FormData) {
   revalidatePath(`/admin/events/${eventId}`);
   revalidatePath(`/events/${eventId}`);
   redirect(`/admin/events/${eventId}?tab=physical-medals&physical_medal_saved=1`);
+}
+
+export async function movePhysicalMedal(
+  medalId: string,
+  eventId: string,
+  direction: "up" | "down",
+  _formData: FormData,
+) {
+  await requireManager();
+  const db = createAdminClient();
+
+  if (!medalId || !eventId) {
+    err(`/admin/events/${eventId}?tab=physical-medals`, "ข้อมูลการย้ายลำดับไม่ถูกต้อง");
+  }
+
+  const { data, error } = await db
+    .from("physical_medals")
+    .select("id, sort_order")
+    .eq("event_id", eventId)
+    .order("sort_order", { ascending: true })
+    .order("id", { ascending: true });
+  if (error) err(`/admin/events/${eventId}?tab=physical-medals`, error.message);
+
+  const physicalMedals = data ?? [];
+  const currentIndex = physicalMedals.findIndex((m) => m.id === medalId);
+  const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+  if (currentIndex >= 0 && targetIndex >= 0 && targetIndex < physicalMedals.length) {
+    [physicalMedals[currentIndex], physicalMedals[targetIndex]] = [
+      physicalMedals[targetIndex],
+      physicalMedals[currentIndex],
+    ];
+    for (const [index, m] of physicalMedals.entries()) {
+      if (m.sort_order === index) continue;
+      const { error: updateError } = await db
+        .from("physical_medals")
+        .update({ sort_order: index })
+        .eq("id", m.id);
+      if (updateError) err(`/admin/events/${eventId}?tab=physical-medals`, updateError.message);
+    }
+  }
+
+  revalidatePath(`/admin/events/${eventId}`);
+  revalidatePath(`/events/${eventId}`);
+  redirect(`/admin/events/${eventId}?tab=physical-medals&physical_medal_reordered=1`);
 }
 
 export async function deletePhysicalMedal(formData: FormData) {
@@ -993,7 +1136,7 @@ export async function updateReward(formData: FormData) {
   const stock = Number(formData.get("stock") ?? 0);
 
   if (!id || !name || costPoints <= 0) {
-    err("/admin/rewards", "กรอกชื่อรางวัลและแต้มให้ถูกต้อง");
+    err(`/admin/rewards?tab=catalog&edit=${id}`, "กรอกชื่อรางวัลและแต้มให้ถูกต้อง");
   }
 
   let imageUrl = String(formData.get("existing_image_url") ?? "").trim() || null;
@@ -1001,14 +1144,14 @@ export async function updateReward(formData: FormData) {
     const uploaded = await uploadEventImage(db, formData.get("image_file"), "rewards");
     if (uploaded) imageUrl = uploaded;
   } catch (e) {
-    err("/admin/rewards", (e as Error).message);
+    err(`/admin/rewards?tab=catalog&edit=${id}`, (e as Error).message);
   }
 
   const { error } = await db
     .from("rewards")
     .update({ name, name_en, description, description_en, image_url: imageUrl, cost_points: costPoints, stock })
     .eq("id", id);
-  if (error) err("/admin/rewards", error.message);
+  if (error) err(`/admin/rewards?tab=catalog&edit=${id}`, error.message);
 
   revalidatePath("/admin/rewards");
   revalidatePath("/rewards");

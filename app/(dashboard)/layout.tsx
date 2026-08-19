@@ -45,7 +45,9 @@ export default async function UserDashboardLayout({
     .from("points_ledger")
     .select("delta")
     .eq("user_id", user.id);
-  const points = (ledger ?? []).reduce((sum, l) => sum + l.delta, 0);
+  // Level/XP ต้องอิงคะแนนสะสมทั้งหมดที่เคยได้รับ ไม่ใช่ยอดคงเหลือสุทธิ — แถวติดลบตอนแลกรางวัล
+  // (ดู 0007_redeem_reward_function.sql) ไม่ควรทำให้ level ตกหรือ XP ถอยหลัง
+  const points = (ledger ?? []).reduce((sum, l) => sum + Math.max(0, l.delta), 0);
 
   const { data: levelsRaw } = await supabase
     .from("levels")

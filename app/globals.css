@@ -36,7 +36,7 @@
     );
   }
   .track-lane__fill {
-    @apply absolute inset-y-0 left-0 rounded-full bg-primary transition-[width] duration-700;
+    @apply absolute inset-y-0 left-0 rounded-full bg-[#12b76a] transition-[width] duration-700;
   }
 
   /* iframe วิดีโอ YouTube ที่ฝังผ่าน RichTextEditor มี width/height เป็น attribute ตายตัว (640x360)

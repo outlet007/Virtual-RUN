@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
-import { Gift } from "lucide-react";
+import { Gift, TriangleAlert } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { Badge, Card, HeadingIcon } from "@/components/ui";
+import { Badge, Card, HeadingIcon, LinkButton, Tabs } from "@/components/ui";
 import { RewardRedeemButton } from "@/components/dashboard/reward-redeem-button";
 import { getLocale } from "@/lib/i18n/server";
 import { pickLocalized, tx } from "@/lib/i18n/shared";
@@ -18,11 +18,17 @@ type RewardRow = {
   cost_points: number;
   stock: number;
 };
+type RedemptionRow = {
+  id: string;
+  points_spent: number;
+  status: "pending" | "fulfilled";
+  rewards: { name: string; name_en: string | null } | null;
+};
 
 export default async function DashboardRewardsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; redeemed?: string }>;
+  searchParams: Promise<{ error?: string; redeemed?: string; tab?: string }>;
 }) {
   const sp = await searchParams;
   const [supabase, locale] = await Promise.all([createClient(), getLocale()]);
@@ -31,16 +37,32 @@ export default async function DashboardRewardsPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/dashboard/rewards");
 
-  const [{ data: rewardsRaw }, { data: ledger }] = await Promise.all([
+  const [rewardsResult, ledgerResult, redemptionsResult, profileResult] = await Promise.all([
     supabase
       .from("rewards")
       .select("id, name, name_en, description, description_en, image_url, cost_points, stock")
       .order("cost_points", { ascending: true }),
     supabase.from("points_ledger").select("delta").eq("user_id", user.id),
+    supabase
+      .from("redemptions")
+      .select("id, points_spent, status, rewards(name, name_en)")
+      .eq("user_id", user.id)
+      .order("status", { ascending: false }),
+    supabase.from("users").select("address, province, postal_code").eq("id", user.id).single(),
   ]);
 
-  const rewards = (rewardsRaw ?? []) as RewardRow[];
-  const balance = (ledger ?? []).reduce((sum, row) => sum + row.delta, 0);
+  if (rewardsResult.error) throw new Error(rewardsResult.error.message);
+  if (ledgerResult.error) throw new Error(ledgerResult.error.message);
+  if (redemptionsResult.error) throw new Error(redemptionsResult.error.message);
+
+  const rewards = (rewardsResult.data ?? []) as RewardRow[];
+  const balance = (ledgerResult.data ?? []).reduce((sum, row) => sum + row.delta, 0);
+  const redemptions = (redemptionsResult.data ?? []) as unknown as RedemptionRow[];
+  const profile = profileResult.data;
+  const hasCompleteAddress = Boolean(
+    profile?.address?.trim() && profile?.province?.trim() && profile?.postal_code?.trim(),
+  );
+  const defaultTab = sp.tab ?? (sp.redeemed ? "history" : "rewards");
 
   return (
     <div className="space-y-6">
@@ -61,6 +83,21 @@ export default async function DashboardRewardsPage({
         </p>
       </Card>
 
+      {!hasCompleteAddress && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-medal-soft px-4 py-3 text-sm text-medal">
+          <p className="flex items-center gap-2">
+            <TriangleAlert className="size-4 shrink-0" aria-hidden="true" />
+            {tx(
+              locale,
+              "กรุณากรอกข้อมูลที่อยู่ในหน้าโปรไฟล์ให้ครบถ้วนก่อนจึงจะแลกแต้มเป็นรางวัลได้",
+              "Please complete your address in your profile before you can redeem points for rewards.",
+            )}
+          </p>
+          <LinkButton href="/profile" variant="ghost" className="shrink-0">
+            {tx(locale, "ไปที่โปรไฟล์", "Go to profile")}
+          </LinkButton>
+        </div>
+      )}
       {sp.error && (
         <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{sp.error}</div>
       )}
@@ -70,6 +107,51 @@ export default async function DashboardRewardsPage({
           {tx(locale, "แลกรางวัลสำเร็จแล้ว รอผู้ดูแลระบบดำเนินการ", "Reward redeemed. An administrator will process it shortly.")}
         </div>
       )}
+
+      <Tabs
+        defaultTab={defaultTab}
+        tabs={[
+          {
+            id: "history",
+            label: `${tx(locale, "ประวัติการแลกรางวัล", "Redemption history")} (${redemptions.length})`,
+            content: (
+      <section className="space-y-4" aria-labelledby="redemption-history-heading">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="redemption-history-heading" className="flex items-center gap-2 font-display text-xl font-bold">
+            <HeadingIcon name="clipboard" />
+            {tx(locale, "ประวัติการแลกรางวัล", "Redemption history")}
+          </h2>
+          <Badge className="bg-lane text-ink/60">{redemptions.length.toLocaleString(locale === "en" ? "en-US" : "th-TH")} {tx(locale, "รายการ", "items")}</Badge>
+        </div>
+
+        {redemptions.length === 0 ? (
+          <Card className="py-10 text-center text-ink/50">{tx(locale, "ยังไม่มีประวัติการแลกรางวัล", "No redemption history yet")}</Card>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {redemptions.map((redemption) => (
+              <Card key={redemption.id} className="space-y-3">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <h3 className="font-display font-bold">
+                    {pickLocalized(locale, redemption.rewards?.name ?? tx(locale, "รางวัล", "Reward"), redemption.rewards?.name_en)}
+                  </h3>
+                  <Badge className={redemption.status === "pending" ? "bg-medal-soft text-medal" : "bg-[#12b76a] text-white"}>
+                    {redemption.status === "pending" ? tx(locale, "รอดำเนินการ", "Processing") : tx(locale, "ส่งมอบแล้ว", "Fulfilled")}
+                  </Badge>
+                </div>
+                <p className="text-sm text-ink/50">
+                  <span className="font-mono font-semibold tnum">{redemption.points_spent.toLocaleString(locale === "en" ? "en-US" : "th-TH")}</span> {tx(locale, "แต้ม", "points")}
+                </p>
+              </Card>
+            ))}
+          </div>
+        )}
+      </section>
+            ),
+          },
+          {
+            id: "rewards",
+            label: `${tx(locale, "แลกแต้มเป็นรางวัล", "Available rewards")} (${rewards.length})`,
+            content: (
 
       <section className="space-y-4">
         <div>
@@ -89,7 +171,7 @@ export default async function DashboardRewardsPage({
             {rewards.map((reward) => {
               const hasEnoughPoints = balance >= reward.cost_points;
               const inStock = reward.stock > 0;
-              const canRedeem = hasEnoughPoints && inStock;
+              const canRedeem = hasEnoughPoints && inStock && hasCompleteAddress;
               const missingPoints = Math.max(0, reward.cost_points - balance);
 
               return (
@@ -158,14 +240,20 @@ export default async function DashboardRewardsPage({
                     <div className="mt-auto pt-5">
                       {canRedeem ? (
                         <RewardRedeemButton reward={{ ...reward, name: pickLocalized(locale, reward.name, reward.name_en), description: pickLocalized(locale, reward.description, reward.description_en) }} balance={balance} locale={locale} />
-                      ) : (
+                      ) : !inStock ? (
                         <div className="rounded-xl bg-lane/60 px-3 py-3 text-center text-sm font-semibold text-ink/45">
-                          {!inStock
-                            ? tx(locale, "รางวัลหมดแล้ว", "Reward is out of stock")
-                            : tx(locale, "แต้มไม่เพียงพอ ขาดอีก", "Not enough points. You need") +
-                              " " + missingPoints.toLocaleString(locale === "en" ? "en-US" : "th-TH") +
-                              " " + tx(locale, "แต้ม", "more points")}
+                          {tx(locale, "รางวัลหมดแล้ว", "Reward is out of stock")}
                         </div>
+                      ) : !hasEnoughPoints ? (
+                        <div className="rounded-xl bg-lane/60 px-3 py-3 text-center text-sm font-semibold text-ink/45">
+                          {tx(locale, "แต้มไม่เพียงพอ ขาดอีก", "Not enough points. You need") +
+                            " " + missingPoints.toLocaleString(locale === "en" ? "en-US" : "th-TH") +
+                            " " + tx(locale, "แต้ม", "more points")}
+                        </div>
+                      ) : (
+                        <LinkButton href="/profile" variant="ghost" className="w-full">
+                          {tx(locale, "กรอกที่อยู่เพื่อแลกรางวัล", "Complete your address to redeem")}
+                        </LinkButton>
                       )}
                     </div>
                   </div>
@@ -175,6 +263,10 @@ export default async function DashboardRewardsPage({
           </div>
         )}
       </section>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

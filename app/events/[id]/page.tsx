@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Medal, CalendarDays, ChevronLeft, Road } from "lucide-react";
+import { Medal, CalendarDays, ChevronLeft, ChevronRight, Road } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, Badge, HeadingIcon, LinkButton } from "@/components/ui";
@@ -39,7 +39,7 @@ export default async function EventDetailPage({
       supabase
         .from("events")
         .select(
-          "id, title, title_en, description, description_en, cover_image, cover_position_x, cover_position_y, poster_image, pricing, start_date, end_date, status, packages(id, name, name_en, target_distance_km, price, has_physical_medal, digital_medal:medals!packages_digital_medal_id_fkey(id, name, name_en), physical_medal:physical_medals!packages_physical_medal_id_fkey(id, name, name_en))",
+          "id, title, title_en, description, description_en, cover_image, cover_position_x, cover_position_y, poster_image, pricing, start_date, end_date, status, packages(id, name, name_en, target_distance_km, price, has_physical_medal, digital_medal:medals!packages_digital_medal_id_fkey(id, name, name_en), physical_medal:physical_medals!packages_physical_medal_id_fkey(id, name, name_en), sort_order)",
         )
         .eq("id", id)
         .single(),
@@ -55,19 +55,36 @@ export default async function EventDetailPage({
   const eventDescription = pickLocalized(locale, event.description, event.description_en);
   if (leaderboardError) throw new Error(leaderboardError.message);
   const registrationOpen = isEventRegistrationOpen(event);
-  const packages = (event.packages ?? []).map((packageRow) => ({
-    ...packageRow,
-    digital_medal: Array.isArray(packageRow.digital_medal)
-      ? packageRow.digital_medal[0] ?? null
-      : packageRow.digital_medal,
-    physical_medal: Array.isArray(packageRow.physical_medal)
-      ? packageRow.physical_medal[0] ?? null
-      : packageRow.physical_medal,
-  }));
+  const packages = (event.packages ?? [])
+    .map((packageRow) => ({
+      ...packageRow,
+      digital_medal: Array.isArray(packageRow.digital_medal)
+        ? packageRow.digital_medal[0] ?? null
+        : packageRow.digital_medal,
+      physical_medal: Array.isArray(packageRow.physical_medal)
+        ? packageRow.physical_medal[0] ?? null
+        : packageRow.physical_medal,
+    }))
+    .sort((a, b) => a.sort_order - b.sort_order);
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  const { data: myRegsRaw } = user
+    ? await supabase
+        .from("registrations")
+        .select("id, package_id, status")
+        .eq("user_id", user.id)
+        .eq("event_id", id)
+        .neq("status", "cancelled")
+    : { data: null };
+  const myRegByPackageId = new Map(
+    ((myRegsRaw ?? []) as { id: string; package_id: string; status: string }[]).map((r) => [
+      r.package_id,
+      r,
+    ]),
+  );
 
   const leaderboard = buildEventBibLeaderboard(
     ((leaderboardRows ?? []) as unknown as LeaderboardSubmissionRow[]).map((row) => {
@@ -175,11 +192,13 @@ export default async function EventDetailPage({
             <HeadingIcon name="package" />
             {tx(locale, "เลือกแพ็กเกจ", "Choose a package")}
           </h2>
-          {packages.map((p) => (
-            <Card
-              key={p.id}
-              className="flex flex-col gap-3 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
-            >
+          {packages.map((p) => {
+            const myReg = myRegByPackageId.get(p.id);
+            return (
+              <Card
+                key={p.id}
+                className="flex flex-col gap-3 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+              >
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-display font-bold text-charcoal">{pickLocalized(locale, p.name, p.name_en)}</span>
@@ -231,7 +250,23 @@ export default async function EventDetailPage({
                   )}
                 </div>
               </div>
-              {registrationOpen &&
+              {user && myReg ? (
+                myReg.status === "pending" ? (
+                  <Link href={`/dashboard/pay/${myReg.id}`} className="shrink-0">
+                    <Badge className="bg-medal-soft text-medal hover:underline">
+                      {tx(locale, "รอชำระเงิน", "Awaiting payment")} →
+                    </Badge>
+                  </Link>
+                ) : (
+                  <LinkButton
+                    href="/dashboard/events"
+                    className="w-full shrink-0 whitespace-nowrap bg-[#12b76a] text-white hover:bg-[#0f9d5c] sm:w-auto sm:px-3">
+                    {tx(locale, "สมัครแล้ว", "Registered")}
+                    <ChevronRight className="size-4 shrink-0" aria-hidden="true" />
+                  </LinkButton>
+                )
+              ) : (
+                registrationOpen &&
                 (user ? (
                   <LinkButton
                     href={`/events/${event.id}/register?package=${p.id}`}
@@ -247,9 +282,11 @@ export default async function EventDetailPage({
                     icon="login">
                     {tx(locale, "เข้าสู่ระบบเพื่อสมัคร", "Sign in to register")}
                   </LinkButton>
-                ))}
+                ))
+              )}
             </Card>
-          ))}
+            );
+          })}
           <EventBibLeaderboard rows={leaderboard} locale={locale} />
         </div>
       </div>

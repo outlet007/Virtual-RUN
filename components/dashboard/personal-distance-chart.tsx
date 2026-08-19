@@ -29,7 +29,7 @@ export function PersonalDistanceChart({ data, locale }: { data: PersonalDistance
     <div>
       <div className="mb-3 flex flex-wrap gap-x-5 gap-y-2 text-sm" aria-label={tx(locale, "คำอธิบายสีของกราฟ", "Chart legend")}>
         <span className="inline-flex items-center gap-2">
-          <span className="size-3 rounded-sm bg-primary" aria-hidden="true" />
+          <span className="size-3 rounded-sm bg-[#12b76a]" aria-hidden="true" />
           {tx(locale, "วิ่ง", "Run")} {runKm.toLocaleString(locale === "en" ? "en-US" : "th-TH", { maximumFractionDigits: 2 })} {tx(locale, "กม.", "km")}
         </span>
         <span className="inline-flex items-center gap-2">
@@ -68,7 +68,7 @@ export function PersonalDistanceChart({ data, locale }: { data: PersonalDistance
               ]}
               labelStyle={{ color: "#0C111D", fontWeight: 700 }}
             />
-            <Bar dataKey="runKm" stackId="distance" fill="var(--color-primary)" maxBarSize={28} />
+            <Bar dataKey="runKm" stackId="distance" fill="#12b76a" maxBarSize={28} />
             <Bar
               dataKey="walkKm"
               stackId="distance"

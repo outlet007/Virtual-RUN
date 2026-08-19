@@ -179,7 +179,7 @@ export default async function AdminSubmissionsPage({
   let query = db
     .from("submissions")
     .select(
-      "id, distance_km, duration_sec, activity_type, activity_date, evidence_url, ocr_status, ocr_distance_km, ocr_confidence, duplicate_match_type, duplicate_match_submission_id, duplicate_similarity_distance, review_note, flag_reason, status, source, users(name, email), registrations(packages(name), events(title))",
+      "id, distance_km, duration_sec, activity_type, activity_date, evidence_url, ocr_status, ocr_distance_km, ocr_confidence, duplicate_match_type, duplicate_match_submission_id, duplicate_similarity_distance, review_note, flag_reason, status, source, users!submissions_user_id_fkey(name, email), registrations(packages(name), events(title))",
     )
     .order("activity_date", { ascending: false });
 
@@ -239,7 +239,7 @@ export default async function AdminSubmissionsPage({
   if (duplicateReferenceIds.length > 0) {
     const { data: references } = await db
       .from("submissions")
-      .select("id, activity_date, users(name, email), registrations(events(title))")
+      .select("id, activity_date, users!submissions_user_id_fkey(name, email), registrations(events(title))")
       .in("id", duplicateReferenceIds);
     for (const reference of (references ?? []) as unknown as DuplicateReference[]) {
       duplicateReferences.set(reference.id, reference);

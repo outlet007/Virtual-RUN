@@ -39,8 +39,8 @@ function normalizeSearchValue(value: unknown) {
 }
 
 function statusBadgeClass(status: string) {
-  if (status === "approved") return "bg-primary-soft text-primary-dark";
-  if (status === "rejected") return "bg-red-50 text-red-600";
+  if (status === "approved") return "bg-[#12b76a] text-white";
+  if (status === "rejected") return "bg-[#ee4741] text-white";
   if (status === "flagged") return "bg-orange-50 text-orange-700";
   return "bg-medal-soft text-medal";
 }

@@ -31,7 +31,7 @@ export function EventLeaderboardCard({ leaderboard }: { leaderboard?: EventLeade
               {index + 1}
             </span>
             <span className="min-w-0 flex-1 truncate font-medium">{runner.userName}</span>
-            <strong className="shrink-0 font-mono text-primary-dark tnum">
+            <strong className="shrink-0 font-mono text-[#00954F] tnum">
               {runner.distanceKm.toLocaleString("th-TH", { maximumFractionDigits: 2 })} กม.
             </strong>
           </li>

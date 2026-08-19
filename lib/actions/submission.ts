@@ -20,6 +20,12 @@ import {
 
 const EVIDENCE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 
+// หน้าบันทึกผลผูกกับ registration ที่เลือกมาแล้วเสมอ (ไม่มี dropdown รวมงานอีกต่อไป)
+// ถ้าไม่มี registrationId (เช่น request ผิดปกติ) ให้กลับไปหน้า "งานของฉัน" แทนที่จะสร้าง URL ที่พัง
+function submitErrorPath(registrationId: string) {
+  return registrationId ? `/dashboard/submit/${registrationId}` : "/dashboard/events";
+}
+
 type GuardedSubmissionResult = {
   submission_id: string;
   submission_status: "approved" | "flagged";
@@ -64,21 +70,21 @@ export async function createSubmission(formData: FormData) {
     durationSec <= 0
   ) {
     redirect(
-      "/dashboard/submit?error=" +
+      submitErrorPath(registrationId) + "?error=" +
         encodeURIComponent("กรอกระยะ เวลา และวันที่ให้ถูกต้อง"),
     );
   }
 
   if (!(evidenceFile instanceof File) || evidenceFile.size === 0) {
     redirect(
-      "/dashboard/submit?error=" +
+      submitErrorPath(registrationId) + "?error=" +
         encodeURIComponent("ต้องแนบรูปหลักฐานก่อนบันทึกผล"),
     );
   }
 
   if (!EVIDENCE_TYPES.has(evidenceFile.type) || evidenceFile.size > 5 * 1024 * 1024) {
     redirect(
-      "/dashboard/submit?error=" +
+      submitErrorPath(registrationId) + "?error=" +
         encodeURIComponent("รองรับเฉพาะไฟล์ PNG, JPG หรือ WebP ขนาดไม่เกิน 5 MB"),
     );
   }
@@ -92,7 +98,7 @@ export async function createSubmission(formData: FormData) {
     .maybeSingle();
   if (!registration) {
     redirect(
-      "/dashboard/submit?error=" +
+      submitErrorPath(registrationId) + "?error=" +
         encodeURIComponent("ไม่พบใบสมัครที่ยืนยันแล้วสำหรับบัญชีนี้"),
     );
   }
@@ -102,7 +108,7 @@ export async function createSubmission(formData: FormData) {
     : registration.events;
   if (!registrationEvent) {
     redirect(
-      "/dashboard/submit?error=" + encodeURIComponent("ไม่พบช่วงเวลาของงาน"),
+      submitErrorPath(registrationId) + "?error=" + encodeURIComponent("ไม่พบช่วงเวลาของงาน"),
     );
   }
 
@@ -117,13 +123,13 @@ export async function createSubmission(formData: FormData) {
   );
   if (rateLimitError) {
     redirect(
-      "/dashboard/submit?error=" +
+      submitErrorPath(registrationId) + "?error=" +
         encodeURIComponent("ตรวจสอบขีดจำกัดการส่งผลไม่สำเร็จ กรุณาลองอีกครั้ง"),
     );
   }
   if (rateLimitResult !== "allowed") {
     redirect(
-      "/dashboard/submit?error=" +
+      submitErrorPath(registrationId) + "?error=" +
         encodeURIComponent("ส่งผลถี่เกินไป กรุณารอ 10 นาทีแล้วลองอีกครั้ง"),
     );
   }
@@ -133,7 +139,7 @@ export async function createSubmission(formData: FormData) {
     ruleRuntime = await loadSubmissionRuleRuntime(db, registrationId, activityDate);
   } catch {
     redirect(
-      "/dashboard/submit?error=" +
+      submitErrorPath(registrationId) + "?error=" +
         encodeURIComponent("ตรวจสอบกฎการส่งผลไม่สำเร็จ กรุณาลองอีกครั้ง"),
     );
   }
@@ -153,7 +159,7 @@ export async function createSubmission(formData: FormData) {
     preparedEvidence = await prepareEvidenceImage(imageBuffer);
   } catch {
     redirect(
-      "/dashboard/submit?error=" +
+      submitErrorPath(registrationId) + "?error=" +
         encodeURIComponent("ไฟล์หลักฐานเสียหายหรือไม่ใช่รูปภาพที่รองรับ"),
     );
   }
@@ -166,13 +172,13 @@ export async function createSubmission(formData: FormData) {
     .maybeSingle();
   if (exactDuplicateError) {
     redirect(
-      "/dashboard/submit?error=" +
+      submitErrorPath(registrationId) + "?error=" +
         encodeURIComponent("ตรวจสอบหลักฐานซ้ำไม่สำเร็จ กรุณาลองอีกครั้ง"),
     );
   }
   if (exactDuplicate) {
     redirect(
-      "/dashboard/submit?error=" +
+      submitErrorPath(registrationId) + "?error=" +
         encodeURIComponent("รูปหลักฐานนี้เคยใช้บันทึกผลแล้ว"),
     );
   }
@@ -185,13 +191,13 @@ export async function createSubmission(formData: FormData) {
     .maybeSingle();
   if (normalizedDuplicateError) {
     redirect(
-      "/dashboard/submit?error=" +
+      submitErrorPath(registrationId) + "?error=" +
         encodeURIComponent("ตรวจสอบหลักฐานซ้ำไม่สำเร็จ กรุณาลองอีกครั้ง"),
     );
   }
   if (normalizedDuplicate) {
     redirect(
-      "/dashboard/submit?error=" +
+      submitErrorPath(registrationId) + "?error=" +
         encodeURIComponent("รูปหลักฐานนี้เคยใช้บันทึกผลแล้ว แม้ข้อมูลไฟล์จะถูกเปลี่ยน"),
     );
   }
@@ -211,7 +217,7 @@ export async function createSubmission(formData: FormData) {
     });
 
   if (uploadError) {
-    redirect("/dashboard/submit?error=" + encodeURIComponent(uploadError.message));
+    redirect(submitErrorPath(registrationId) + "?error=" + encodeURIComponent(uploadError.message));
   }
   const evidencePath = path;
   const activityFingerprint = createActivityFingerprint({
@@ -249,18 +255,18 @@ export async function createSubmission(formData: FormData) {
     await db.storage.from("run-evidence").remove([evidencePath]);
     if (isDuplicateEvidenceError(error)) {
       redirect(
-        "/dashboard/submit?error=" +
+        submitErrorPath(registrationId) + "?error=" +
           encodeURIComponent("รูปหลักฐานนี้เคยใช้บันทึกผลแล้ว"),
       );
     }
-    redirect("/dashboard/submit?error=" + encodeURIComponent(error.message));
+    redirect(submitErrorPath(registrationId) + "?error=" + encodeURIComponent(error.message));
   }
 
   const submission = submissionRaw as GuardedSubmissionResult | null;
   if (!submission) {
     await db.storage.from("run-evidence").remove([evidencePath]);
     redirect(
-      "/dashboard/submit?error=" +
+      submitErrorPath(registrationId) + "?error=" +
         encodeURIComponent("บันทึกผลไม่สำเร็จ กรุณาลองอีกครั้ง"),
     );
   }
