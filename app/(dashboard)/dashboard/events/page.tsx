@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Flag } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Badge, HeadingIcon, LinkButton, TrackProgress } from "@/components/ui";
-import { formatKm } from "@/lib/utils";
+import { formatKmExact } from "@/lib/utils";
 import { getLocale } from "@/lib/i18n/server";
 import { pickLocalized, tx } from "@/lib/i18n/shared";
 
@@ -14,7 +14,7 @@ type Reg = {
   bib_number: string | null;
   status: string;
   packages: { name: string; name_en: string | null; target_distance_km: number; has_physical_medal: boolean } | null;
-  events: { title: string; title_en: string | null } | null;
+  events: { id: string; title: string; title_en: string | null } | null;
 };
 type Sub = {
   registration_id: string;
@@ -32,7 +32,7 @@ export default async function MyEventsPage() {
   const { data: regsRaw } = await supabase
     .from("registrations")
     .select(
-      "id, bib_number, status, packages(name, name_en, target_distance_km, has_physical_medal), events(title, title_en)",
+      "id, bib_number, status, packages(name, name_en, target_distance_km, has_physical_medal), events(id, title, title_en)",
     )
     .eq("user_id", user.id)
     .order("registered_at", { ascending: false });
@@ -78,10 +78,16 @@ export default async function MyEventsPage() {
             return (
               <Card key={r.id} className="space-y-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm text-ink/50">{r.events ? pickLocalized(locale, r.events.title, r.events.title_en) : ""}</p>
-                    <p className="font-display text-lg font-bold">{r.packages ? pickLocalized(locale, r.packages.name, r.packages.name_en) : ""}</p>
-                  </div>
+                  {r.events ? (
+                    <Link href={`/events/${r.events.id}`} className="min-w-0 hover:underline">
+                      <p className="text-sm text-ink/50">{pickLocalized(locale, r.events.title, r.events.title_en)}</p>
+                      <p className="font-display text-lg font-bold">{r.packages ? pickLocalized(locale, r.packages.name, r.packages.name_en) : ""}</p>
+                    </Link>
+                  ) : (
+                    <div>
+                      <p className="font-display text-lg font-bold">{r.packages ? pickLocalized(locale, r.packages.name, r.packages.name_en) : ""}</p>
+                    </div>
+                  )}
                   <div className="text-right">
                     {r.bib_number && (
                       <p className="font-mono text-sm text-muted tnum">BIB {r.bib_number}</p>
@@ -111,7 +117,7 @@ export default async function MyEventsPage() {
                 </div>
                 <div>
                   <div className="mb-1 flex justify-between font-mono text-sm tnum">
-                    <span className="font-bold text-[#00954f]">{formatKm(done)} km</span>
+                    <span className="font-bold text-[#00954f]">{formatKmExact(done)} km</span>
                     <span className="text-ink/40">/ {target} km</span>
                   </div>
                   <TrackProgress current={done} target={target} />

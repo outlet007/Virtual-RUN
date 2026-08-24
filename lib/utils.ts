@@ -12,6 +12,15 @@ export function formatKm(km: number) {
   });
 }
 
+// เก็บระยะจริงตามความละเอียดที่บันทึกไว้ (distance_km เป็น numeric(6,2)) แทนการปัดเหลือ
+// ทศนิยม 1 ตำแหน่งแบบ formatKm ใช้ตอนต้องการเลขระยะที่ตรงกับค่าจริง ไม่ปัดขึ้น/ลง
+export function formatKmExact(km: number) {
+  return km.toLocaleString("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+}
+
 export function formatBaht(amount: number) {
   return amount.toLocaleString("th-TH", {
     style: "currency",

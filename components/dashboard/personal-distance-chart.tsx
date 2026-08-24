@@ -12,7 +12,15 @@ import {
 import type { PersonalDistanceSeriesPoint } from "@/lib/personal-stats";
 import { tx, type Locale } from "@/lib/i18n/shared";
 
-export function PersonalDistanceChart({ data, locale }: { data: PersonalDistanceSeriesPoint[]; locale: Locale }) {
+export function PersonalDistanceChart({
+  data,
+  locale,
+  days,
+}: {
+  data: PersonalDistanceSeriesPoint[];
+  locale: Locale;
+  days: number;
+}) {
   const runKm = data.reduce((sum, point) => sum + point.runKm, 0);
   const walkKm = data.reduce((sum, point) => sum + point.walkKm, 0);
   const totalKm = runKm + walkKm;
@@ -20,7 +28,11 @@ export function PersonalDistanceChart({ data, locale }: { data: PersonalDistance
   if (totalKm === 0) {
     return (
       <div className="flex min-h-56 items-center justify-center text-center text-sm text-ink/50">
-        {tx(locale, "ยังไม่มีระยะวิ่งหรือเดินที่อนุมัติใน 30 วันล่าสุด", "No approved running or walking distance in the last 30 days")}
+        {tx(
+          locale,
+          `ยังไม่มีระยะวิ่งหรือเดินที่อนุมัติใน ${days} วันล่าสุด`,
+          `No approved running or walking distance in the last ${days} days`,
+        )}
       </div>
     );
   }
@@ -41,7 +53,11 @@ export function PersonalDistanceChart({ data, locale }: { data: PersonalDistance
       <div
         className="h-72 w-full min-w-0"
         role="img"
-        aria-label={tx(locale, "กราฟระยะทาง 30 วันล่าสุด", "Distance chart for the last 30 days")}
+        aria-label={tx(
+          locale,
+          `กราฟระยะทาง ${days} วันล่าสุด`,
+          `Distance chart for the last ${days} days`,
+        )}
       >
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 12, right: 8, left: -14, bottom: 4 }}>

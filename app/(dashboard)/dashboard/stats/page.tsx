@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card, HeadingIcon } from "@/components/ui";
@@ -16,8 +17,22 @@ type Sub = {
   activity_date: string;
 };
 
-export default async function StatsPage() {
+const RANGE_DAYS = [7, 30, 90] as const;
+type RangeDays = (typeof RANGE_DAYS)[number];
+
+function parseRangeDays(value: string | undefined): RangeDays {
+  const parsed = Number(value);
+  return (RANGE_DAYS as readonly number[]).includes(parsed) ? (parsed as RangeDays) : 30;
+}
+
+export default async function StatsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ range?: string }>;
+}) {
   const [supabase, locale] = await Promise.all([createClient(), getLocale()]);
+  const { range } = await searchParams;
+  const days = parseRangeDays(range);
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -42,6 +57,8 @@ export default async function StatsPage() {
   const subs = (subsRaw ?? []) as Sub[];
   const regs = (regsRaw ?? []) as { status: string }[];
   const points = (ledger ?? []).reduce((sum, l) => sum + l.delta, 0);
+  // คะแนนสะสมรวม = แต้มที่เคยได้รับทั้งหมด ไม่หักคืนตอนแลกรางวัล (ต่างจาก "แต้มสะสม" ที่เป็นยอดคงเหลือ)
+  const totalPointsEarned = (ledger ?? []).reduce((sum, l) => sum + Math.max(0, l.delta), 0);
 
   const approved = subs.filter((s) => s.status === "approved");
   const totalKm = approved.reduce((sum, s) => sum + Number(s.distance_km), 0);
@@ -57,16 +74,18 @@ export default async function StatsPage() {
       activityType: submission.activity_type === "walk" ? "walk" : "run",
       distanceKm: Number(submission.distance_km),
     })),
+    new Date(),
+    days,
   );
 
   const stats = [
     { label: tx(locale, "ระยะสะสมรวม", "Total distance"), value: `${formatKm(totalKm)} km` },
     { label: tx(locale, "ระยะวิ่งสะสม", "Running distance"), value: `${formatKm(runKm)} km` },
     { label: tx(locale, "ระยะเดินสะสม", "Walking distance"), value: `${formatKm(walkKm)} km` },
+    { label: tx(locale, "คะแนนสะสมรวม", "Total points earned"), value: totalPointsEarned },
     { label: tx(locale, "แต้มสะสม", "Points"), value: points },
     { label: tx(locale, "เหรียญที่ได้รับ", "Medals earned"), value: medalsCount ?? 0 },
     { label: tx(locale, "งานที่สมัคร", "Joined events"), value: regs.length },
-    { label: tx(locale, "งานที่ยืนยันแล้ว", "Confirmed events"), value: regs.filter((r) => r.status === "confirmed").length },
     { label: tx(locale, "ผลวิ่งที่บันทึกทั้งหมด", "All submissions"), value: subs.length },
     { label: tx(locale, "ผลวิ่งที่อนุมัติแล้ว", "Approved submissions"), value: approved.length },
   ];
@@ -81,17 +100,33 @@ export default async function StatsPage() {
         <p className="mt-1 text-sm text-muted">{tx(locale, "ภาพรวมผลงานสะสมทั้งหมดของบัญชีนี้", "Overview of all activity on this account")}</p>
       </div>
       <section aria-labelledby="personal-distance-heading">
-        <div className="mb-3">
-          <h3 id="personal-distance-heading" className="flex items-center gap-2 font-display text-lg font-bold">
-            <HeadingIcon name="activity" />
-            {tx(locale, "ระยะทาง 30 วันล่าสุด", "Distance over the last 30 days")}
-          </h3>
-          <p className="mt-1 text-sm text-muted">
-            {tx(locale, "แสดงเฉพาะผลที่อนุมัติแล้ว แยกระหว่างการวิ่งและการเดิน", "Approved results only, split between running and walking")}
-          </p>
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h3 id="personal-distance-heading" className="flex items-center gap-2 font-display text-lg font-bold">
+              <HeadingIcon name="activity" />
+              {tx(locale, "ระยะทาง", "Distance")}
+            </h3>
+            <p className="mt-1 text-sm text-muted">
+              {tx(locale, "แสดงเฉพาะผลที่อนุมัติแล้ว แยกระหว่างการวิ่งและการเดิน", "Approved results only, split between running and walking")}
+            </p>
+          </div>
+          <div className="flex rounded-xl border border-lane p-1" aria-label={tx(locale, "เลือกช่วงเวลาของกราฟ", "Select the chart range")}>
+            {RANGE_DAYS.map((rangeDays) => (
+              <Link
+                key={rangeDays}
+                href={`/dashboard/stats?range=${rangeDays}`}
+                aria-current={days === rangeDays ? "page" : undefined}
+                className={`rounded-lg px-3 py-2 text-sm font-semibold ${
+                  days === rangeDays ? "bg-ink text-paper" : "text-ink/60"
+                }`}
+              >
+                {tx(locale, `${rangeDays} วัน`, `${rangeDays}d`)}
+              </Link>
+            ))}
+          </div>
         </div>
         <Card>
-          <PersonalDistanceChart data={distanceSeries} locale={locale} />
+          <PersonalDistanceChart data={distanceSeries} locale={locale} days={days} />
         </Card>
       </section>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

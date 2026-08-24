@@ -36,6 +36,7 @@ function roundDistance(value: number) {
 export function buildPersonalDistanceSeries(
   rows: PersonalDistanceSourceRow[],
   now = new Date(),
+  days = 30,
 ): PersonalDistanceSeriesPoint[] {
   const distances = new Map<string, { runKm: number; walkKm: number }>();
 
@@ -51,8 +52,8 @@ export function buildPersonalDistanceSeries(
   const todayKey = bangkokDateKey(now);
   const today = new Date(`${todayKey}T00:00:00.000Z`);
 
-  return Array.from({ length: 30 }, (_, index) => {
-    const date = addUtcDays(today, index - 29);
+  return Array.from({ length: days }, (_, index) => {
+    const date = addUtcDays(today, index - (days - 1));
     const key = date.toISOString().slice(0, 10);
     const distance = distances.get(key) ?? { runKm: 0, walkKm: 0 };
     const runKm = roundDistance(distance.runKm);
