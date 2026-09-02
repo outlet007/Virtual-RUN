@@ -53,12 +53,12 @@ mount โค้ดเป็น volume แล้วรัน `next dev` ในค
 docker compose up -d --build
 ```
 คำสั่งนี้ build image ล่าสุดและรัน container แบบ background เปิดระบบที่
-http://localhost:3000 โดยไม่ต้องรัน `npm run dev` เพิ่ม
+http://localhost:8025 โดยไม่ต้องรัน `npm run dev` เพิ่ม
 
 หลังแก้ไขหรือเขียนโค้ดเสร็จทุกครั้ง ให้รันคำสั่งนี้และตรวจว่า container
 มีสถานะ running พร้อมเปิดหน้าเว็บได้จริงก่อนถือว่างานเสร็จ
 
-เปิด http://localhost:3000
+เปิด http://localhost:8025
 
 ## ถัดไป (ตาม roadmap)
 - Phase 2: หน้า admin (สร้างงาน, ตรวจ submission, จัดส่งเหรียญ)

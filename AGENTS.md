@@ -8,14 +8,14 @@ the following checks pass:
 1. Build and start the production container in the background:
    `docker compose up -d --build`
 2. Confirm the `Virtual-RUN` container is running with `docker compose ps`.
-3. Confirm `http://localhost:3000` returns a successful HTTP response.
+3. Confirm `http://localhost:8025` returns a successful HTTP response.
 4. Inspect `docker compose logs --tail 100` if startup or HTTP verification
    fails, then fix the problem and repeat the checks.
 
 Do not require `npm run dev` for the user to view the system. The standard
-viewing environment is the production Docker container on port 3000.
+viewing environment is the production Docker container on host port 8025.
 
-When a development container is occupying port 3000, stop it before starting
+When a development container is occupying port 8025, stop it before starting
 the production container.
 
 ## Existing project safeguards

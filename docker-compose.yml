@@ -9,13 +9,13 @@ services:
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
     image: virtual-run:latest
     ports:
-      - "3000:3000"
+      - "8025:3000"
     env_file:
       - .env
     environment:
       # Public origin used for redirects; never use the container bind address
       # (0.0.0.0) as a browser destination.
-      SITE_URL: ${SITE_URL:-http://localhost:3000}
+      SITE_URL: ${SITE_URL:-http://localhost:8025}
       # Server-side Supabase calls run inside the container, so localhost must
       # resolve to the Windows host where Supabase CLI is running.
       SUPABASE_URL: http://host.docker.internal:55321
