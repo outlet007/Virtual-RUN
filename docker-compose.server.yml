@@ -1,0 +1,7 @@
+services:
+  virtual-run:
+    environment:
+      # Override the local-development address from docker-compose.yml.
+      # Both values must be the final HTTPS URLs before building Next.js.
+      SITE_URL: ${SITE_URL:?Set SITE_URL in .env}
+      SUPABASE_URL: ${SUPABASE_URL:?Set SUPABASE_URL in .env}
