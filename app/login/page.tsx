@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
-import Script from "next/script";
 import { LockKeyhole, Mail } from "lucide-react";
+import { TurnstileField } from "@/components/turnstile-field";
 import { Card, Button, HeadingIcon, Input, Label, LinkButton } from "@/components/ui";
 import { logIn } from "@/lib/actions/auth";
 import { getLocale } from "@/lib/i18n/server";
@@ -10,9 +10,9 @@ import { tx } from "@/lib/i18n/shared";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; password_reset?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, password_reset: passwordReset } = await searchParams;
   const locale = await getLocale();
   const turnstileSiteKey = process.env.TURNSTILE_SITE_KEY ?? "";
 
@@ -27,8 +27,18 @@ export default async function LoginPage({
       </div>
 
       {error && (
-        <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
           {error}
+        </div>
+      )}
+
+      {passwordReset === "1" && (
+        <div className="rounded-xl bg-primary-soft px-4 py-3 text-sm text-ink" role="status">
+          {tx(
+            locale,
+            "ตั้งรหัสผ่านใหม่เรียบร้อยแล้ว กรุณาเข้าสู่ระบบ",
+            "Your password has been reset. Sign in with your new password.",
+          )}
         </div>
       )}
 
@@ -69,21 +79,18 @@ export default async function LoginPage({
                 required
               />
             </div>
+            <div className="mt-2 text-right">
+              <Link
+                href="/forgot-password"
+                className="text-sm font-semibold text-primary-dark hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              >
+                {tx(locale, "ลืมรหัสผ่าน?", "Forgot password?")}
+              </Link>
+            </div>
           </div>
 
-          <Script
-            src="https://challenges.cloudflare.com/turnstile/v0/api.js"
-            strategy="afterInteractive"
-          />
           {turnstileSiteKey ? (
-            <div
-              className="cf-turnstile min-h-[68px] overflow-hidden rounded-xl border border-lane bg-white"
-              data-sitekey={turnstileSiteKey}
-              data-action="login"
-              data-theme="light"
-              data-size="flexible"
-              aria-label={tx(locale, "การตรวจสอบความปลอดภัย", "Security check")}
-            />
+            <TurnstileField siteKey={turnstileSiteKey} action="login" locale={locale} />
           ) : (
             <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
               {tx(locale, "ระบบตรวจสอบความปลอดภัยยังไม่ได้ตั้งค่า", "Security verification is not configured.")}

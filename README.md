@@ -26,9 +26,15 @@
 
 ### 3. ตั้งค่า env
 ```bash
+# รัน Next.js ตรงด้วย npm run dev
 cp .env.example .env.local
-# แล้วใส่ค่า NEXT_PUBLIC_SUPABASE_URL และ NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+# หรือรันแอปด้วย Docker Compose
+cp .env.example .env
 ```
+แล้วใส่ค่าที่จำเป็นในไฟล์ที่เลือกใช้ โดย Docker Compose ของแอปอ่าน `.env`
+เพียงไฟล์เดียว ส่วน Supabase self-hosted เป็นอีกระบบหนึ่งและมี `.env` ของตนเอง
+อยู่ในโฟลเดอร์ Supabase ไม่ต้องสร้างทั้ง `.env` และ `.env.local` สำหรับวิธีรันเดียวกัน
 
 ### 4. ปิด email confirmation (สำหรับ dev)
 Supabase > Authentication > Providers > Email → ปิด "Confirm email"

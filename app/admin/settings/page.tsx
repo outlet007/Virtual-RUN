@@ -4,9 +4,12 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, Button, HeadingIcon, Input, Label, LinkButton, ImageUploadField, Select, Textarea } from "@/components/ui";
 import { ColorField } from "@/components/admin/color-field";
 import { OpacityField } from "@/components/admin/opacity-field";
+import { SmtpSettingsCard } from "@/components/admin/smtp-settings-card";
 import { updateSystemSettings } from "@/lib/actions/admin";
 import { disconnectStrava } from "@/lib/actions/strava";
 import { disconnectLine } from "@/lib/actions/line";
+import { requireSuperAdmin } from "@/lib/auth/admin";
+import { getSmtpSettingsSummary } from "@/lib/smtp-settings";
 import { DEFAULT_SETTINGS } from "@/lib/system-settings";
 
 export const dynamic = "force-dynamic";
@@ -14,10 +17,19 @@ export const dynamic = "force-dynamic";
 export default async function AdminSettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; saved?: string; strava?: string; line?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    saved?: string;
+    strava?: string;
+    line?: string;
+    smtp_saved?: string;
+    smtp_test?: string;
+  }>;
 }) {
+  const { user: adminUser } = await requireSuperAdmin();
   const sp = await searchParams;
   const db = createAdminClient();
+  const smtpSettings = await getSmtpSettingsSummary();
 
   const { data: settingsRow } = await db
     .from("system_settings")
@@ -364,6 +376,13 @@ export default async function AdminSettingsPage({
           </Button>
         </Card>
       </form>
+
+      <SmtpSettingsCard
+        settings={smtpSettings}
+        defaultTestEmail={adminUser.email ?? ""}
+        saved={sp.smtp_saved === "1"}
+        testSent={sp.smtp_test === "sent"}
+      />
 
       <div>
         <h3 className="mb-3 flex items-center gap-2 font-display font-bold">

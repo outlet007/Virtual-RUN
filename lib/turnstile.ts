@@ -9,7 +9,7 @@ type TurnstileVerifyResponse = {
   hostname?: string;
 };
 
-export async function verifyTurnstileToken(token: string) {
+export async function verifyTurnstileToken(token: string, expectedAction = "login") {
   const secretKey = process.env.TURNSTILE_SECRET_KEY;
   if (!secretKey || !token || token.length > 2048) return false;
 
@@ -33,7 +33,7 @@ export async function verifyTurnstileToken(token: string) {
 
     return (
       result.success &&
-      (isOfficialTestKey || result.action === "login") &&
+      (isOfficialTestKey || result.action === expectedAction) &&
       (!expectedHostname || result.hostname === expectedHostname)
     );
   } catch {
