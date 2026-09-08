@@ -1,5 +1,7 @@
 import "server-only";
 
+import { getStravaConfiguration } from "@/lib/integration-settings";
+
 const STRAVA_OAUTH_URL = "https://www.strava.com/oauth/token";
 const STRAVA_API_URL = "https://www.strava.com/api/v3";
 
@@ -21,12 +23,16 @@ export type StravaActivity = {
 };
 
 export async function exchangeCodeForToken(code: string): Promise<StravaTokenResponse> {
+  const config = await getStravaConfiguration();
+  if (!config.enabled || !config.configured) {
+    throw new Error("Strava integration is not configured");
+  }
   const res = await fetch(STRAVA_OAUTH_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      client_id: process.env.STRAVA_CLIENT_ID,
-      client_secret: process.env.STRAVA_CLIENT_SECRET,
+      client_id: config.clientId,
+      client_secret: config.clientSecret,
       code,
       grant_type: "authorization_code",
     }),
@@ -36,12 +42,16 @@ export async function exchangeCodeForToken(code: string): Promise<StravaTokenRes
 }
 
 export async function refreshAccessToken(refreshToken: string): Promise<StravaTokenResponse> {
+  const config = await getStravaConfiguration();
+  if (!config.enabled || !config.configured) {
+    throw new Error("Strava integration is not configured");
+  }
   const res = await fetch(STRAVA_OAUTH_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      client_id: process.env.STRAVA_CLIENT_ID,
-      client_secret: process.env.STRAVA_CLIENT_SECRET,
+      client_id: config.clientId,
+      client_secret: config.clientSecret,
       refresh_token: refreshToken,
       grant_type: "refresh_token",
     }),

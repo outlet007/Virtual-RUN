@@ -6,6 +6,7 @@ import { Card, HeadingIcon, Input, Label } from "@/components/ui";
 import { requestPasswordReset } from "@/lib/actions/password-recovery";
 import { getLocale } from "@/lib/i18n/server";
 import { tx } from "@/lib/i18n/shared";
+import { getTurnstileConfiguration } from "@/lib/integration-settings";
 
 const errorMessages = {
   invalid_email: {
@@ -23,8 +24,12 @@ export default async function ForgotPasswordPage({
 }: {
   searchParams: Promise<{ error?: string; sent?: string }>;
 }) {
-  const [{ error, sent }, locale] = await Promise.all([searchParams, getLocale()]);
-  const turnstileSiteKey = process.env.TURNSTILE_SITE_KEY ?? "";
+  const [{ error, sent }, locale, turnstile] = await Promise.all([
+    searchParams,
+    getLocale(),
+    getTurnstileConfiguration(),
+  ]);
+  const turnstileReady = !turnstile.enabled || turnstile.configured;
   const message = errorMessages[error as keyof typeof errorMessages];
 
   return (
@@ -88,13 +93,14 @@ export default async function ForgotPasswordPage({
               </div>
             </div>
 
-            {turnstileSiteKey ? (
+            {turnstile.enabled && turnstile.configured && (
               <TurnstileField
-                siteKey={turnstileSiteKey}
+                siteKey={turnstile.siteKey}
                 action="password-recovery"
                 locale={locale}
               />
-            ) : (
+            )}
+            {turnstile.enabled && !turnstile.configured && (
               <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
                 {tx(
                   locale,
@@ -108,7 +114,7 @@ export default async function ForgotPasswordPage({
               label={tx(locale, "ส่งลิงก์ตั้งรหัสผ่านใหม่", "Send reset link")}
               pendingLabel={tx(locale, "กำลังส่ง...", "Sending...")}
               icon="send"
-              disabled={!turnstileSiteKey}
+              disabled={!turnstileReady}
             />
           </Card>
         </form>

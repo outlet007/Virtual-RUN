@@ -43,7 +43,8 @@ export function SmtpSettingsCard({
       )}
       {!settings.encryption_ready && (
         <div className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800" role="alert">
-          ต้องตั้งค่า SMTP_SETTINGS_ENCRYPTION_KEY อย่างน้อย 32 ตัวอักษรใน .env ก่อนบันทึกรหัสผ่าน
+          ต้องตั้งค่า BACKEND_SETTINGS_ENCRYPTION_KEY อย่างน้อย 32 ตัวอักษรใน .env
+          ก่อนบันทึกรหัสผ่าน โดยค่า SMTP_SETTINGS_ENCRYPTION_KEY เดิมยังใช้เป็น fallback ได้
         </div>
       )}
 

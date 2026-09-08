@@ -1,7 +1,12 @@
 import "server-only";
 
+import {
+  decryptBackendSecret,
+  encryptBackendSecret,
+  isBackendSettingsEncryptionReady,
+} from "@/lib/backend-settings-secrets";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { decryptSmtpPassword, encryptSmtpPassword, type SmtpInput } from "@/lib/smtp-configuration";
+import type { SmtpInput } from "@/lib/smtp-configuration";
 
 type StoredSmtpSettings = {
   enabled: boolean;
@@ -43,10 +48,6 @@ const EMPTY_SUMMARY: SmtpSettingsSummary = {
   encryption_ready: false,
 };
 
-function getEncryptionKey() {
-  return process.env.SMTP_SETTINGS_ENCRYPTION_KEY ?? "";
-}
-
 async function readStoredSettings() {
   const db = createAdminClient();
   const { data, error } = await db
@@ -67,7 +68,7 @@ export async function getSmtpSettingsSummary(): Promise<SmtpSettingsSummary> {
   if (!settings) {
     return {
       ...EMPTY_SUMMARY,
-      encryption_ready: getEncryptionKey().length >= 32,
+      encryption_ready: isBackendSettingsEncryptionReady(),
     };
   }
 
@@ -76,7 +77,7 @@ export async function getSmtpSettingsSummary(): Promise<SmtpSettingsSummary> {
     ...safeSettings,
     available: true,
     has_password: Boolean(password_ciphertext),
-    encryption_ready: getEncryptionKey().length >= 32,
+    encryption_ready: isBackendSettingsEncryptionReady(),
   };
 }
 
@@ -88,7 +89,7 @@ export async function saveSmtpSettings(
   let passwordCiphertext = input.clearPassword ? null : existing?.password_ciphertext ?? null;
 
   if (input.password) {
-    passwordCiphertext = encryptSmtpPassword(input.password, getEncryptionKey());
+    passwordCiphertext = encryptBackendSecret(input.password);
   }
 
   const { error } = await db.from("smtp_settings").upsert({
@@ -111,7 +112,7 @@ export async function getActiveSmtpConfiguration(): Promise<ActiveSmtpConfigurat
   const settings = await readStoredSettings();
   if (settings?.enabled) {
     const password = settings.password_ciphertext
-      ? decryptSmtpPassword(settings.password_ciphertext, getEncryptionKey())
+      ? decryptBackendSecret(settings.password_ciphertext)
       : "";
     return {
       source: "backend",

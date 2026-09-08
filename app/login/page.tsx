@@ -6,6 +6,10 @@ import { Card, Button, HeadingIcon, Input, Label, LinkButton } from "@/component
 import { logIn } from "@/lib/actions/auth";
 import { getLocale } from "@/lib/i18n/server";
 import { tx } from "@/lib/i18n/shared";
+import {
+  getSocialLoginVisibility,
+  getTurnstileConfiguration,
+} from "@/lib/integration-settings";
 
 export default async function LoginPage({
   searchParams,
@@ -13,8 +17,12 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string; password_reset?: string }>;
 }) {
   const { error, password_reset: passwordReset } = await searchParams;
-  const locale = await getLocale();
-  const turnstileSiteKey = process.env.TURNSTILE_SITE_KEY ?? "";
+  const [locale, turnstile, socialLogin] = await Promise.all([
+    getLocale(),
+    getTurnstileConfiguration(),
+    getSocialLoginVisibility(),
+  ]);
+  const turnstileReady = !turnstile.enabled || turnstile.configured;
 
   return (
     <div className="mx-auto max-w-sm space-y-6 pt-8">
@@ -89,48 +97,57 @@ export default async function LoginPage({
             </div>
           </div>
 
-          {turnstileSiteKey ? (
-            <TurnstileField siteKey={turnstileSiteKey} action="login" locale={locale} />
-          ) : (
+          {turnstile.enabled && turnstile.configured && (
+            <TurnstileField siteKey={turnstile.siteKey} action="login" locale={locale} />
+          )}
+          {turnstile.enabled && !turnstile.configured && (
             <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
               {tx(locale, "ระบบตรวจสอบความปลอดภัยยังไม่ได้ตั้งค่า", "Security verification is not configured.")}
             </p>
           )}
 
-          <Button className="w-full" type="submit" disabled={!turnstileSiteKey} icon="login">
+          <Button className="w-full" type="submit" disabled={!turnstileReady} icon="login">
             {tx(locale, "เข้าสู่ระบบ", "Sign in")}
           </Button>
 
-          <div className="flex items-center gap-3 text-xs text-ink/40">
-            <div className="h-px flex-1 bg-lane" />
-            {tx(locale, "หรือ", "or")}
-            <div className="h-px flex-1 bg-lane" />
-          </div>
+          {(socialLogin.google || socialLogin.facebook) && (
+            <div className="flex items-center gap-3 text-xs text-ink/40">
+              <div className="h-px flex-1 bg-lane" />
+              {tx(locale, "หรือ", "or")}
+              <div className="h-px flex-1 bg-lane" />
+            </div>
+          )}
 
-          <div className="space-y-2">
-            <LinkButton href="/auth/google" variant="ghost" className="w-full gap-2.5">
-              <Image
-                src="/auth/google.svg"
-                alt=""
-                width={20}
-                height={20}
-                className="h-5 w-5 shrink-0"
-                aria-hidden="true"
-              />
-              {tx(locale, "เข้าสู่ระบบด้วย Google", "Continue with Google")}
-            </LinkButton>
-            <LinkButton href="/auth/facebook" variant="ghost" className="w-full gap-2.5">
-              <Image
-                src="/auth/facebook.svg"
-                alt=""
-                width={20}
-                height={20}
-                className="h-5 w-5 shrink-0"
-                aria-hidden="true"
-              />
-              {tx(locale, "เข้าสู่ระบบด้วย Facebook", "Continue with Facebook")}
-            </LinkButton>
-          </div>
+          {(socialLogin.google || socialLogin.facebook) && (
+            <div className="space-y-2">
+              {socialLogin.google && (
+                <LinkButton href="/auth/google" variant="ghost" className="w-full gap-2.5">
+                  <Image
+                    src="/auth/google.svg"
+                    alt=""
+                    width={20}
+                    height={20}
+                    className="h-5 w-5 shrink-0"
+                    aria-hidden="true"
+                  />
+                  {tx(locale, "เข้าสู่ระบบด้วย Google", "Continue with Google")}
+                </LinkButton>
+              )}
+              {socialLogin.facebook && (
+                <LinkButton href="/auth/facebook" variant="ghost" className="w-full gap-2.5">
+                  <Image
+                    src="/auth/facebook.svg"
+                    alt=""
+                    width={20}
+                    height={20}
+                    className="h-5 w-5 shrink-0"
+                    aria-hidden="true"
+                  />
+                  {tx(locale, "เข้าสู่ระบบด้วย Facebook", "Continue with Facebook")}
+                </LinkButton>
+              )}
+            </div>
+          )}
         </Card>
       </form>
 

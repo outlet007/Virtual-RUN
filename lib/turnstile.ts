@@ -1,5 +1,7 @@
 import "server-only";
 
+import { getTurnstileConfiguration } from "@/lib/integration-settings";
+
 const SITEVERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 const CLOUDFLARE_ALWAYS_PASS_TEST_SECRET = "1x0000000000000000000000000000000AA";
 
@@ -10,8 +12,10 @@ type TurnstileVerifyResponse = {
 };
 
 export async function verifyTurnstileToken(token: string, expectedAction = "login") {
-  const secretKey = process.env.TURNSTILE_SECRET_KEY;
-  if (!secretKey || !token || token.length > 2048) return false;
+  const config = await getTurnstileConfiguration();
+  if (!config.enabled) return true;
+  const secretKey = config.secretKey;
+  if (!config.configured || !token || token.length > 2048) return false;
 
   const body = new FormData();
   body.set("secret", secretKey);
@@ -28,7 +32,7 @@ export async function verifyTurnstileToken(token: string, expectedAction = "logi
     if (!response.ok) return false;
 
     const result = (await response.json()) as TurnstileVerifyResponse;
-    const expectedHostname = process.env.TURNSTILE_EXPECTED_HOSTNAME;
+    const expectedHostname = config.expectedHostname;
     const isOfficialTestKey = secretKey === CLOUDFLARE_ALWAYS_PASS_TEST_SECRET;
 
     return (

@@ -53,6 +53,14 @@ export default async function PayPage({
 
   if (!paymentRaw) notFound();
   const payment = paymentRaw as PaymentRow;
+  let promptPayQr: string | null = null;
+  if (payment.status === "pending") {
+    try {
+      promptPayQr = await generatePromptPayQrDataUrl(Number(payment.amount));
+    } catch {
+      // Keep the payment page usable while an administrator fixes PromptPay settings.
+    }
+  }
 
   return (
     <div className="mx-auto max-w-md space-y-6">
@@ -74,15 +82,27 @@ export default async function PayPage({
           <p className="font-mono text-3xl font-bold tnum">
             {formatBaht(Number(payment.amount))}
           </p>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={await generatePromptPayQrDataUrl(Number(payment.amount))}
-            alt="PromptPay QR Code"
-            className="mx-auto h-64 w-64 rounded-xl border border-lane"
-          />
-          <p className="text-sm text-muted">
-            {tx(locale, "สแกนจ่ายผ่านแอปธนาคารได้เลย — ระบบยังไม่ยืนยันอัตโนมัติ แอดมินจะตรวจสอบและยืนยันให้หลังเห็นเงินเข้าจริง", "Scan with your banking app. Payment is reviewed and confirmed manually by an administrator.")}
-          </p>
+          {promptPayQr ? (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={promptPayQr}
+                alt="PromptPay QR Code"
+                className="mx-auto h-64 w-64 rounded-xl border border-lane"
+              />
+              <p className="text-sm text-muted">
+                {tx(locale, "สแกนจ่ายผ่านแอปธนาคารได้เลย — ระบบยังไม่ยืนยันอัตโนมัติ แอดมินจะตรวจสอบและยืนยันให้หลังเห็นเงินเข้าจริง", "Scan with your banking app. Payment is reviewed and confirmed manually by an administrator.")}
+              </p>
+            </>
+          ) : (
+            <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800" role="alert">
+              {tx(
+                locale,
+                "ยังไม่สามารถสร้าง QR ชำระเงินได้ กรุณาติดต่อผู้ดูแลระบบ",
+                "The payment QR is temporarily unavailable. Please contact an administrator.",
+              )}
+            </p>
+          )}
           {payment.charge_ref && (
             <p className="font-mono text-xs text-ink/40 tnum">
               {tx(locale, "อ้างอิง", "Reference")} {payment.charge_ref}

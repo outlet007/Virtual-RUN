@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createSiteUrl } from "@/lib/site-url";
+import { getLineLoginConfiguration } from "@/lib/integration-settings";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -24,6 +25,16 @@ export async function GET(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.redirect(createSiteUrl(request, "/login"));
 
+  const config = await getLineLoginConfiguration();
+  if (!config.enabled || !config.configured) {
+    return NextResponse.redirect(
+      createSiteUrl(
+        request,
+        `/admin/settings?error=${encodeURIComponent("LINE Login ยังไม่ได้ตั้งค่าหรือถูกปิดใช้งาน")}`,
+      ),
+    );
+  }
+
   const redirectUri = createSiteUrl(request, "/api/line/callback").toString();
 
   const tokenRes = await fetch("https://api.line.me/oauth2/v2.1/token", {
@@ -33,8 +44,8 @@ export async function GET(request: Request) {
       grant_type: "authorization_code",
       code,
       redirect_uri: redirectUri,
-      client_id: process.env.LINE_LOGIN_CHANNEL_ID ?? "",
-      client_secret: process.env.LINE_LOGIN_CHANNEL_SECRET ?? "",
+      client_id: config.channelId,
+      client_secret: config.channelSecret,
     }),
   });
 

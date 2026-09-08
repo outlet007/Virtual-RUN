@@ -25,6 +25,7 @@ const superAdminTabs = [
   { href: "/admin/admins", label: "ผู้ดูแลระบบ" },
   { href: "/admin/hero-banners", label: "Banner หน้าแรก" },
   { href: "/admin/settings", label: "ตั้งค่าระบบ" },
+  { href: "/admin/integrations", label: "การเชื่อมต่อ" },
 ];
 
 const adminTabs = [
@@ -87,6 +88,7 @@ export default async function AdminLayout({
                   "/admin/admins": "Administrators",
                   "/admin/hero-banners": "Home Banners",
                   "/admin/settings": "Settings",
+                  "/admin/integrations": "Integrations",
                 } as Record<string, string>)[t.href] ?? t.label
               : t.label}
           </Link>

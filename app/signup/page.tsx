@@ -6,6 +6,7 @@ import { PrivacyPolicyModal } from "@/components/privacy-policy-modal";
 import { getLocale } from "@/lib/i18n/server";
 import { pickLocalized, tx } from "@/lib/i18n/shared";
 import { getSystemSettings } from "@/lib/system-settings";
+import { getSocialLoginVisibility } from "@/lib/integration-settings";
 
 export default async function SignupPage({
   searchParams,
@@ -13,7 +14,11 @@ export default async function SignupPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
-  const [locale, settings] = await Promise.all([getLocale(), getSystemSettings()]);
+  const [locale, settings, socialLogin] = await Promise.all([
+    getLocale(),
+    getSystemSettings(),
+    getSocialLoginVisibility(),
+  ]);
   const privacyPolicyText = pickLocalized(
     locale,
     settings.privacy_policy_text,
@@ -72,36 +77,44 @@ export default async function SignupPage({
             {tx(locale, "สมัครสมาชิก", "Sign up")}
           </Button>
 
-          <div className="flex items-center gap-3 text-xs text-ink/40">
-            <div className="h-px flex-1 bg-lane" />
-            {tx(locale, "หรือ", "or")}
-            <div className="h-px flex-1 bg-lane" />
-          </div>
+          {(socialLogin.google || socialLogin.facebook) && (
+            <div className="flex items-center gap-3 text-xs text-ink/40">
+              <div className="h-px flex-1 bg-lane" />
+              {tx(locale, "หรือ", "or")}
+              <div className="h-px flex-1 bg-lane" />
+            </div>
+          )}
 
-          <div className="space-y-2">
-            <LinkButton href="/auth/google" variant="ghost" className="w-full gap-2.5">
-              <Image
-                src="/auth/google.svg"
-                alt=""
-                width={20}
-                height={20}
-                className="h-5 w-5 shrink-0"
-                aria-hidden="true"
-              />
-              {tx(locale, "สมัครสมาชิกด้วย Google", "Sign up with Google")}
-            </LinkButton>
-            <LinkButton href="/auth/facebook" variant="ghost" className="w-full gap-2.5">
-              <Image
-                src="/auth/facebook.svg"
-                alt=""
-                width={20}
-                height={20}
-                className="h-5 w-5 shrink-0"
-                aria-hidden="true"
-              />
-              {tx(locale, "สมัครสมาชิกด้วย Facebook", "Sign up with Facebook")}
-            </LinkButton>
-          </div>
+          {(socialLogin.google || socialLogin.facebook) && (
+            <div className="space-y-2">
+              {socialLogin.google && (
+                <LinkButton href="/auth/google" variant="ghost" className="w-full gap-2.5">
+                  <Image
+                    src="/auth/google.svg"
+                    alt=""
+                    width={20}
+                    height={20}
+                    className="h-5 w-5 shrink-0"
+                    aria-hidden="true"
+                  />
+                  {tx(locale, "สมัครสมาชิกด้วย Google", "Sign up with Google")}
+                </LinkButton>
+              )}
+              {socialLogin.facebook && (
+                <LinkButton href="/auth/facebook" variant="ghost" className="w-full gap-2.5">
+                  <Image
+                    src="/auth/facebook.svg"
+                    alt=""
+                    width={20}
+                    height={20}
+                    className="h-5 w-5 shrink-0"
+                    aria-hidden="true"
+                  />
+                  {tx(locale, "สมัครสมาชิกด้วย Facebook", "Sign up with Facebook")}
+                </LinkButton>
+              )}
+            </div>
+          )}
         </Card>
       </form>
 

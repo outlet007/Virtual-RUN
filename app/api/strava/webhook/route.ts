@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getActivity } from "@/lib/strava/api";
 import { getValidAccessToken, syncActivityForUser } from "@/lib/strava/sync";
+import { getStravaConfiguration } from "@/lib/integration-settings";
 
 // Strava ยิง GET ครั้งเดียวตอน subscribe เพื่อยืนยันว่า endpoint นี้เป็นของจริง (one-time handshake)
 export async function GET(request: Request) {
@@ -10,7 +11,14 @@ export async function GET(request: Request) {
   const token = url.searchParams.get("hub.verify_token");
   const challenge = url.searchParams.get("hub.challenge");
 
-  if (mode === "subscribe" && token === process.env.STRAVA_WEBHOOK_VERIFY_TOKEN && challenge) {
+  const config = await getStravaConfiguration();
+  if (
+    config.enabled &&
+    config.configured &&
+    mode === "subscribe" &&
+    token === config.webhookVerifyToken &&
+    challenge
+  ) {
     return NextResponse.json({ "hub.challenge": challenge });
   }
   return NextResponse.json({ error: "invalid verify token" }, { status: 403 });
@@ -28,6 +36,10 @@ type StravaWebhookEvent = {
 // สเกลเล็กแบบนี้ประมวลผลแบบ sync ได้เลย ยังไม่ต้องมี queue
 export async function POST(request: Request) {
   const event = (await request.json()) as StravaWebhookEvent;
+  const config = await getStravaConfiguration();
+  if (!config.enabled || !config.configured) {
+    return NextResponse.json({ ok: true });
+  }
   const db = createAdminClient();
 
   try {
