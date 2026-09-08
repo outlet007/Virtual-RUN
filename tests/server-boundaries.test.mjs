@@ -26,6 +26,7 @@ async function sourceFiles(relativeDirectory) {
 test("secret-bearing modules are guarded as server-only", async () => {
   const sensitiveModules = [
     "lib/email.ts",
+    "lib/evidence-retention-service.ts",
     "lib/backend-settings-secrets.ts",
     "lib/integration-settings.ts",
     "lib/smtp-settings.ts",

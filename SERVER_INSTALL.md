@@ -104,7 +104,7 @@ application variable with the same name. The secret key is server-only.
 ## 4. Validate required settings without printing secrets
 
 ```bash
-for key in SITE_URL NEXT_PUBLIC_SITE_URL NEXT_PUBLIC_SUPABASE_URL SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY SUPABASE_SECRET_KEY TURNSTILE_SITE_KEY TURNSTILE_SECRET_KEY SMTP_SETTINGS_ENCRYPTION_KEY; do
+for key in SITE_URL NEXT_PUBLIC_SITE_URL NEXT_PUBLIC_SUPABASE_URL SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY SUPABASE_SECRET_KEY TURNSTILE_SITE_KEY TURNSTILE_SECRET_KEY BACKEND_SETTINGS_ENCRYPTION_KEY EVIDENCE_RETENTION_CRON_SECRET; do
   grep -Eq "^${key}=.+" .env || echo "MISSING: ${key}"
 done
 
@@ -118,11 +118,20 @@ Resolve every `MISSING` line before continuing. A legacy Supabase deployment
 may use `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` instead
 of the preferred key pair.
 
-`SMTP_SETTINGS_ENCRYPTION_KEY` must be a private random value of at least 32
-characters. Keep the same value across restarts; changing it makes an existing
-Backend-managed SMTP password unreadable until the password is entered again.
+`BACKEND_SETTINGS_ENCRYPTION_KEY` must be a private random value of at least 32
+characters. Keep the same value across restarts; changing it makes existing
+Backend-managed secrets unreadable. `SMTP_SETTINGS_ENCRYPTION_KEY` remains a
+legacy fallback for SMTP values created before version 3.7.
 
-## 5. Apply the version-3.7 SMTP migration
+After deploying the evidence-retention migration, schedule the cleanup once per
+day during low traffic. Cron does not automatically inherit the application
+environment, so load the root-readable `.env` before calling the endpoint:
+
+```bash
+0 3 * * * cd /webserver/vrrun_bu_ac_th && set -a && . ./.env && set +a && curl --fail --silent --show-error --request POST --header "Authorization: Bearer $EVIDENCE_RETENTION_CRON_SECRET" https://vrrun.bu.ac.th/api/cron/evidence-retention
+```
+
+## 5. Apply the version-3.7 database migrations
 
 Run the migration once from the application repository while the Supabase
 Database container is healthy:
@@ -130,12 +139,19 @@ Database container is healthy:
 ```bash
 docker exec -i supabase-db psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
   < supabase/migrations/20260907075311_smtp_settings.sql
+
+docker exec -i supabase-db psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
+  < supabase/migrations/20260908013509_integration_settings.sql
+
+docker exec -i supabase-db psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
+  < supabase/migrations/20260908051746_add_evidence_retention.sql
 ```
 
-The migration enables RLS, removes all browser-role grants, and grants access
-only to the server-side `service_role`. After deployment, a `super_admin` can
-save and test SMTP at `/admin/settings`; the password is encrypted before it
-is stored and is never returned to the browser.
+These migrations enable RLS, remove browser-role grants from secret and audit
+tables, and grant access only to the server-side `service_role`. After
+deployment, a `super_admin` can save and test SMTP at `/admin/settings`, manage
+integrations at `/admin/integrations`, and manage evidence retention at
+`/admin/storage`.
 
 ## 6. Build and start
 

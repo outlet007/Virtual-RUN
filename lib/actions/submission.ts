@@ -267,8 +267,15 @@ export async function createSubmission(formData: FormData) {
     await db.storage.from("run-evidence").remove([evidencePath]);
     redirect(
       submitErrorPath(registrationId) + "?error=" +
-        encodeURIComponent("บันทึกผลไม่สำเร็จ กรุณาลองอีกครั้ง"),
+      encodeURIComponent("บันทึกผลไม่สำเร็จ กรุณาลองอีกครั้ง"),
     );
+  }
+  const { error: evidenceSizeError } = await db
+    .from("submissions")
+    .update({ evidence_size_bytes: preparedEvidence.storageBuffer.length })
+    .eq("id", submission.submission_id);
+  if (evidenceSizeError) {
+    console.error("Unable to save evidence size", { message: evidenceSizeError.message });
   }
   const status = submission.submission_status;
   if (status === "approved") {
