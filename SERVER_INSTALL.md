@@ -123,9 +123,22 @@ characters. Keep the same value across restarts; changing it makes existing
 Backend-managed secrets unreadable. `SMTP_SETTINGS_ENCRYPTION_KEY` remains a
 legacy fallback for SMTP values created before version 3.7.
 
+Generate a separate secret for the evidence-retention endpoint:
+
+```bash
+openssl rand -hex 32
+```
+
+Copy the 64-character result into `EVIDENCE_RETENTION_CRON_SECRET` in `.env`.
+Do not reuse `BACKEND_SETTINGS_ENCRYPTION_KEY`, commit the value, or prefix its
+name with `NEXT_PUBLIC_`.
+
 After deploying the evidence-retention migration, schedule the cleanup once per
-day during low traffic. Cron does not automatically inherit the application
-environment, so load the root-readable `.env` before calling the endpoint:
+day during low traffic. First sign in as Super Admin and review the eligible
+file count at `/admin/storage`; the first authenticated cron request can delete
+eligible evidence immediately. Cron does not automatically inherit the
+application environment, so load the root-readable `.env` before calling the
+endpoint:
 
 ```bash
 0 3 * * * cd /webserver/vrrun_bu_ac_th && set -a && . ./.env && set +a && curl --fail --silent --show-error --request POST --header "Authorization: Bearer $EVIDENCE_RETENTION_CRON_SECRET" https://vrrun.bu.ac.th/api/cron/evidence-retention
