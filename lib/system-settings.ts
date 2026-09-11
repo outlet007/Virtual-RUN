@@ -1,4 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
+import {
+  DEFAULT_LEGAL_CONTACT_TEXTS,
+  DEFAULT_LEGAL_HEADERS,
+  DEFAULT_LEGAL_TEXTS,
+} from "@/lib/legal-settings";
 
 export const CONTENT_BACKGROUND_DISPLAYS = [
   "cover",
@@ -30,6 +35,28 @@ export type SystemSettings = {
   cookie_consent_button_label_en: string | null;
   privacy_policy_text: string;
   privacy_policy_text_en: string;
+  terms_of_service_text: string;
+  terms_of_service_text_en: string;
+  data_deletion_text: string;
+  data_deletion_text_en: string;
+  privacy_header_title: string;
+  privacy_header_title_en: string;
+  privacy_header_subtitle: string;
+  privacy_header_subtitle_en: string;
+  terms_header_title: string;
+  terms_header_title_en: string;
+  terms_header_subtitle: string;
+  terms_header_subtitle_en: string;
+  data_deletion_header_title: string;
+  data_deletion_header_title_en: string;
+  data_deletion_header_subtitle: string;
+  data_deletion_header_subtitle_en: string;
+  privacy_contact_text: string;
+  privacy_contact_text_en: string;
+  terms_contact_text: string;
+  terms_contact_text_en: string;
+  data_deletion_contact_text: string;
+  data_deletion_contact_text_en: string;
   home_hero_kicker: string;
   home_hero_kicker_en: string;
   home_hero_title: string;
@@ -72,10 +99,30 @@ export const DEFAULT_SETTINGS: SystemSettings = {
   cookie_policy_url: "",
   cookie_consent_button_label: "ยอมรับ",
   cookie_consent_button_label_en: "Accept",
-  privacy_policy_text:
-    "เราให้ความสำคัญกับความเป็นส่วนตัวของคุณ ข้อมูลที่ให้ไว้ระหว่างการสมัครสมาชิกจะถูกใช้เพื่อสร้างและดูแลบัญชี บันทึกการเข้าร่วมกิจกรรม ประมวลผลผลวิ่ง และให้บริการที่เกี่ยวข้อง\n\nเราจะจัดเก็บข้อมูลเท่าที่จำเป็น ใช้มาตรการรักษาความปลอดภัยที่เหมาะสม และไม่เปิดเผยข้อมูลแก่บุคคลภายนอก เว้นแต่จำเป็นต่อการให้บริการ ตามกฎหมาย หรือได้รับความยินยอมจากคุณ\n\nคุณสามารถติดต่อผู้ดูแลระบบเพื่อขอเข้าถึง แก้ไข หรือลบข้อมูลส่วนบุคคลของคุณได้",
-  privacy_policy_text_en:
-    "We value your privacy. Information provided during registration is used to create and maintain your account, record event participation, process activity results, and provide related services.\n\nWe retain only the information necessary for these purposes, apply appropriate security measures, and do not disclose it to third parties unless required to provide the service, comply with the law, or with your consent.\n\nYou may contact the administrator to request access to, correction of, or deletion of your personal information.",
+  privacy_policy_text: DEFAULT_LEGAL_TEXTS.privacy.th,
+  privacy_policy_text_en: DEFAULT_LEGAL_TEXTS.privacy.en,
+  terms_of_service_text: DEFAULT_LEGAL_TEXTS.terms.th,
+  terms_of_service_text_en: DEFAULT_LEGAL_TEXTS.terms.en,
+  data_deletion_text: DEFAULT_LEGAL_TEXTS["data-deletion"].th,
+  data_deletion_text_en: DEFAULT_LEGAL_TEXTS["data-deletion"].en,
+  privacy_header_title: DEFAULT_LEGAL_HEADERS.privacy.title.th,
+  privacy_header_title_en: DEFAULT_LEGAL_HEADERS.privacy.title.en,
+  privacy_header_subtitle: DEFAULT_LEGAL_HEADERS.privacy.subtitle.th,
+  privacy_header_subtitle_en: DEFAULT_LEGAL_HEADERS.privacy.subtitle.en,
+  terms_header_title: DEFAULT_LEGAL_HEADERS.terms.title.th,
+  terms_header_title_en: DEFAULT_LEGAL_HEADERS.terms.title.en,
+  terms_header_subtitle: DEFAULT_LEGAL_HEADERS.terms.subtitle.th,
+  terms_header_subtitle_en: DEFAULT_LEGAL_HEADERS.terms.subtitle.en,
+  data_deletion_header_title: DEFAULT_LEGAL_HEADERS["data-deletion"].title.th,
+  data_deletion_header_title_en: DEFAULT_LEGAL_HEADERS["data-deletion"].title.en,
+  data_deletion_header_subtitle: DEFAULT_LEGAL_HEADERS["data-deletion"].subtitle.th,
+  data_deletion_header_subtitle_en: DEFAULT_LEGAL_HEADERS["data-deletion"].subtitle.en,
+  privacy_contact_text: DEFAULT_LEGAL_CONTACT_TEXTS.privacy.th,
+  privacy_contact_text_en: DEFAULT_LEGAL_CONTACT_TEXTS.privacy.en,
+  terms_contact_text: DEFAULT_LEGAL_CONTACT_TEXTS.terms.th,
+  terms_contact_text_en: DEFAULT_LEGAL_CONTACT_TEXTS.terms.en,
+  data_deletion_contact_text: DEFAULT_LEGAL_CONTACT_TEXTS["data-deletion"].th,
+  data_deletion_contact_text_en: DEFAULT_LEGAL_CONTACT_TEXTS["data-deletion"].en,
   home_hero_kicker: "Run · Walk · Collect",
   home_hero_kicker_en: "Run · Walk · Collect",
   home_hero_title: "วิ่งที่ไหน เมื่อไหร่ก็ได้",
@@ -105,7 +152,7 @@ export async function getSystemSettings(): Promise<SystemSettings> {
   const { data } = await supabase
     .from("system_settings")
     .select(
-      "site_name, site_name_en, logo_url, header_show_site_name, favicon_url, color_ink, color_primary, color_accent, color_medal, cookie_consent_enabled, cookie_consent_message, cookie_consent_message_en, cookie_policy_url, cookie_consent_button_label, cookie_consent_button_label_en, privacy_policy_text, privacy_policy_text_en, home_hero_kicker, home_hero_kicker_en, home_hero_title, home_hero_title_en, home_hero_highlight, home_hero_highlight_en, home_hero_suffix, home_hero_suffix_en, home_hero_description, home_hero_description_en, content_background_url, content_background_position_x, content_background_position_y, content_background_display, content_background_inset_top, content_background_inset_bottom, content_overlay_color, content_overlay_opacity, submission_max_distance_km, submission_daily_limit",
+      "site_name, site_name_en, logo_url, header_show_site_name, favicon_url, color_ink, color_primary, color_accent, color_medal, cookie_consent_enabled, cookie_consent_message, cookie_consent_message_en, cookie_policy_url, cookie_consent_button_label, cookie_consent_button_label_en, privacy_policy_text, privacy_policy_text_en, terms_of_service_text, terms_of_service_text_en, data_deletion_text, data_deletion_text_en, privacy_header_title, privacy_header_title_en, privacy_header_subtitle, privacy_header_subtitle_en, terms_header_title, terms_header_title_en, terms_header_subtitle, terms_header_subtitle_en, data_deletion_header_title, data_deletion_header_title_en, data_deletion_header_subtitle, data_deletion_header_subtitle_en, privacy_contact_text, privacy_contact_text_en, terms_contact_text, terms_contact_text_en, data_deletion_contact_text, data_deletion_contact_text_en, home_hero_kicker, home_hero_kicker_en, home_hero_title, home_hero_title_en, home_hero_highlight, home_hero_highlight_en, home_hero_suffix, home_hero_suffix_en, home_hero_description, home_hero_description_en, content_background_url, content_background_position_x, content_background_position_y, content_background_display, content_background_inset_top, content_background_inset_bottom, content_overlay_color, content_overlay_opacity, submission_max_distance_km, submission_daily_limit",
     )
     .eq("id", 1)
     .single();

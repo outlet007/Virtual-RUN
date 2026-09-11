@@ -1421,8 +1421,6 @@ export async function updateSystemSettings(formData: FormData) {
   const cookie_consent_button_label_en = String(
     formData.get("cookie_consent_button_label_en") ?? "",
   ).trim() || null;
-  const privacy_policy_text = String(formData.get("privacy_policy_text") ?? "").trim();
-  const privacy_policy_text_en = String(formData.get("privacy_policy_text_en") ?? "").trim();
   const content_overlay_color = String(formData.get("content_overlay_color") ?? "").trim();
   const content_overlay_opacity = Number(formData.get("content_overlay_opacity"));
   const submission_max_distance_km = Number(
@@ -1458,12 +1456,6 @@ export async function updateSystemSettings(formData: FormData) {
   }
   if (!cookie_consent_button_label || cookie_consent_button_label.length > 50) {
     err("/admin/settings", "ข้อความบนปุ่มยอมรับต้องมีความยาว 1–50 ตัวอักษร");
-  }
-  if (!privacy_policy_text || privacy_policy_text.length > 20000) {
-    err("/admin/settings", "นโยบายความเป็นส่วนตัวภาษาไทยต้องมีความยาว 1–20,000 ตัวอักษร");
-  }
-  if (!privacy_policy_text_en || privacy_policy_text_en.length > 20000) {
-    err("/admin/settings", "นโยบายความเป็นส่วนตัวภาษาอังกฤษต้องมีความยาว 1–20,000 ตัวอักษร");
   }
   if (cookie_policy_url.length > 2048) {
     err("/admin/settings", "URL นโยบาย Cookie ยาวเกินไป");
@@ -1523,8 +1515,6 @@ export async function updateSystemSettings(formData: FormData) {
     cookie_policy_url,
     cookie_consent_button_label,
     cookie_consent_button_label_en,
-    privacy_policy_text,
-    privacy_policy_text_en,
     content_background_position_x,
     content_background_position_y,
     content_background_display,

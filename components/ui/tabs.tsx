@@ -46,7 +46,7 @@ export function Tabs({ tabs, defaultTab }: { tabs: TabItem[]; defaultTab?: strin
           </button>
         ))}
       </div>
-      <div className="pt-5" role="tabpanel">
+      <div key={tabs[active].id} className="pt-5" role="tabpanel">
         {tabs[active].content}
       </div>
     </div>

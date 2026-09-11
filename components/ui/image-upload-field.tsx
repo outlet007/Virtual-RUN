@@ -173,19 +173,19 @@ export function ImageUploadField({
               className={cn(
                 "h-16 shrink-0 rounded-xl border border-lane",
                 previewVariant === "logo"
-                  ? "w-full max-w-56 bg-white object-contain p-1"
+                  ? "w-full max-w-56 bg-white object-contain p-1 sm:w-40"
                   : "w-16 object-cover",
               )}
             />
           ) : (
             <div className={cn(
               "flex h-16 shrink-0 items-center justify-center rounded-xl border border-dashed border-lane text-xs text-ink/40",
-              previewVariant === "logo" ? "w-full max-w-56" : "w-16",
+              previewVariant === "logo" ? "w-full max-w-56 sm:w-40" : "w-16",
             )}>
               ไม่มีรูป
             </div>
           )}
-          <label className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-lane bg-transparent px-4 text-sm font-semibold text-ink/70 transition hover:bg-lane/50">
+          <label className="inline-flex h-11 shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-lane bg-transparent px-4 text-sm font-semibold text-ink/70 transition hover:bg-lane/50">
             <Upload className="size-4" aria-hidden="true" />
             เพิ่มรูป
             <input type="file" name={name} accept="image/*" className="hidden" onChange={handleFileChange} />

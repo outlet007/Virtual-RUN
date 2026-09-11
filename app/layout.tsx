@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Noto_Sans_Thai } from "next/font/google";
 import { createClient } from "@/lib/supabase/server";
 import { getSystemSettings } from "@/lib/system-settings";
@@ -116,6 +117,20 @@ export default async function RootLayout({
           </main>
         </div>
         <footer className="mx-auto max-w-[1500px] px-3 py-8 text-center text-xs text-ink/40 sm:px-4 sm:py-10">
+          <nav
+            className="mb-3 flex flex-wrap justify-center gap-x-4 gap-y-2"
+            aria-label={tx(locale, "ข้อมูลทางกฎหมาย", "Legal information")}
+          >
+            <Link className="transition hover:text-ink" href="/privacy">
+              {tx(locale, "นโยบายความเป็นส่วนตัว", "Privacy")}
+            </Link>
+            <Link className="transition hover:text-ink" href="/terms">
+              {tx(locale, "ข้อกำหนดการใช้งาน", "Terms")}
+            </Link>
+            <Link className="transition hover:text-ink" href="/data-deletion">
+              {tx(locale, "การลบข้อมูล", "Data Deletion")}
+            </Link>
+          </nav>
           © 2026 {siteName} · Bangkok University. All Rights Reserved.
         </footer>
         <CookieConsent

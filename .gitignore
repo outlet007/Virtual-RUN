@@ -7,3 +7,6 @@ npm-debug.log*
 *.tsbuildinfo
 backfill-reports/
 ~$*.docx
+
+# Local sample backups may contain auth hashes, PII, and private evidence.
+deliverables/Virtual-RUN-sample-backup-*.zip
