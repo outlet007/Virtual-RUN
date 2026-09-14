@@ -7,6 +7,8 @@ RUN npm ci
 # ---------- builder ----------
 FROM node:22-alpine AS builder
 WORKDIR /app
+ENV TZ=Asia/Bangkok
+RUN apk add --no-cache tzdata
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # NEXT_PUBLIC_* ต้องมีตอน build (ถูก inline เข้า bundle)
@@ -23,9 +25,10 @@ RUN npm run build
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+ENV TZ=Asia/Bangkok
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV OMP_THREAD_LIMIT=1
-RUN apk add --no-cache tesseract-ocr tesseract-ocr-data-eng tesseract-ocr-data-tha
+RUN apk add --no-cache tzdata tesseract-ocr tesseract-ocr-data-eng tesseract-ocr-data-tha
 RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./

@@ -16,6 +16,22 @@ existing self-hosted Supabase deployment through its public HTTPS API URL.
 The real `.env` and the data bundle contain secrets or personal data. Do not
 commit either of them to GitHub.
 
+## 0. Configure host time
+
+Use the Bangkok timezone for host and application logs, and keep NTP enabled.
+JWT validation uses Unix timestamps, so a timezone label alone does not correct
+clock skew.
+
+```bash
+sudo timedatectl set-timezone Asia/Bangkok
+sudo timedatectl set-ntp true
+timedatectl status
+```
+
+Require `System clock synchronized: yes` before starting Supabase or the
+application. Containers share the host clock; `TZ=Asia/Bangkok` controls local
+time formatting while database and JWT timestamps remain UTC-based.
+
 ## 1. Clone the application
 
 ```bash
