@@ -27,12 +27,23 @@ export default async function UserDashboardLayout({
   if (!user) redirect("/login");
 
   // user social login ครั้งแรกยังไม่เคยยอมรับ PDPA (ข้ามฟอร์มสมัครสมาชิกที่มี checkbox มา)
-  const { data: privacyConsent } = await supabase
+  const { data: privacyConsent, error: consentError } = await supabase
     .from("consents")
     .select("id")
     .eq("user_id", user.id)
     .eq("type", "privacy")
+    .limit(1)
     .maybeSingle();
+  if (consentError) {
+    console.error("Consent lookup failed in dashboard", {
+      code: consentError.code,
+      message: consentError.message,
+    });
+    redirect(
+      "/consent?error=" +
+        encodeURIComponent("ตรวจสอบข้อมูลการยินยอมไม่สำเร็จ กรุณาลองอีกครั้ง"),
+    );
+  }
   if (!privacyConsent) redirect("/consent");
 
   const { data: profile } = await supabase

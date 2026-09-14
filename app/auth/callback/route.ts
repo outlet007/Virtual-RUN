@@ -26,12 +26,26 @@ export async function GET(request: Request) {
   if (!user) return NextResponse.redirect(createSiteUrl(request, "/login"));
 
   // ผู้ใช้ social login ครั้งแรกยังไม่เคยยอมรับ PDPA (ข้ามฟอร์มสมัครสมาชิกปกติมา) ต้องให้ยอมรับก่อน
-  const { data: consent } = await supabase
+  const { data: consent, error: consentError } = await supabase
     .from("consents")
     .select("id")
     .eq("user_id", user.id)
     .eq("type", "privacy")
+    .limit(1)
     .maybeSingle();
+
+  if (consentError) {
+    console.error("Consent lookup failed after auth callback", {
+      code: consentError.code,
+      message: consentError.message,
+    });
+    return NextResponse.redirect(
+      createSiteUrl(
+        request,
+        `/consent?error=${encodeURIComponent("ตรวจสอบข้อมูลการยินยอมไม่สำเร็จ กรุณาลองอีกครั้ง")}`,
+      ),
+    );
+  }
 
   if (!consent) {
     return NextResponse.redirect(createSiteUrl(request, "/consent"));

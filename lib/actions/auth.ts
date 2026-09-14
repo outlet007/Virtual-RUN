@@ -60,10 +60,21 @@ export async function acceptConsent(formData: FormData) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  await supabase.from("consents").insert([
+  const { error: consentError } = await supabase.from("consents").insert([
     { user_id: user.id, policy_version: POLICY_VERSION, type: "privacy" },
     { user_id: user.id, policy_version: POLICY_VERSION, type: "terms" },
   ]);
+
+  if (consentError) {
+    console.error("Consent insert failed", {
+      code: consentError.code,
+      message: consentError.message,
+    });
+    redirect(
+      "/consent?error=" +
+        encodeURIComponent("บันทึกข้อมูลการยินยอมไม่สำเร็จ กรุณาลองอีกครั้ง"),
+    );
+  }
 
   redirect("/dashboard");
 }

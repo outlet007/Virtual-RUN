@@ -13,20 +13,31 @@ export default async function ConsentPage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error: pageError } = await searchParams;
   const [supabase, locale] = await Promise.all([createClient(), getLocale()]);
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: consent } = await supabase
+  const { data: consent, error: consentError } = await supabase
     .from("consents")
     .select("id")
     .eq("user_id", user.id)
     .eq("type", "privacy")
+    .limit(1)
     .maybeSingle();
+  if (consentError) {
+    console.error("Consent lookup failed on consent page", {
+      code: consentError.code,
+      message: consentError.message,
+    });
+  }
   if (consent) redirect("/dashboard");
+
+  const error =
+    pageError ??
+    (consentError ? "ตรวจสอบข้อมูลการยินยอมไม่สำเร็จ กรุณาลองอีกครั้ง" : undefined);
 
   return (
     <div className="mx-auto max-w-lg space-y-6 pt-8">
