@@ -18,7 +18,7 @@ services:
       SITE_URL: ${SITE_URL:-http://localhost:8025}
       # Server-side Supabase calls run inside the container, so localhost must
       # resolve to the Windows host where Supabase CLI is running.
-      SUPABASE_URL: http://host.docker.internal:55321
+      SUPABASE_URL: ${SUPABASE_URL:-http://host.docker.internal:55321}
     extra_hosts:
       - host.docker.internal:host-gateway
     restart: unless-stopped

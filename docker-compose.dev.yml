@@ -12,7 +12,8 @@ services:
       # ฝั่ง container เรียก Supabase (รันอยู่บน host ผ่าน `supabase start`) ผ่าน
       # host.docker.internal — 127.0.0.1 ใน container หมายถึงตัว container เอง
       # ไม่ใช่เครื่อง host เหมือนตอนรัน npm run dev ตรงๆ (browser ยังใช้ 127.0.0.1 ใน .env ตามปกติ)
-      SUPABASE_URL: http://host.docker.internal:55321
+      # Allow an explicit server URL while keeping the local Supabase CLI default.
+      SUPABASE_URL: ${SUPABASE_URL:-http://host.docker.internal:55321}
       WATCHPACK_POLLING: "true"
     extra_hosts:
       - "host.docker.internal:host-gateway"
