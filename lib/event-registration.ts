@@ -24,3 +24,10 @@ export function isEventRegistrationOpen(
 ): boolean {
   return event.status === "open" && Boolean(event.end_date) && event.end_date! >= today;
 }
+
+export function isEventSubmissionOpen(
+  eventEndDate: string | null,
+  today = getBangkokDate(),
+): boolean {
+  return Boolean(eventEndDate) && eventEndDate! >= today;
+}

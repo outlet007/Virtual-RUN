@@ -22,6 +22,7 @@ import {
   sanitizeCookieConsentHtml,
 } from "@/lib/cookie-consent-html";
 import { CONTENT_BACKGROUND_DISPLAYS } from "@/lib/system-settings";
+import { getEffectiveEventStatus } from "@/lib/event-status";
 
 type GuardedReviewResult = {
   submission_id: string;
@@ -161,7 +162,7 @@ export async function createEvent(formData: FormData) {
       pricing,
       start_date,
       end_date,
-      status,
+      status: getEffectiveEventStatus(status, end_date),
     })
     .select("id")
     .single();
@@ -224,7 +225,7 @@ export async function updateEvent(formData: FormData) {
       pricing,
       start_date,
       end_date,
-      status,
+      status: getEffectiveEventStatus(status, end_date),
     })
     .eq("id", id);
 

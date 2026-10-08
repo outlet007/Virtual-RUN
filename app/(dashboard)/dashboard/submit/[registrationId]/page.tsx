@@ -5,13 +5,14 @@ import { createSubmission } from "@/lib/actions/submission";
 import { SubmissionSubmitButton } from "@/components/submission-submit-button";
 import { getLocale } from "@/lib/i18n/server";
 import { pickLocalized, tx } from "@/lib/i18n/shared";
+import { isEventSubmissionOpen } from "@/lib/event-registration";
 
 export const dynamic = "force-dynamic";
 
 type Reg = {
   id: string;
   packages: { name: string; name_en: string | null } | null;
-  events: { title: string; title_en: string | null } | null;
+  events: { title: string; title_en: string | null; end_date: string } | null;
 };
 
 export default async function SubmitForRegistrationPage({
@@ -31,7 +32,7 @@ export default async function SubmitForRegistrationPage({
 
   const { data: regRaw } = await supabase
     .from("registrations")
-    .select("id, packages(name, name_en), events(title, title_en)")
+    .select("id, packages(name, name_en), events(title, title_en, end_date)")
     .eq("id", registrationId)
     .eq("user_id", user.id)
     .eq("status", "confirmed")
@@ -39,6 +40,10 @@ export default async function SubmitForRegistrationPage({
 
   if (!regRaw) notFound();
   const reg = regRaw as unknown as Reg;
+  if (!reg.events) notFound();
+  if (!isEventSubmissionOpen(reg.events.end_date)) {
+    redirect("/dashboard/events?tab=past");
+  }
   const today = new Date().toISOString().slice(0, 10);
 
   return (

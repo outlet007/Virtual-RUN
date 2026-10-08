@@ -11,6 +11,7 @@ import { awardForApprovedSubmission } from "@/lib/gamification";
 import { isValidActivityDate } from "@/lib/submission-input";
 import { readRunEvidence } from "@/lib/ocr/run-evidence";
 import { prepareEvidenceImage } from "@/lib/evidence-fingerprint";
+import { isEventSubmissionOpen } from "@/lib/event-registration";
 import {
   createActivityFingerprint,
   getSubmissionClientIpHash,
@@ -109,6 +110,13 @@ export async function createSubmission(formData: FormData) {
   if (!registrationEvent) {
     redirect(
       submitErrorPath(registrationId) + "?error=" + encodeURIComponent("ไม่พบช่วงเวลาของงาน"),
+    );
+  }
+
+  if (!isEventSubmissionOpen(registrationEvent.end_date)) {
+    redirect(
+      submitErrorPath(registrationId) + "?error=" +
+        encodeURIComponent("งานวิ่งนี้สิ้นสุดแล้ว ไม่สามารถบันทึกผลเพิ่มเติมได้"),
     );
   }
 

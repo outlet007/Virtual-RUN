@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, Badge, HeadingIcon, Input, Select } from "@/components/ui";
 import { formatDate, stripHtml } from "@/lib/utils";
 import { getBangkokDate } from "@/lib/event-registration";
+import { getAdminEventStatusFilter, getEffectiveEventStatus } from "@/lib/event-status";
 import { CreateEventModal } from "@/components/admin/create-event-modal";
 
 export const dynamic = "force-dynamic";
@@ -61,7 +62,16 @@ export default async function AdminEventsPage({
     .range(offset, offset + PAGE_SIZE - 1);
 
   if (q) query = query.ilike("title", `%${q}%`);
-  if (statusFilter) query = query.eq("status", statusFilter);
+  const effectiveStatusFilter = getAdminEventStatusFilter(statusFilter, today);
+  if (effectiveStatusFilter.kind === "stored") {
+    query = query.eq("status", effectiveStatusFilter.status);
+  } else if (effectiveStatusFilter.kind === "effective-open") {
+    query = query.eq("status", "open").gte("end_date", effectiveStatusFilter.today);
+  } else if (effectiveStatusFilter.kind === "effective-closed") {
+    query = query.or(
+      `status.eq.closed,and(status.eq.open,end_date.lt.${effectiveStatusFilter.today})`,
+    );
+  }
 
   const { data: events, count: filteredCount } = await query;
   const list = events ?? [];
@@ -156,6 +166,7 @@ export default async function AdminEventsPage({
             {list.map((ev) => {
               const confirmedCount = ev.registrations.filter((r) => r.status === "confirmed").length;
               const isPast = ev.end_date < today;
+              const effectiveStatus = getEffectiveEventStatus(ev.status, ev.end_date, today);
               return (
                 <Link key={ev.id} href={`/admin/events/${ev.id}`} className="group">
                   <Card className="flex h-full flex-col overflow-hidden p-0 sm:p-0 hover:border-primary/40">
@@ -172,8 +183,8 @@ export default async function AdminEventsPage({
                           <Footprints className="h-10 w-10" />
                         </div>
                       )}
-                      <Badge className={`absolute right-3 top-3 ${statusClass[ev.status]}`}>
-                        {statusLabel[ev.status]}
+                      <Badge className={`absolute right-3 top-3 ${statusClass[effectiveStatus]}`}>
+                        {statusLabel[effectiveStatus]}
                       </Badge>
                     </div>
                     <div className="flex flex-1 flex-col gap-2 p-5">

@@ -38,6 +38,8 @@ import { manuallyApproveRegistration } from "@/lib/actions/admin-registrations";
 import { registrationStatusLabel, type ShippingAddress } from "@/lib/admin/registrations";
 import { buildEventLeaderboards, buildRegistrationSeries } from "@/lib/admin/day8";
 import { formatDate } from "@/lib/utils";
+import { getBangkokDate } from "@/lib/event-registration";
+import { getEffectiveEventStatus } from "@/lib/event-status";
 
 export const dynamic = "force-dynamic";
 
@@ -168,6 +170,7 @@ export default async function EventDashboardPage({
     .single();
 
   if (!event) notFound();
+  const effectiveStatus = getEffectiveEventStatus(event.status, event.end_date, getBangkokDate());
   const packages = (event.packages ?? [])
     .map((packageRow) => ({
       ...packageRow,
@@ -327,7 +330,7 @@ export default async function EventDashboardPage({
               <HeadingIcon name="calendar" />
               {event.title}
             </h2>
-            <Badge className={statusClass[event.status]}>{statusLabel[event.status]}</Badge>
+            <Badge className={statusClass[effectiveStatus]}>{statusLabel[effectiveStatus]}</Badge>
           </div>
           <p className="mt-1 flex flex-wrap items-center gap-1.5 font-mono text-xs text-accent tnum">
             <span className="inline-flex items-center gap-1">
@@ -363,7 +366,7 @@ export default async function EventDashboardPage({
               cover_position_y: event.cover_position_y,
               poster_image: event.poster_image,
               pricing: event.pricing,
-              status: event.status,
+              status: effectiveStatus,
               start_date: event.start_date,
               end_date: event.end_date,
             }}
