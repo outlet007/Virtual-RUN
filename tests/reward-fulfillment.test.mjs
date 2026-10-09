@@ -38,6 +38,12 @@ test('reward redemption submits the selected fulfillment method', async () => {
   assert.match(button, /name=['"]fulfillment_method['"]/);
   assert.match(button, /รับด้วยตนเอง/);
   assert.match(button, /จัดส่ง/);
+  assert.match(button, /เบอร์ติดต่อ :/);
+  assert.match(button, /คำแนะนำการรับของ :/);
+  assert.match(button, /Contact:/);
+  assert.doesNotMatch(button, /Contact phone:/);
+  assert.match(button, /Pickup instructions:/);
+  assert.match(button, /whitespace-pre-line/);
 });
 
 test('pickup location admin supports modal forms, search, edit, and guarded delete', async () => {
@@ -56,6 +62,9 @@ test('pickup location admin supports modal forms, search, edit, and guarded dele
   assert.match(modal, /createPortal/);
   assert.match(modal, /name='contact_phone'/);
   assert.match(modal, /name='contact_phone_en'/);
+  assert.match(modal, /<div className='md:col-span-2'>\s*<Label htmlFor='pickup-location-map'>/);
+  assert.ok(modal.indexOf("id='pickup-location-address-en'") < modal.indexOf("id='pickup-location-map'"));
+  assert.ok(modal.indexOf("id='pickup-location-map'") < modal.indexOf("id='pickup-location-phone'"));
   assert.match(tab, /location\.contact_phone_en/);
   assert.match(actions, /contact_phone_en: optional\(formData, 'contact_phone_en'\)/);
   assert.match(actions, /export async function deleteRewardPickupLocation/);

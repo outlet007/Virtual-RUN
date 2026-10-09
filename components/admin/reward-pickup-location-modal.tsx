@@ -186,6 +186,10 @@ function LocationFields({ location }: { location?: RewardPickupLocation }) {
         <Label htmlFor='pickup-location-address-en'>Address (English)</Label>
         <Textarea id='pickup-location-address-en' name='address_en' defaultValue={location?.address_en ?? ''} maxLength={1000} rows={3} />
       </div>
+      <div className='md:col-span-2'>
+        <Label htmlFor='pickup-location-map'>ลิงก์แผนที่</Label>
+        <Input id='pickup-location-map' name='maps_url' type='url' defaultValue={location?.maps_url ?? ''} maxLength={2000} />
+      </div>
       <div>
         <Label htmlFor='pickup-location-phone'>เบอร์ติดต่อ (ไทย)</Label>
         <Input id='pickup-location-phone' name='contact_phone' defaultValue={location?.contact_phone ?? ''} maxLength={50} />
@@ -193,10 +197,6 @@ function LocationFields({ location }: { location?: RewardPickupLocation }) {
       <div>
         <Label htmlFor='pickup-location-phone-en'>Contact phone (English)</Label>
         <Input id='pickup-location-phone-en' name='contact_phone_en' defaultValue={location?.contact_phone_en ?? ''} maxLength={50} />
-      </div>
-      <div>
-        <Label htmlFor='pickup-location-map'>ลิงก์แผนที่</Label>
-        <Input id='pickup-location-map' name='maps_url' type='url' defaultValue={location?.maps_url ?? ''} maxLength={2000} />
       </div>
       <div>
         <Label htmlFor='pickup-location-instructions'>คำแนะนำการรับของ (ไทย)</Label>

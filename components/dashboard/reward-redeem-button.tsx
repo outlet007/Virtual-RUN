@@ -192,19 +192,27 @@ export function RewardRedeemButton({
 
             <div className='mt-3 rounded-xl border border-lane bg-lane/20 p-4 text-sm leading-6 text-ink/65'>
               {fulfillmentMethod === 'pickup' ? (
-                <>
+                <div className='space-y-1'>
                   <p className='font-semibold text-ink'>{pickupName}</p>
-                  <p>{pickupAddress}</p>
+                  <p className='whitespace-pre-line'>{pickupAddress}</p>
                   {(pickupLocation?.contact_phone || pickupLocation?.contact_phone_en) && (
-                    <p>{pickLocalized(locale, pickupLocation?.contact_phone ?? '', pickupLocation?.contact_phone_en)}</p>
+                    <p>
+                      <span className='font-semibold text-ink'>{tx(locale, 'เบอร์ติดต่อ :', 'Contact:')}</span>{' '}
+                      {pickLocalized(locale, pickupLocation?.contact_phone ?? '', pickupLocation?.contact_phone_en)}
+                    </p>
                   )}
-                  {pickupInstructions && <p className='mt-1'>{pickupInstructions}</p>}
+                  {pickupInstructions && (
+                    <p className='whitespace-pre-line'>
+                      <span className='font-semibold text-ink'>{tx(locale, 'คำแนะนำการรับของ :', 'Pickup instructions:')}</span>{' '}
+                      {pickupInstructions}
+                    </p>
+                  )}
                   {pickupLocation?.maps_url && (
                     <a className='mt-2 inline-block font-semibold text-primary-dark underline' href={pickupLocation.maps_url} target='_blank' rel='noreferrer'>
                       {tx(locale, 'เปิดแผนที่', 'Open map')}
                     </a>
                   )}
-                </>
+                </div>
               ) : hasCompleteAddress ? (
                 <>
                   <p className='font-semibold text-ink'>{shippingAddress.recipient}</p>
