@@ -14,6 +14,13 @@ begin
     raise exception 'qa_requires_existing_user';
   end if;
 
+  update public.users
+  set name = coalesce(name, 'QA Runner'),
+      address = '1 Test Road',
+      province = 'Bangkok',
+      postal_code = '10110'
+  where id = v_user_id;
+
   if has_function_privilege('anon', 'public.review_payment(uuid,uuid,text)', 'execute') then
     raise exception 'anon_must_not_execute_review_payment';
   end if;

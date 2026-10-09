@@ -182,6 +182,33 @@ deployment, a `super_admin` can save and test SMTP at `/admin/settings`, manage
 integrations at `/admin/integrations`, and manage evidence retention at
 `/admin/storage`.
 
+### Reward fulfillment migration (version 3.10 or later)
+
+Before deploying application code that offers pickup/shipping choices, apply the
+new reward fulfillment migration once:
+
+```bash
+docker exec -i supabase-db psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
+  < supabase/migrations/20261009034653_add_reward_fulfillment_options.sql
+
+docker exec -i supabase-db psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
+  < supabase/migrations/20261009092445_add_pickup_location_english_contact.sql
+```
+
+This migration creates `reward_pickup_locations`, extends `rewards` and
+`redemptions`, replaces `redeem_reward` while preserving its one-argument
+default call, and adds RLS/grants. The second migration adds
+`contact_phone_en` and includes it in immutable pickup-location redemption
+snapshots. Apply the files in the order shown. If the first migration has
+already been applied, run only the second file. Do not rerun the full migration directory on
+a restored production database without verified migration history. After the
+application starts, create an active primary pickup location in
+`/admin/rewards`, then assign every existing reward that should support pickup.
+
+Verify the table, constraints, policies, function grants, one primary location,
+shipping redemption, pickup redemption, own-redemption RLS, and cross-user
+isolation before opening the feature to users.
+
 ## 6. Build and start
 
 ```bash

@@ -4,6 +4,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { Badge, Button, Card, HeadingIcon, Input, Label, LinkButton, Tabs } from "@/components/ui";
 import { CreateRewardModal } from "@/components/admin/create-reward-modal";
 import { EditRewardModal } from "@/components/admin/edit-reward-modal";
+import {
+  RewardPickupLocationsTab,
+  type RewardPickupLocation,
+} from '@/components/admin/reward-pickup-locations-tab';
 import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
 import { deleteReward, fulfillRedemption } from "@/lib/actions/admin";
 
@@ -18,12 +22,19 @@ type RewardRow = {
   image_url: string | null;
   cost_points: number;
   stock: number;
+  pickup_location_id: string | null;
+  allows_pickup: boolean;
+  allows_shipping: boolean;
+  reward_pickup_locations: { name: string } | null;
 };
 
 type RedemptionRow = {
   id: string;
   points_spent: number;
   status: string;
+  fulfillment_method: 'pickup' | 'shipping';
+  pickup_location_snapshot: Record<string, string> | null;
+  shipping_address: Record<string, string> | null;
   users: { name: string | null; email: string | null } | null;
   rewards: { name: string } | null;
 };
@@ -41,24 +52,38 @@ export default async function AdminRewardsPage({
     reward_saved?: string;
     reward_deleted?: string;
     fulfilled?: string;
+    create_location?: string;
+    edit_location?: string;
+    location_q?: string;
+    location_added?: string;
+    location_saved?: string;
+    location_deleted?: string;
   }>;
 }) {
   const sp = await searchParams;
   const db = createAdminClient();
 
-  const [rewardsResult, redemptionsResult] = await Promise.all([
-    db.from("rewards").select("id, name, name_en, description, description_en, image_url, cost_points, stock").order("cost_points"),
+  const [rewardsResult, redemptionsResult, locationsResult] = await Promise.all([
+    db.from('rewards').select('id, name, name_en, description, description_en, image_url, cost_points, stock, pickup_location_id, allows_pickup, allows_shipping, reward_pickup_locations(name)').order('cost_points'),
     db
       .from("redemptions")
-      .select("id, points_spent, status, users(name, email), rewards(name)")
+      .select('id, points_spent, status, fulfillment_method, pickup_location_snapshot, shipping_address, users(name, email), rewards(name)')
       .order("status", { ascending: false }),
+    db
+      .from('reward_pickup_locations')
+      .select('id, name, name_en, address, address_en, contact_phone, contact_phone_en, maps_url, instructions, instructions_en, is_primary, is_active')
+      .order('is_primary', { ascending: false })
+      .order('name'),
   ]);
 
   if (rewardsResult.error) throw new Error(rewardsResult.error.message);
   if (redemptionsResult.error) throw new Error(redemptionsResult.error.message);
+  if (locationsResult.error) throw new Error(locationsResult.error.message);
 
-  const rewards = (rewardsResult.data ?? []) as RewardRow[];
+  const rewards = (rewardsResult.data ?? []) as unknown as RewardRow[];
   const redemptions = (redemptionsResult.data ?? []) as unknown as RedemptionRow[];
+  const locations = (locationsResult.data ?? []) as RewardPickupLocation[];
+  const activeLocations = locations.filter((location) => location.is_active);
   const pendingRedemptions = redemptions.filter((redemption) => redemption.status === "pending");
   const fulfilledRedemptions = redemptions.filter((redemption) => redemption.status === "fulfilled");
   const defaultTab =
@@ -68,6 +93,7 @@ export default async function AdminRewardsPage({
       : "redemptions");
 
   const q = (sp.q ?? "").trim();
+  const locationQuery = (sp.location_q ?? '').trim();
   const searchNeedle = q.toLocaleLowerCase("th-TH");
   const filteredRewards = searchNeedle
     ? rewards.filter((rw) =>
@@ -79,12 +105,16 @@ export default async function AdminRewardsPage({
 
   return (
     <div className="space-y-8">
-      {sp.error && sp.create !== "1" && !sp.edit && (
+      {sp.error && sp.create !== "1" && !sp.edit && sp.create_location !== '1' && !sp.edit_location && sp.tab !== 'locations' && (
         <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{sp.error}</div>
       )}
-      {(sp.reward_added || sp.reward_saved || sp.reward_deleted || sp.fulfilled) && (
+      {(sp.reward_added || sp.reward_saved || sp.reward_deleted || sp.fulfilled || sp.location_added || sp.location_saved || sp.location_deleted) && (
         <div className="rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
-          {sp.reward_deleted ? "ลบรางวัลแล้ว" : "บันทึกแล้ว"}
+          {sp.reward_deleted
+            ? 'ลบรางวัลแล้ว'
+            : sp.location_deleted
+              ? 'ลบสถานที่แล้ว'
+              : 'บันทึกแล้ว'}
         </div>
       )}
 
@@ -122,11 +152,30 @@ export default async function AdminRewardsPage({
                   <p className="text-sm text-ink/50">
                     {r.rewards?.name} · <span className="font-mono tnum">{r.points_spent}</span> แต้ม
                   </p>
+                  <div className='mt-2 text-sm leading-6 text-ink/60'>
+                    <p className='font-semibold text-ink'>
+                      {r.fulfillment_method === 'pickup' ? 'รับด้วยตนเอง' : 'จัดส่ง'}
+                    </p>
+                    {r.fulfillment_method === 'pickup' ? (
+                      <>
+                        <p>{r.pickup_location_snapshot?.name}</p>
+                        <p>{r.pickup_location_snapshot?.address}</p>
+                      </>
+                    ) : (
+                      <>
+                        <p>{r.shipping_address?.recipient}</p>
+                        <p>{r.shipping_address?.address}</p>
+                        <p>{r.shipping_address?.province} {r.shipping_address?.postal_code}</p>
+                      </>
+                    )}
+                  </div>
                 </div>
                 {r.status === "pending" && (
                   <form action={fulfillRedemption}>
                     <input type="hidden" name="id" value={r.id} />
-                    <Button type="submit" icon="success">ส่งมอบแล้ว</Button>
+                    <Button type="submit" icon="success">
+                      {r.fulfillment_method === 'pickup' ? 'ยืนยันรับแล้ว' : 'ยืนยันจัดส่งแล้ว'}
+                    </Button>
                   </form>
                 )}
               </Card>
@@ -151,7 +200,11 @@ export default async function AdminRewardsPage({
             <span className="font-mono text-sm text-ink/45 tnum">
               {filteredRewards.length} รางวัล
             </span>
-            <CreateRewardModal initialOpen={sp.create === "1"} error={!sp.edit ? sp.error : undefined} />
+            <CreateRewardModal
+              initialOpen={sp.create === '1'}
+              error={!sp.edit ? sp.error : undefined}
+              locations={activeLocations}
+            />
           </div>
         </div>
 
@@ -233,6 +286,13 @@ export default async function AdminRewardsPage({
                             {rw.name_en && (
                               <p className="mt-0.5 truncate text-xs text-ink/45">{rw.name_en}</p>
                             )}
+                            <p className='mt-1 text-xs text-ink/55'>
+                              {rw.reward_pickup_locations?.name ?? 'ยังไม่กำหนดสถานที่'}
+                            </p>
+                            <div className='mt-1 flex flex-wrap gap-1'>
+                              {rw.allows_pickup && <Badge className='bg-primary-soft text-primary-dark'>รับเอง</Badge>}
+                              {rw.allows_shipping && <Badge className='bg-lane text-ink/60'>จัดส่ง</Badge>}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -275,11 +335,28 @@ export default async function AdminRewardsPage({
       </div>
             ),
           },
+          {
+            id: 'locations',
+            label: `สถานที่รับของรางวัล (${locations.length})`,
+            content: (
+              <RewardPickupLocationsTab
+                locations={locations}
+                query={locationQuery}
+                createLocation={sp.create_location === '1'}
+                editLocationId={sp.edit_location}
+                error={sp.tab === 'locations' ? sp.error : undefined}
+              />
+            ),
+          },
         ]}
       />
 
       {editReward && (
-        <EditRewardModal reward={editReward} error={sp.edit ? sp.error : undefined} />
+        <EditRewardModal
+          reward={editReward}
+          error={sp.edit ? sp.error : undefined}
+          locations={activeLocations}
+        />
       )}
     </div>
   );

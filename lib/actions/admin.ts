@@ -822,7 +822,7 @@ export async function updateMedal(formData: FormData) {
     err(`/admin/events/${eventId}?tab=medals`, "กรอกชื่อเหรียญและระยะเป้าหมายให้ถูกต้อง");
   }
 
-  let imageUrl = String(formData.get("existing_image_url") ?? "").trim() || null;
+  let imageUrl = String(formData.get('existing_image_url') ?? '').trim() || null;
   try {
     const uploaded = await uploadEventImage(db, formData.get("image_url_file"), "medals");
     if (uploaded) imageUrl = uploaded;
@@ -1089,6 +1089,10 @@ export async function createReward(formData: FormData) {
   await requireManager();
   const db = createAdminClient();
 
+  const allowsPickup = formData.get('allows_pickup') === 'on';
+  const allowsShipping = formData.get('allows_shipping') === 'on';
+  let pickupLocationId = String(formData.get('pickup_location_id') ?? '').trim() || null;
+
   const name = String(formData.get("name") ?? "").trim();
   const name_en = String(formData.get("name_en") ?? "").trim() || null;
   const description = String(formData.get("description") ?? "").trim() || null;
@@ -1096,9 +1100,29 @@ export async function createReward(formData: FormData) {
   const costPoints = Number(formData.get("cost_points") ?? 0);
   const stock = Number(formData.get("stock") ?? 0);
 
-  if (!name || costPoints <= 0) {
+  if (!name || costPoints <= 0 || (!allowsPickup && !allowsShipping)) {
     err("/admin/rewards?create=1", "กรอกชื่อรางวัลและแต้มให้ถูกต้อง");
   }
+
+  if (!pickupLocationId) {
+    const { data: primary } = await db
+      .from('reward_pickup_locations')
+      .select('id')
+      .eq('is_primary', true)
+      .eq('is_active', true)
+      .maybeSingle();
+    pickupLocationId = primary?.id ?? null;
+  }
+  if (!pickupLocationId) {
+    err('/admin/rewards?create=1', 'กรุณาเพิ่มสถานที่รับรางวัลหลักก่อนเพิ่มรางวัล');
+  }
+  const { data: pickupLocation } = await db
+    .from('reward_pickup_locations')
+    .select('id')
+    .eq('id', pickupLocationId)
+    .eq('is_active', true)
+    .maybeSingle();
+  if (!pickupLocation) err('/admin/rewards?create=1', 'สถานที่รับรางวัลไม่พร้อมใช้งาน');
 
   let imageUrl: string | null = null;
   try {
@@ -1115,11 +1139,14 @@ export async function createReward(formData: FormData) {
     image_url: imageUrl,
     cost_points: costPoints,
     stock,
+    pickup_location_id: pickupLocationId,
+    allows_pickup: allowsPickup,
+    allows_shipping: allowsShipping,
   });
   if (error) err("/admin/rewards?create=1", error.message);
 
   revalidatePath("/admin/rewards");
-  revalidatePath("/rewards");
+  revalidatePath('/rewards');
   revalidatePath("/dashboard/rewards");
   redirect("/admin/rewards?reward_added=1");
 }
@@ -1127,6 +1154,10 @@ export async function createReward(formData: FormData) {
 export async function updateReward(formData: FormData) {
   await requireManager();
   const db = createAdminClient();
+
+  const allowsPickup = formData.get('allows_pickup') === 'on';
+  const allowsShipping = formData.get('allows_shipping') === 'on';
+  const pickupLocationId = String(formData.get('pickup_location_id') ?? '').trim();
 
   const id = String(formData.get("id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
@@ -1136,11 +1167,21 @@ export async function updateReward(formData: FormData) {
   const costPoints = Number(formData.get("cost_points") ?? 0);
   const stock = Number(formData.get("stock") ?? 0);
 
-  if (!id || !name || costPoints <= 0) {
+  if (!id || !name || costPoints <= 0 || !pickupLocationId || (!allowsPickup && !allowsShipping)) {
     err(`/admin/rewards?tab=catalog&edit=${id}`, "กรอกชื่อรางวัลและแต้มให้ถูกต้อง");
   }
 
-  let imageUrl = String(formData.get("existing_image_url") ?? "").trim() || null;
+  const { data: pickupLocation } = await db
+    .from('reward_pickup_locations')
+    .select('id')
+    .eq('id', pickupLocationId)
+    .eq('is_active', true)
+    .maybeSingle();
+  if (!pickupLocation) {
+    err(`/admin/rewards?tab=catalog&edit=${id}`, 'สถานที่รับรางวัลไม่พร้อมใช้งาน');
+  }
+
+  let imageUrl = String(formData.get('existing_image_url') ?? '').trim() || null;
   try {
     const uploaded = await uploadEventImage(db, formData.get("image_file"), "rewards");
     if (uploaded) imageUrl = uploaded;
@@ -1150,7 +1191,18 @@ export async function updateReward(formData: FormData) {
 
   const { error } = await db
     .from("rewards")
-    .update({ name, name_en, description, description_en, image_url: imageUrl, cost_points: costPoints, stock })
+    .update({
+      name,
+      name_en,
+      description,
+      description_en,
+      image_url: imageUrl,
+      cost_points: costPoints,
+      stock,
+      pickup_location_id: pickupLocationId,
+      allows_pickup: allowsPickup,
+      allows_shipping: allowsShipping,
+    })
     .eq("id", id);
   if (error) err(`/admin/rewards?tab=catalog&edit=${id}`, error.message);
 
@@ -1197,20 +1249,23 @@ export async function fulfillRedemption(formData: FormData) {
 
   const { data: redemption, error } = await db
     .from("redemptions")
-    .update({ status: "fulfilled" })
+    .update({ status: 'fulfilled', fulfilled_at: new Date().toISOString() })
     .eq("id", id)
     .eq("status", "pending")
-    .select("user_id, rewards(name)")
+    .select('user_id, fulfillment_method, rewards(name)')
     .maybeSingle();
   if (error) err("/admin/rewards", error.message);
 
   if (redemption) {
     const reward = redemption.rewards as unknown as { name: string } | { name: string }[] | null;
     const rewardName = Array.isArray(reward) ? reward[0]?.name : reward?.name;
+    const isPickup = redemption.fulfillment_method === 'pickup';
     await notifyUser(redemption.user_id, "redemption_fulfilled", {
       dedupeKey: `redemption:${id}:fulfilled`,
-      subject: "รางวัลของคุณพร้อมส่งมอบแล้ว",
-      text: `รางวัล "${rewardName ?? ""}" ที่คุณแลกไว้พร้อมส่งมอบ/รับได้แล้ว`,
+      subject: isPickup ? 'ยืนยันการรับรางวัลแล้ว' : 'รางวัลของคุณถูกจัดส่งแล้ว',
+      text: isPickup
+        ? `ยืนยันการรับรางวัล '${rewardName ?? ''}' เรียบร้อยแล้ว`
+        : `รางวัล '${rewardName ?? ''}' ที่คุณแลกไว้ถูกจัดส่งแล้ว`,
     });
   }
 

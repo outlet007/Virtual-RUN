@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Gift, X } from "lucide-react";
 import { redeemReward } from "@/lib/actions/rewards";
 import { Badge, Button } from "@/components/ui";
-import { tx, type Locale } from "@/lib/i18n/shared";
+import { pickLocalized, tx, type Locale } from '@/lib/i18n/shared';
 
 type RewardForRedeem = {
   id: string;
@@ -13,21 +13,60 @@ type RewardForRedeem = {
   image_url: string | null;
   cost_points: number;
   stock: number;
+  allows_pickup: boolean;
+  allows_shipping: boolean;
+  pickup_location: {
+    name: string;
+    name_en: string | null;
+    address: string;
+    address_en: string | null;
+    contact_phone: string | null;
+    contact_phone_en: string | null;
+    maps_url: string | null;
+    instructions: string | null;
+    instructions_en: string | null;
+  } | null;
+};
+
+type ShippingAddress = {
+  recipient: string | null;
+  phone: string | null;
+  address: string | null;
+  province: string | null;
+  postal_code: string | null;
 };
 
 export function RewardRedeemButton({
   reward,
   balance,
   locale,
+  shippingAddress,
+  hasCompleteAddress,
 }: {
   reward: RewardForRedeem;
   balance: number;
   locale: Locale;
+  shippingAddress: ShippingAddress;
+  hasCompleteAddress: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [fulfillmentMethod, setFulfillmentMethod] = useState<'pickup' | 'shipping'>(
+    reward.allows_pickup ? 'pickup' : 'shipping',
+  );
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const descriptionId = useId();
+  const pickupLocation = reward.pickup_location;
+  const pickupName = pickupLocation
+    ? pickLocalized(locale, pickupLocation.name, pickupLocation.name_en)
+    : '';
+  const pickupAddress = pickupLocation
+    ? pickLocalized(locale, pickupLocation.address, pickupLocation.address_en)
+    : '';
+  const pickupInstructions = pickupLocation
+    ? pickLocalized(locale, pickupLocation.instructions, pickupLocation.instructions_en)
+    : '';
+  const cannotSubmit = fulfillmentMethod === 'shipping' && !hasCompleteAddress;
 
   useEffect(() => {
     if (!open) return;
@@ -121,6 +160,65 @@ export function RewardRedeemButton({
               </p>
             )}
 
+            <input type='hidden' name='fulfillment_method' value={fulfillmentMethod} />
+
+            <fieldset className='mt-4 space-y-2'>
+              <legend className='text-sm font-semibold text-ink'>
+                {tx(locale, 'วิธีรับรางวัล', 'Fulfillment method')}
+              </legend>
+              <div className='grid gap-2 sm:grid-cols-2'>
+                {reward.allows_pickup && (
+                  <label className='flex cursor-pointer gap-3 rounded-xl border border-lane p-3 text-sm'>
+                    <input
+                      type='radio'
+                      checked={fulfillmentMethod === 'pickup'}
+                      onChange={() => setFulfillmentMethod('pickup')}
+                    />
+                    <span>{tx(locale, 'รับด้วยตนเอง', 'Pick up')}</span>
+                  </label>
+                )}
+                {reward.allows_shipping && (
+                  <label className='flex cursor-pointer gap-3 rounded-xl border border-lane p-3 text-sm'>
+                    <input
+                      type='radio'
+                      checked={fulfillmentMethod === 'shipping'}
+                      onChange={() => setFulfillmentMethod('shipping')}
+                    />
+                    <span>{tx(locale, 'จัดส่ง', 'Shipping')}</span>
+                  </label>
+                )}
+              </div>
+            </fieldset>
+
+            <div className='mt-3 rounded-xl border border-lane bg-lane/20 p-4 text-sm leading-6 text-ink/65'>
+              {fulfillmentMethod === 'pickup' ? (
+                <>
+                  <p className='font-semibold text-ink'>{pickupName}</p>
+                  <p>{pickupAddress}</p>
+                  {(pickupLocation?.contact_phone || pickupLocation?.contact_phone_en) && (
+                    <p>{pickLocalized(locale, pickupLocation?.contact_phone ?? '', pickupLocation?.contact_phone_en)}</p>
+                  )}
+                  {pickupInstructions && <p className='mt-1'>{pickupInstructions}</p>}
+                  {pickupLocation?.maps_url && (
+                    <a className='mt-2 inline-block font-semibold text-primary-dark underline' href={pickupLocation.maps_url} target='_blank' rel='noreferrer'>
+                      {tx(locale, 'เปิดแผนที่', 'Open map')}
+                    </a>
+                  )}
+                </>
+              ) : hasCompleteAddress ? (
+                <>
+                  <p className='font-semibold text-ink'>{shippingAddress.recipient}</p>
+                  <p>{shippingAddress.address}</p>
+                  <p>{shippingAddress.province} {shippingAddress.postal_code}</p>
+                  {shippingAddress.phone && <p>{shippingAddress.phone}</p>}
+                </>
+              ) : (
+                <p className='text-red-700'>
+                  {tx(locale, 'กรุณากรอกที่อยู่ในหน้าโปรไฟล์ให้ครบก่อนเลือกจัดส่ง', 'Complete your profile address before choosing shipping.')}
+                </p>
+              )}
+            </div>
+
             <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-lane/35 p-4 text-sm">
               <div>
                 <p className="text-ink/50">{tx(locale, "แต้มปัจจุบัน", "Current points")}</p>
@@ -144,7 +242,7 @@ export function RewardRedeemButton({
               <Button type="button" variant="ghost" icon="reject" onClick={() => setOpen(false)}>
                 {tx(locale, "ยกเลิก", "Cancel")}
               </Button>
-              <Button type="submit" icon="confirm">
+              <Button type="submit" icon="confirm" disabled={cannotSubmit}>
                 {tx(locale, "ยืนยันการแลก", "Confirm redemption")}
               </Button>
             </div>

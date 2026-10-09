@@ -17,11 +17,27 @@ type RewardRow = {
   image_url: string | null;
   cost_points: number;
   stock: number;
+  allows_pickup: boolean;
+  allows_shipping: boolean;
+  reward_pickup_locations: {
+    name: string;
+    name_en: string | null;
+    address: string;
+    address_en: string | null;
+    contact_phone: string | null;
+    contact_phone_en: string | null;
+    maps_url: string | null;
+    instructions: string | null;
+    instructions_en: string | null;
+  } | null;
 };
 type RedemptionRow = {
   id: string;
   points_spent: number;
   status: "pending" | "fulfilled";
+  fulfillment_method: 'pickup' | 'shipping';
+  pickup_location_snapshot: Record<string, string> | null;
+  shipping_address: Record<string, string> | null;
   rewards: { name: string; name_en: string | null } | null;
 };
 
@@ -40,22 +56,22 @@ export default async function DashboardRewardsPage({
   const [rewardsResult, ledgerResult, redemptionsResult, profileResult] = await Promise.all([
     supabase
       .from("rewards")
-      .select("id, name, name_en, description, description_en, image_url, cost_points, stock")
+      .select('id, name, name_en, description, description_en, image_url, cost_points, stock, allows_pickup, allows_shipping, reward_pickup_locations(name, name_en, address, address_en, contact_phone, contact_phone_en, maps_url, instructions, instructions_en)')
       .order("cost_points", { ascending: true }),
     supabase.from("points_ledger").select("delta").eq("user_id", user.id),
     supabase
       .from("redemptions")
-      .select("id, points_spent, status, rewards(name, name_en)")
+      .select('id, points_spent, status, fulfillment_method, pickup_location_snapshot, shipping_address, rewards(name, name_en)')
       .eq("user_id", user.id)
       .order("status", { ascending: false }),
-    supabase.from("users").select("address, province, postal_code").eq("id", user.id).single(),
+    supabase.from('users').select('name, phone, address, province, postal_code').eq('id', user.id).single(),
   ]);
 
   if (rewardsResult.error) throw new Error(rewardsResult.error.message);
   if (ledgerResult.error) throw new Error(ledgerResult.error.message);
   if (redemptionsResult.error) throw new Error(redemptionsResult.error.message);
 
-  const rewards = (rewardsResult.data ?? []) as RewardRow[];
+  const rewards = (rewardsResult.data ?? []) as unknown as RewardRow[];
   const balance = (ledgerResult.data ?? []).reduce((sum, row) => sum + row.delta, 0);
   const redemptions = (redemptionsResult.data ?? []) as unknown as RedemptionRow[];
   const profile = profileResult.data;
@@ -83,14 +99,14 @@ export default async function DashboardRewardsPage({
         </p>
       </Card>
 
-      {!hasCompleteAddress && (
+      {!hasCompleteAddress && rewards.some((reward) => reward.allows_shipping) && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-medal-soft px-4 py-3 text-sm text-medal">
           <p className="flex items-center gap-2">
             <TriangleAlert className="size-4 shrink-0" aria-hidden="true" />
             {tx(
               locale,
-              "กรุณากรอกข้อมูลที่อยู่ในหน้าโปรไฟล์ให้ครบถ้วนก่อนจึงจะแลกแต้มเป็นรางวัลได้",
-              "Please complete your address in your profile before you can redeem points for rewards.",
+              'กรอกข้อมูลที่อยู่ในหน้าโปรไฟล์ให้ครบ หากต้องการเลือกรับรางวัลด้วยการจัดส่ง',
+              'Complete your profile address if you want rewards shipped to you.',
             )}
           </p>
           <LinkButton href="/profile" variant="ghost" className="shrink-0">
@@ -141,6 +157,28 @@ export default async function DashboardRewardsPage({
                 <p className="text-sm text-ink/50">
                   <span className="font-mono font-semibold tnum">{redemption.points_spent.toLocaleString(locale === "en" ? "en-US" : "th-TH")}</span> {tx(locale, "แต้ม", "points")}
                 </p>
+                <div className='rounded-xl bg-lane/30 p-3 text-sm leading-6 text-ink/60'>
+                  <p className='font-semibold text-ink'>
+                    {redemption.fulfillment_method === 'pickup'
+                      ? tx(locale, 'รับด้วยตนเอง', 'Pick up')
+                      : tx(locale, 'จัดส่ง', 'Shipping')}
+                  </p>
+                  {redemption.fulfillment_method === 'pickup' ? (
+                    <>
+                      <p>{pickLocalized(locale, redemption.pickup_location_snapshot?.name ?? '', redemption.pickup_location_snapshot?.name_en)}</p>
+                      <p>{pickLocalized(locale, redemption.pickup_location_snapshot?.address ?? '', redemption.pickup_location_snapshot?.address_en)}</p>
+                      {(redemption.pickup_location_snapshot?.contact_phone || redemption.pickup_location_snapshot?.contact_phone_en) && (
+                        <p>{pickLocalized(locale, redemption.pickup_location_snapshot?.contact_phone ?? '', redemption.pickup_location_snapshot?.contact_phone_en)}</p>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <p>{redemption.shipping_address?.recipient}</p>
+                      <p>{redemption.shipping_address?.address}</p>
+                      <p>{redemption.shipping_address?.province} {redemption.shipping_address?.postal_code}</p>
+                    </>
+                  )}
+                </div>
               </Card>
             ))}
           </div>
@@ -171,7 +209,8 @@ export default async function DashboardRewardsPage({
             {rewards.map((reward) => {
               const hasEnoughPoints = balance >= reward.cost_points;
               const inStock = reward.stock > 0;
-              const canRedeem = hasEnoughPoints && inStock && hasCompleteAddress;
+              const hasAvailableFulfillment = reward.allows_pickup || (reward.allows_shipping && hasCompleteAddress);
+              const canRedeem = hasEnoughPoints && inStock && hasAvailableFulfillment;
               const missingPoints = Math.max(0, reward.cost_points - balance);
 
               return (
@@ -239,7 +278,24 @@ export default async function DashboardRewardsPage({
 
                     <div className="mt-auto pt-5">
                       {canRedeem ? (
-                        <RewardRedeemButton reward={{ ...reward, name: pickLocalized(locale, reward.name, reward.name_en), description: pickLocalized(locale, reward.description, reward.description_en) }} balance={balance} locale={locale} />
+                        <RewardRedeemButton
+                          reward={{
+                            ...reward,
+                            name: pickLocalized(locale, reward.name, reward.name_en),
+                            description: pickLocalized(locale, reward.description, reward.description_en),
+                            pickup_location: reward.reward_pickup_locations,
+                          }}
+                          balance={balance}
+                          locale={locale}
+                          hasCompleteAddress={hasCompleteAddress}
+                          shippingAddress={{
+                            recipient: profile?.name ?? null,
+                            phone: profile?.phone ?? null,
+                            address: profile?.address ?? null,
+                            province: profile?.province ?? null,
+                            postal_code: profile?.postal_code ?? null,
+                          }}
+                        />
                       ) : !inStock ? (
                         <div className="rounded-xl bg-lane/60 px-3 py-3 text-center text-sm font-semibold text-ink/45">
                           {tx(locale, "รางวัลหมดแล้ว", "Reward is out of stock")}
@@ -250,10 +306,12 @@ export default async function DashboardRewardsPage({
                             " " + missingPoints.toLocaleString(locale === "en" ? "en-US" : "th-TH") +
                             " " + tx(locale, "แต้ม", "more points")}
                         </div>
-                      ) : (
+                      ) : !hasAvailableFulfillment ? (
                         <LinkButton href="/profile" variant="ghost" className="w-full">
                           {tx(locale, "กรอกที่อยู่เพื่อแลกรางวัล", "Complete your address to redeem")}
                         </LinkButton>
+                      ) : (
+                        <div />
                       )}
                     </div>
                   </div>

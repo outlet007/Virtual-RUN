@@ -115,18 +115,55 @@ on conflict (id) do update set
   physical_medal_id = excluded.physical_medal_id,
   sort_order = excluded.sort_order;
 
+insert into public.reward_pickup_locations (
+  id, name, name_en, address, address_en, contact_phone, contact_phone_en, maps_url, instructions,
+  instructions_en, is_primary, is_active
+)
+values (
+  '51000000-0000-4000-8000-000000000001',
+  'ศูนย์กีฬา มหาวิทยาลัยกรุงเทพ',
+  'Bangkok University Sports Center',
+  'มหาวิทยาลัยกรุงเทพ วิทยาเขตรังสิต จังหวัดปทุมธานี',
+  'Bangkok University, Rangsit Campus, Pathum Thani',
+  '02-000-0000',
+  '+66 2 000 0000',
+  'https://maps.google.com',
+  'แสดงหลักฐานการแลกรางวัลต่อเจ้าหน้าที่',
+  'Show your redemption record to the staff.',
+  false,
+  true
+)
+on conflict (id) do update set
+  name = excluded.name, name_en = excluded.name_en,
+  address = excluded.address, address_en = excluded.address_en,
+  contact_phone = excluded.contact_phone, contact_phone_en = excluded.contact_phone_en,
+  maps_url = excluded.maps_url,
+  instructions = excluded.instructions, instructions_en = excluded.instructions_en,
+  is_active = excluded.is_active;
+
+update public.reward_pickup_locations
+set is_primary = true
+where id = '51000000-0000-4000-8000-000000000001'
+  and not exists (
+    select 1 from public.reward_pickup_locations where is_primary
+  );
+
 insert into public.rewards (
-  id, name, name_en, description, description_en, image_url, cost_points, stock
+  id, name, name_en, description, description_en, image_url, cost_points, stock,
+  pickup_location_id, allows_pickup, allows_shipping
 )
 values
-  ('50000000-0000-4000-8000-000000000001', 'ส่วนลดค่าสมัคร 100 บาท', 'THB 100 Registration Discount', 'คูปองตัวอย่างสำหรับกิจกรรมแบบชำระเงิน', 'A sample coupon for a paid event.', '/mock-events/bangkok-sunrise-virtual-run-2026.png', 500, 25),
-  ('50000000-0000-4000-8000-000000000002', 'เสื้อ Virtual RUN รุ่นตัวอย่าง', 'Virtual RUN Sample Shirt', 'ใช้ทดสอบการแลกรางวัลและจัดส่ง', 'For testing redemption and fulfilment.', '/mock-events/bangkok-neon-night-virtual-run-2026.png', 1200, 10),
-  ('50000000-0000-4000-8000-000000000003', 'กระบอกน้ำรักษ์โลก', 'Eco Water Bottle', 'กระบอกน้ำใช้ซ้ำสำหรับนักวิ่ง', 'A reusable water bottle for runners.', '/mock-events/green-miles-virtual-run-2026.png', 800, 15)
+  ('50000000-0000-4000-8000-000000000001', 'ส่วนลดค่าสมัคร 100 บาท', 'THB 100 Registration Discount', 'คูปองตัวอย่างสำหรับกิจกรรมแบบชำระเงิน', 'A sample coupon for a paid event.', '/mock-events/bangkok-sunrise-virtual-run-2026.png', 500, 25, '51000000-0000-4000-8000-000000000001', true, true),
+  ('50000000-0000-4000-8000-000000000002', 'เสื้อ Virtual RUN รุ่นตัวอย่าง', 'Virtual RUN Sample Shirt', 'ใช้ทดสอบการแลกรางวัลและจัดส่ง', 'For testing redemption and fulfilment.', '/mock-events/bangkok-neon-night-virtual-run-2026.png', 1200, 10, '51000000-0000-4000-8000-000000000001', true, true),
+  ('50000000-0000-4000-8000-000000000003', 'กระบอกน้ำรักษ์โลก', 'Eco Water Bottle', 'กระบอกน้ำใช้ซ้ำสำหรับนักวิ่ง', 'A reusable water bottle for runners.', '/mock-events/green-miles-virtual-run-2026.png', 800, 15, '51000000-0000-4000-8000-000000000001', true, true)
 on conflict (id) do update set
   name = excluded.name, name_en = excluded.name_en,
   description = excluded.description, description_en = excluded.description_en,
   image_url = excluded.image_url, cost_points = excluded.cost_points,
-  stock = excluded.stock;
+  stock = excluded.stock,
+  pickup_location_id = excluded.pickup_location_id,
+  allows_pickup = excluded.allows_pickup,
+  allows_shipping = excluded.allows_shipping;
 
 insert into public.hero_banners (
   id, image_url, kicker, kicker_en, title, title_en, highlight, highlight_en,

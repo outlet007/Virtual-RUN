@@ -24,6 +24,8 @@ export default async function RewardsPage({
 }: {
   searchParams: Promise<{ error?: string; redeemed?: string }>;
 }) {
+  redirect('/dashboard/rewards');
+
   const { error, redeemed } = await searchParams;
   const [supabase, locale] = await Promise.all([createClient(), getLocale()]);
   const {

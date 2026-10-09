@@ -25,6 +25,7 @@ test("sample data covers the version 3.8 public catalog", async () => {
     "medals",
     "physical_medals",
     "packages",
+    'reward_pickup_locations',
     "rewards",
     "hero_banners",
     "content_categories",

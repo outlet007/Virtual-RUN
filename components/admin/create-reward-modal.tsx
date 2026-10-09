@@ -3,15 +3,23 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
-import { Button, Card, HeadingIcon, ImageUploadField, Input, Label, Textarea } from "@/components/ui";
+import { Button, Card, HeadingIcon, ImageUploadField, Input, Label, Select, Textarea } from '@/components/ui';
 import { createReward } from "@/lib/actions/admin";
+
+type PickupLocationOption = {
+  id: string;
+  name: string;
+  is_primary: boolean;
+};
 
 export function CreateRewardModal({
   initialOpen = false,
   error,
+  locations,
 }: {
   initialOpen?: boolean;
   error?: string;
+  locations: PickupLocationOption[];
 }) {
   const [open, setOpen] = useState(initialOpen);
   const [mounted, setMounted] = useState(false);
@@ -101,7 +109,33 @@ export function CreateRewardModal({
                     <Label>จำนวนคงเหลือ</Label>
                     <Input name="stock" type="number" min="0" defaultValue={0} />
                   </div>
-                  <Button className="w-full" type="submit" icon="add">
+                  <div>
+                    <Label>สถานที่รับรางวัล</Label>
+                    <Select
+                      name='pickup_location_id'
+                      defaultValue={locations.find((location) => location.is_primary)?.id ?? locations[0]?.id}
+                      required
+                    >
+                      {locations.map((location) => (
+                        <option key={location.id} value={location.id}>
+                          {location.name}{location.is_primary ? ' (สถานที่หลัก)' : ''}
+                        </option>
+                      ))}
+                    </Select>
+                    {locations.length === 0 && (
+                      <p className='mt-2 text-sm text-red-700'>กรุณาเพิ่มสถานที่รับรางวัลในแท็บสถานที่รับของรางวัลก่อน</p>
+                    )}
+                  </div>
+                  <fieldset className='space-y-2'>
+                    <legend className='text-sm font-medium text-ink/70'>วิธีรับรางวัลที่รองรับ</legend>
+                    <label className='flex min-h-11 items-center gap-2 rounded-xl border border-lane px-3'>
+                      <input type='checkbox' name='allows_pickup' defaultChecked /> รับด้วยตนเอง
+                    </label>
+                    <label className='flex min-h-11 items-center gap-2 rounded-xl border border-lane px-3'>
+                      <input type='checkbox' name='allows_shipping' defaultChecked /> จัดส่ง
+                    </label>
+                  </fieldset>
+                  <Button className="w-full" type="submit" icon="add" disabled={locations.length === 0}>
                     เพิ่มรางวัล
                   </Button>
                 </Card>

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
-import { Button, HeadingIcon, ImageUploadField, Input, Label, Textarea } from "@/components/ui";
+import { Button, HeadingIcon, ImageUploadField, Input, Label, Select, Textarea } from '@/components/ui';
 import { useDialogFocus } from "@/components/use-dialog-focus";
 import { updateReward } from "@/lib/actions/admin";
 
@@ -17,14 +17,25 @@ type RewardForEdit = {
   image_url: string | null;
   cost_points: number;
   stock: number;
+  pickup_location_id: string | null;
+  allows_pickup: boolean;
+  allows_shipping: boolean;
+};
+
+type PickupLocationOption = {
+  id: string;
+  name: string;
+  is_primary: boolean;
 };
 
 export function EditRewardModal({
   reward,
   error,
+  locations,
 }: {
   reward: RewardForEdit;
   error?: string;
+  locations: PickupLocationOption[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(true);
@@ -137,6 +148,29 @@ export function EditRewardModal({
                       <Label>จำนวนคงเหลือ</Label>
                       <Input name="stock" type="number" min="0" defaultValue={reward.stock} />
                     </div>
+                    <div>
+                      <Label>สถานที่รับรางวัล</Label>
+                      <Select
+                        name='pickup_location_id'
+                        defaultValue={reward.pickup_location_id ?? locations.find((location) => location.is_primary)?.id}
+                        required
+                      >
+                        {locations.map((location) => (
+                          <option key={location.id} value={location.id}>
+                            {location.name}{location.is_primary ? ' (สถานที่หลัก)' : ''}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                    <fieldset className='space-y-2'>
+                      <legend className='text-sm font-medium text-ink/70'>วิธีรับรางวัลที่รองรับ</legend>
+                      <label className='flex min-h-11 items-center gap-2 rounded-xl border border-lane px-3'>
+                        <input type='checkbox' name='allows_pickup' defaultChecked={reward.allows_pickup} /> รับด้วยตนเอง
+                      </label>
+                      <label className='flex min-h-11 items-center gap-2 rounded-xl border border-lane px-3'>
+                        <input type='checkbox' name='allows_shipping' defaultChecked={reward.allows_shipping} /> จัดส่ง
+                      </label>
+                    </fieldset>
                     <Button className="w-full" type="submit" icon="save">
                       บันทึกรางวัลนี้
                     </Button>
