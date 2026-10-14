@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { MyEventCardData, MyEventsPageData, MyEventsTab } from "@/lib/my-events";
+import { sortEventDistanceLevels } from "@/lib/event-distance-levels";
 
 type RegistrationRow = {
   id: string;
@@ -27,7 +28,7 @@ export async function getMyEventsPage(
   let query = supabase
     .from("registrations")
     .select(
-      "id, bib_number, status, packages(name, name_en, target_distance_km, has_physical_medal), events!inner(id, title, title_en, start_date, end_date)",
+      "id, bib_number, status, packages(name, name_en, target_distance_km, has_physical_medal), events!inner(id, title, title_en, start_date, end_date, event_mode, event_distance_levels(id, name, name_en, target_distance_km, sort_order))",
       { count: "exact" },
     )
     .eq("user_id", userId);
@@ -73,7 +74,12 @@ export async function getMyEventsPage(
       status: registration.status,
       approved_distance_km: approvedByRegistration.get(registration.id) ?? 0,
       package: registration.packages,
-      event: registration.events,
+      event: {
+        ...registration.events,
+        distance_levels: sortEventDistanceLevels(
+          registration.events.distance_levels ?? [],
+        ),
+      },
     })),
   };
 }

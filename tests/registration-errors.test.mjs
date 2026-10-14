@@ -9,6 +9,13 @@ test("maps duplicate registrations to a friendly message", () => {
   );
 });
 
+test("distinguishes a duplicate level-event registration", () => {
+  assert.equal(
+    getRegistrationErrorMessage({ code: "23505", message: "event_registration_exists" }),
+    "คุณสมัครงานระดับระยะนี้แล้ว",
+  );
+});
+
 test("distinguishes missing shipping details from a closed event", () => {
   assert.equal(
     getRegistrationErrorMessage({ code: "23514", message: "shipping_address_required" }),

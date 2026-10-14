@@ -4,6 +4,12 @@ type RegistrationDatabaseError = {
 };
 
 export function getRegistrationErrorMessage(error: RegistrationDatabaseError): string {
+  if (error.message === "event_registration_exists") {
+    return "คุณสมัครงานระดับระยะนี้แล้ว";
+  }
+  if (error.message === "distance_levels_required") {
+    return "งานนี้ยังไม่ได้กำหนดระดับระยะ กรุณาติดต่อผู้ดูแลระบบ";
+  }
   if (error.code === "23505") return "คุณลงทะเบียนแพ็กเกจนี้ไปแล้ว";
   if (error.message === "shipping_address_required") return "กรุณากรอกที่อยู่จัดส่งให้ครบถ้วน";
   if (error.message === "package_not_found" || error.message === "event_not_found") {

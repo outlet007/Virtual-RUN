@@ -29,20 +29,36 @@ export default async function RegisterPage({
   if (!packageId) notFound();
   const { data: pkg } = await supabase
     .from("packages")
-    .select("id, event_id, name, name_en, target_distance_km, price, has_physical_medal, events(title, title_en, status, end_date)")
+    .select("id, event_id, name, name_en, target_distance_km, price, has_physical_medal, events(title, title_en, status, end_date, event_mode)")
     .eq("id", packageId)
     .single();
 
   if (!pkg || pkg.event_id !== id) notFound();
   // relation อาจกลับมาเป็น object หรือ array แล้วแต่กรณี
   const ev = pkg.events as unknown as
-    | { title: string; title_en: string | null; status: string | null; end_date: string | null }
-    | { title: string; title_en: string | null; status: string | null; end_date: string | null }[]
+    | { title: string; title_en: string | null; status: string | null; end_date: string | null; event_mode: string }
+    | { title: string; title_en: string | null; status: string | null; end_date: string | null; event_mode: string }[]
     | null;
   const eventData = Array.isArray(ev) ? ev[0] ?? null : ev;
   if (!eventData) notFound();
   if (!isEventRegistrationOpen(eventData)) {
     redirect(`/events/${id}?error=${encodeURIComponent(tx(locale, "งานนี้สิ้นสุดแล้วและไม่เปิดรับสมัคร", "This event has ended and registration is closed"))}`);
+  }
+  if (eventData.event_mode === "distance_levels") {
+    const { data: activeRegistration } = await supabase
+      .from("registrations")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("event_id", id)
+      .in("status", ["pending", "confirmed"])
+      .maybeSingle();
+    if (activeRegistration) {
+      redirect(
+        `/events/${id}?error=${encodeURIComponent(
+          tx(locale, "คุณสมัครงานระดับระยะนี้แล้ว", "You have already registered for this level-based event"),
+        )}`,
+      );
+    }
   }
   const eventTitle = pickLocalized(locale, eventData.title, eventData.title_en);
   const packageName = pickLocalized(locale, pkg.name, pkg.name_en);
@@ -66,7 +82,9 @@ export default async function RegisterPage({
           )}
         </div>
         <div className="font-mono text-sm text-primary tnum">
-          {pkg.target_distance_km} km ·{" "}
+          {eventData.event_mode === "distance_levels"
+            ? tx(locale, "สะสมระยะตามระดับ", "Cumulative level progress")
+            : `${pkg.target_distance_km} km`} ·{" "}
           {isFree ? tx(locale, "ฟรี", "Free") : formatBaht(Number(pkg.price))}
         </div>
       </Card>

@@ -19,6 +19,14 @@ export type MyEventCardData = {
     title_en: string | null;
     start_date: string;
     end_date: string;
+    event_mode: string;
+    distance_levels: Array<{
+      id: string;
+      name: string;
+      name_en: string | null;
+      target_distance_km: number;
+      sort_order: number;
+    }>;
   };
 };
 

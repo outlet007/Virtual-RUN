@@ -18,6 +18,7 @@ type EventForModal = {
   cover_position_y: number;
   poster_image: string | null;
   pricing: string;
+  event_mode: string;
   status: string;
   start_date: string;
   end_date: string;
@@ -120,6 +121,16 @@ export function EditEventModal({ event }: { event: EventForModal }) {
                       <option value="closed">ปิดรับสมัคร</option>
                     </Select>
                   </div>
+                </div>
+                <div>
+                  <Label>รูปแบบการสะสมระยะ</Label>
+                  <Select name="event_mode" defaultValue={event.event_mode}>
+                    <option value="single_target">ระยะเป้าหมายเดียว (ใช้เป้าของแพ็กเกจ)</option>
+                    <option value="distance_levels">ระดับระยะสะสม (สมัครงานครั้งเดียว)</option>
+                  </Select>
+                  <p className="mt-1 text-xs text-ink/45">
+                    เปลี่ยนรูปแบบไม่ได้หลังจากมีผู้สมัครในงานแล้ว
+                  </p>
                 </div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>

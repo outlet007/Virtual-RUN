@@ -79,15 +79,15 @@ export default async function StatsPage({
   );
 
   const stats = [
-    { label: tx(locale, "ระยะสะสมรวม", "Total distance"), value: `${formatKm(totalKm)} km` },
-    { label: tx(locale, "ระยะวิ่งสะสม", "Running distance"), value: `${formatKm(runKm)} km` },
-    { label: tx(locale, "ระยะเดินสะสม", "Walking distance"), value: `${formatKm(walkKm)} km` },
-    { label: tx(locale, "คะแนนสะสมรวม", "Total points earned"), value: totalPointsEarned },
-    { label: tx(locale, "แต้มสะสม", "Points"), value: points },
-    { label: tx(locale, "เหรียญที่ได้รับ", "Medals earned"), value: medalsCount ?? 0 },
-    { label: tx(locale, "งานที่สมัคร", "Joined events"), value: regs.length },
-    { label: tx(locale, "ผลวิ่งที่บันทึกทั้งหมด", "All submissions"), value: subs.length },
-    { label: tx(locale, "ผลวิ่งที่อนุมัติแล้ว", "Approved submissions"), value: approved.length },
+    { label: tx(locale, "ระยะสะสมรวม", "Total distance"), value: `${formatKm(totalKm)} km`, href: "/dashboard/history" },
+    { label: tx(locale, "ระยะวิ่งสะสม", "Running distance"), value: `${formatKm(runKm)} km`, href: "/dashboard/history" },
+    { label: tx(locale, "ระยะเดินสะสม", "Walking distance"), value: `${formatKm(walkKm)} km`, href: "/dashboard/history" },
+    { label: tx(locale, "คะแนนสะสมรวม", "Total points earned"), value: totalPointsEarned, href: "/dashboard/rewards" },
+    { label: tx(locale, "แต้มสะสม", "Points"), value: points, href: "/dashboard/rewards" },
+    { label: tx(locale, "เหรียญที่ได้รับ", "Medals earned"), value: medalsCount ?? 0, href: "/dashboard/medals" },
+    { label: tx(locale, "งานที่สมัคร", "Joined events"), value: regs.length, href: "/dashboard/events" },
+    { label: tx(locale, "ผลวิ่งที่บันทึกทั้งหมด", "All submissions"), value: subs.length, href: "/dashboard/history" },
+    { label: tx(locale, "ผลวิ่งที่อนุมัติแล้ว", "Approved submissions"), value: approved.length, href: "/dashboard/history" },
   ];
 
   return (
@@ -131,10 +131,16 @@ export default async function StatsPage({
       </section>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {stats.map((s) => (
-          <Card key={s.label}>
-            <p className="text-xs uppercase tracking-wider text-ink/40">{s.label}</p>
-            <p className="mt-1 font-mono text-3xl font-bold tnum">{s.value}</p>
-          </Card>
+          <Link
+            key={s.label}
+            href={s.href}
+            className="group block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          >
+            <Card className="h-full transition group-hover:border-primary/40 group-hover:shadow-sm">
+              <p className="text-xs uppercase tracking-wider text-ink/40">{s.label}</p>
+              <p className="mt-1 font-mono text-3xl font-bold tnum">{s.value}</p>
+            </Card>
+          </Link>
         ))}
       </div>
     </div>

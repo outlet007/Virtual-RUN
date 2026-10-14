@@ -115,4 +115,14 @@ export async function awardForApprovedSubmission(
       text: `ยินดีด้วย! คุณปลดล็อกเหรียญ "${medal.name}" แล้ว${medal.bonus_points > 0 ? ` พร้อมแต้มโบนัส ${medal.bonus_points} แต้ม` : ""}`,
     });
   }
+
+  const { error: distanceLevelError } = await db.rpc(
+    "sync_registration_distance_levels",
+    { p_registration_id: registrationId },
+  );
+  if (distanceLevelError) {
+    throw new Error(
+      "Unable to synchronize event distance levels: " + distanceLevelError.message,
+    );
+  }
 }

@@ -13,6 +13,7 @@ import {
   type MyEventsTab,
 } from "@/lib/my-events";
 import { formatKmExact } from "@/lib/utils";
+import { getEventDistanceLevelProgress } from "@/lib/event-distance-levels";
 
 type TabState = MyEventsPageData & {
   visible: number;
@@ -29,7 +30,11 @@ type Props = {
 
 function EventCard({ item, locale }: { item: MyEventCardData; locale: Locale }) {
   const done = item.approved_distance_km;
-  const target = item.package?.target_distance_km ?? 1;
+  const levelProgress = getEventDistanceLevelProgress(item.event.distance_levels, done);
+  const target =
+    item.event.event_mode === "distance_levels"
+      ? levelProgress.finalLevel?.target_distance_km ?? 1
+      : item.package?.target_distance_km ?? 1;
   const finished = done >= target;
   const submissionOpen = isEventSubmissionOpen(item.event.end_date);
 
@@ -74,6 +79,20 @@ function EventCard({ item, locale }: { item: MyEventCardData; locale: Locale }) 
           <span className="text-ink/40">/ {target} km</span>
         </div>
         <TrackProgress current={done} target={target} />
+        {item.event.event_mode === "distance_levels" && (
+          <div className="mt-2 rounded-xl bg-sky-50 px-3 py-2 text-xs text-sky-800">
+            <p>
+              {tx(locale, "ระดับปัจจุบัน", "Current level")}: {levelProgress.currentLevel
+                ? pickLocalized(locale, levelProgress.currentLevel.name, levelProgress.currentLevel.name_en)
+                : tx(locale, "ยังไม่ผ่านระดับแรก", "First level not reached")}
+            </p>
+            {levelProgress.nextLevel && (
+              <p className="mt-0.5">
+                {tx(locale, "เหลือ", "Remaining")} {formatKmExact(levelProgress.remainingDistanceKm)} km {tx(locale, "ถึง", "to")} {pickLocalized(locale, levelProgress.nextLevel.name, levelProgress.nextLevel.name_en)}
+              </p>
+            )}
+          </div>
+        )}
       </div>
       {item.status === "confirmed" && submissionOpen && (
         <div className="mt-auto space-y-2">

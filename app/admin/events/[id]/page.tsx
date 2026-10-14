@@ -16,6 +16,7 @@ import {
 } from "@/components/ui";
 import { EditEventModal } from "@/components/admin/edit-event-modal";
 import { EventLeaderboardCard } from "@/components/admin/event-leaderboard";
+import { EventDistanceLevelsTab } from "@/components/admin/event-distance-levels-tab";
 import { RegistrationTrendChart } from "@/components/admin/registration-trend-chart";
 import { MedalDeleteButton } from "@/components/admin/medal-delete-button";
 import { PhysicalMedalDeleteButton } from "@/components/admin/physical-medal-delete-button";
@@ -40,6 +41,15 @@ import { buildEventLeaderboards, buildRegistrationSeries } from "@/lib/admin/day
 import { formatDate } from "@/lib/utils";
 import { getBangkokDate } from "@/lib/event-registration";
 import { getEffectiveEventStatus } from "@/lib/event-status";
+import {
+  getRegistrationRunProgress,
+  type RegistrationRunProgressStatus,
+} from "@/lib/registration-progress";
+import {
+  getEventDistanceLevelProgress,
+  sortEventDistanceLevels,
+  type EventDistanceLevel,
+} from "@/lib/event-distance-levels";
 
 export const dynamic = "force-dynamic";
 
@@ -81,6 +91,13 @@ type PhysicalMedalRow = {
   sort_order: number;
 };
 
+type EventDistanceLevelRow = EventDistanceLevel & {
+  digital_medal_id: string | null;
+  reward_description: string | null;
+  reward_description_en: string | null;
+  bonus_points: number;
+};
+
 type EventRegistrationRow = {
   id: string;
   bib_number: string | null;
@@ -88,12 +105,13 @@ type EventRegistrationRow = {
   status: string;
   registered_at: string;
   users: { name: string | null; email: string | null } | null;
-  packages: { name: string } | null;
+  packages: { name: string; target_distance_km: number } | null;
 };
 
 type Relation<T> = T | T[] | null;
 type EventSubmissionRow = {
   id: string;
+  registration_id: string;
   status: string;
   distance_km: number | string;
   user_id: string;
@@ -127,6 +145,20 @@ const registrationStatusClass: Record<string, string> = {
   confirmed: "bg-primary-soft text-primary-dark",
   cancelled: "bg-red-100 text-red-700",
 };
+const registrationRunStatusLabel: Record<RegistrationRunProgressStatus, string> = {
+  registration_pending: "รอยืนยันใบสมัคร",
+  not_started: "ยังไม่มีผลอนุมัติ",
+  in_progress: "กำลังสะสมระยะ",
+  completed: "วิ่งครบแล้ว",
+  cancelled: "ยกเลิก",
+};
+const registrationRunStatusClass: Record<RegistrationRunProgressStatus, string> = {
+  registration_pending: "bg-medal-soft text-medal",
+  not_started: "bg-lane text-muted",
+  in_progress: "bg-sky-100 text-sky-700",
+  completed: "bg-green-100 text-green-700",
+  cancelled: "bg-red-100 text-red-700",
+};
 
 export default async function EventDashboardPage({
   params,
@@ -149,6 +181,9 @@ export default async function EventDashboardPage({
     physical_medal_saved?: string;
     physical_medal_deleted?: string;
     physical_medal_reordered?: string;
+    distance_level_added?: string;
+    distance_level_saved?: string;
+    distance_level_deleted?: string;
     registration_approved?: string;
     registration_q?: string;
     registration_status?: string;
@@ -164,7 +199,7 @@ export default async function EventDashboardPage({
   const { data: event } = await db
     .from("events")
     .select(
-      "id, title, title_en, bib_prefix, description, description_en, cover_image, cover_position_x, cover_position_y, poster_image, pricing, start_date, end_date, status, packages(id, name, name_en, target_distance_km, price, activity_types, has_physical_medal, digital_medal_id, digital_medal:medals!packages_digital_medal_id_fkey(id, name, name_en), physical_medal_id, physical_medal:physical_medals!packages_physical_medal_id_fkey(id, name, name_en), sort_order), medals(id, name, name_en, tier, bonus_points, image_url, unlock_rule, sort_order), physical_medals(id, name, name_en, description_en, tier, bonus_points, image_url, unlock_rule, sort_order)",
+      "id, title, title_en, bib_prefix, description, description_en, cover_image, cover_position_x, cover_position_y, poster_image, pricing, event_mode, start_date, end_date, status, packages(id, name, name_en, target_distance_km, price, activity_types, has_physical_medal, digital_medal_id, digital_medal:medals!packages_digital_medal_id_fkey(id, name, name_en), physical_medal_id, physical_medal:physical_medals!packages_physical_medal_id_fkey(id, name, name_en), sort_order), medals(id, name, name_en, tier, bonus_points, image_url, unlock_rule, sort_order), physical_medals(id, name, name_en, description_en, tier, bonus_points, image_url, unlock_rule, sort_order), event_distance_levels(id, name, name_en, target_distance_km, sort_order, digital_medal_id, reward_description, reward_description_en, bonus_points)",
     )
     .eq("id", id)
     .single();
@@ -194,19 +229,22 @@ export default async function EventDashboardPage({
       Number(a.unlock_rule?.target_km ?? 0) - Number(b.unlock_rule?.target_km ?? 0) ||
       a.name.localeCompare(b.name, "th"),
   );
+  const distanceLevels = sortEventDistanceLevels(
+    (event.event_distance_levels ?? []) as EventDistanceLevelRow[],
+  );
 
   const [{ data: regs }, { data: subs }, { data: paidPayments }, { count: medalsUnlocked }] =
     await Promise.all([
       db
         .from("registrations")
         .select(
-          "id, bib_number, shipping_address, status, registered_at, users(name, email), packages(name)",
+          "id, bib_number, shipping_address, status, registered_at, users(name, email), packages(name, target_distance_km)",
         )
         .eq("event_id", id)
         .order("registered_at", { ascending: false }),
       db
         .from("submissions")
-        .select("id, status, distance_km, user_id, users!submissions_user_id_fkey(name, email), registrations!inner(event_id)")
+        .select("id, registration_id, status, distance_km, user_id, users!submissions_user_id_fkey(name, email), registrations!inner(event_id)")
         .eq("registrations.event_id", id),
       db
         .from("payments")
@@ -271,6 +309,14 @@ export default async function EventDashboardPage({
   const approvedDistanceKm = subList
     .filter((submission) => submission.status === "approved")
     .reduce((sum, submission) => sum + Number(submission.distance_km), 0);
+  const approvedDistanceByRegistration = subList.reduce((distances, submission) => {
+    if (submission.status !== "approved") return distances;
+    distances.set(
+      submission.registration_id,
+      (distances.get(submission.registration_id) ?? 0) + Number(submission.distance_km),
+    );
+    return distances;
+  }, new Map<string, number>());
   const registrationSeries = buildRegistrationSeries(
     regList.map((registration) => ({ registeredAt: registration.registered_at })),
     period,
@@ -366,6 +412,7 @@ export default async function EventDashboardPage({
               cover_position_y: event.cover_position_y,
               poster_image: event.poster_image,
               pricing: event.pricing,
+              event_mode: event.event_mode,
               status: effectiveStatus,
               start_date: event.start_date,
               end_date: event.end_date,
@@ -672,6 +719,21 @@ export default async function EventDashboardPage({
           </Card>
         </form>
               </div>
+            ),
+          },
+          {
+            id: "distance-levels",
+            label: `ระดับระยะ (${distanceLevels.length})`,
+            content: (
+              <EventDistanceLevelsTab
+                eventId={event.id}
+                eventMode={event.event_mode}
+                levels={distanceLevels}
+                medals={medals.map((medal) => ({ id: medal.id, name: medal.name }))}
+                added={Boolean(sp.distance_level_added)}
+                saved={Boolean(sp.distance_level_saved)}
+                deleted={Boolean(sp.distance_level_deleted)}
+              />
             ),
           },
           {
@@ -1045,7 +1107,7 @@ export default async function EventDashboardPage({
                 ) : (
                   <Card className="overflow-hidden p-0 sm:p-0">
                     <div className="overflow-x-auto">
-                      <table className="w-full min-w-[1180px] border-collapse text-left text-sm">
+                      <table className="w-full min-w-[1340px] border-collapse text-left text-sm">
                         <caption className="sr-only">
                           รายชื่อผู้สมัครเฉพาะงานตามเงื่อนไขที่เลือก
                         </caption>
@@ -1057,12 +1119,27 @@ export default async function EventDashboardPage({
                             <th scope="col" className="px-4 py-3 font-semibold">วันที่สมัคร</th>
                             <th scope="col" className="px-4 py-3 font-semibold">ที่อยู่จัดส่ง</th>
                             <th scope="col" className="px-4 py-3 font-semibold">สถานะ</th>
+                            <th scope="col" className="px-4 py-3 font-semibold">สถานะการวิ่ง</th>
                             <th scope="col" className="px-4 py-3 font-semibold">การจัดการ</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-lane">
                           {filteredRegList.map((registration) => {
                             const address = registration.shipping_address;
+                            const approvedDistanceKmForRegistration =
+                              approvedDistanceByRegistration.get(registration.id) ?? 0;
+                            const distanceLevelProgress = getEventDistanceLevelProgress(
+                              distanceLevels,
+                              approvedDistanceKmForRegistration,
+                            );
+                            const runProgress = getRegistrationRunProgress({
+                              registrationStatus: registration.status,
+                              approvedDistanceKm: approvedDistanceKmForRegistration,
+                              targetDistanceKm:
+                                event.event_mode === "distance_levels"
+                                  ? distanceLevelProgress.finalLevel?.target_distance_km ?? 0
+                                  : registration.packages?.target_distance_km ?? 0,
+                            });
                             return (
                               <tr
                                 key={registration.id}
@@ -1131,6 +1208,37 @@ export default async function EventDashboardPage({
                                     {registrationStatusLabel[registration.status] ??
                                       registration.status}
                                   </Badge>
+                                </td>
+                                <td className="px-4 py-4">
+                                  <Badge className={registrationRunStatusClass[runProgress.status]}>
+                                    {registrationRunStatusLabel[runProgress.status]}
+                                  </Badge>
+                                  <p className="mt-1 whitespace-nowrap font-mono text-xs text-ink/50 tnum">
+                                    {runProgress.approvedDistanceKm.toLocaleString("th-TH", {
+                                      maximumFractionDigits: 2,
+                                    })}{" "}
+                                    /{" "}
+                                    {runProgress.targetDistanceKm.toLocaleString("th-TH", {
+                                      maximumFractionDigits: 2,
+                                    })}{" "}
+                                    กม.
+                                  </p>
+                                  {event.event_mode === "distance_levels" && (
+                                    <div className="mt-1 max-w-64 text-xs leading-5 text-ink/55">
+                                      <p>
+                                        ระดับปัจจุบัน: {distanceLevelProgress.currentLevel?.name ?? "ยังไม่ผ่านระดับแรก"}
+                                      </p>
+                                      {distanceLevelProgress.nextLevel ? (
+                                        <p>
+                                          เหลือ {distanceLevelProgress.remainingDistanceKm.toLocaleString("th-TH", {
+                                            maximumFractionDigits: 2,
+                                          })} กม. ถึง {distanceLevelProgress.nextLevel.name}
+                                        </p>
+                                      ) : distanceLevelProgress.completed ? (
+                                        <p className="font-semibold text-green-700">ผ่านครบทุกระดับแล้ว</p>
+                                      ) : null}
+                                    </div>
+                                  )}
                                 </td>
                                 <td className="px-4 py-4">
                                   {registration.status === "pending" ? (

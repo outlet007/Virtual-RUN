@@ -73,6 +73,16 @@ export default async function NewEventPage({
               </Select>
             </div>
           </div>
+          <div>
+            <Label>รูปแบบการสะสมระยะ</Label>
+            <Select name="event_mode" defaultValue="single_target">
+              <option value="single_target">ระยะเป้าหมายเดียว (ใช้เป้าของแพ็กเกจ)</option>
+              <option value="distance_levels">ระดับระยะสะสม (สมัครงานครั้งเดียว)</option>
+            </Select>
+            <p className="mt-1 text-xs text-ink/45">
+              งานแบบระดับระยะสะสมต้องเพิ่มระดับอย่างน้อยหนึ่งระดับก่อนเปิดรับสมัคร
+            </p>
+          </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <Label>วันที่เริ่ม</Label>

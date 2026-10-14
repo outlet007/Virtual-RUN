@@ -10,6 +10,7 @@ import { formatBaht, formatDate, stripHtml } from "@/lib/utils";
 import { isEventRegistrationOpen } from "@/lib/event-registration";
 import { getLocale } from "@/lib/i18n/server";
 import { pickLocalized, tx } from "@/lib/i18n/shared";
+import { sortEventDistanceLevels, type EventDistanceLevel } from "@/lib/event-distance-levels";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +40,7 @@ export default async function EventDetailPage({
       supabase
         .from("events")
         .select(
-          "id, title, title_en, description, description_en, cover_image, cover_position_x, cover_position_y, poster_image, pricing, start_date, end_date, status, packages(id, name, name_en, target_distance_km, price, has_physical_medal, digital_medal:medals!packages_digital_medal_id_fkey(id, name, name_en), physical_medal:physical_medals!packages_physical_medal_id_fkey(id, name, name_en), sort_order)",
+          "id, title, title_en, description, description_en, cover_image, cover_position_x, cover_position_y, poster_image, pricing, event_mode, start_date, end_date, status, packages(id, name, name_en, target_distance_km, price, has_physical_medal, digital_medal:medals!packages_digital_medal_id_fkey(id, name, name_en), physical_medal:physical_medals!packages_physical_medal_id_fkey(id, name, name_en), sort_order), event_distance_levels(id, name, name_en, target_distance_km, sort_order, reward_description, reward_description_en, bonus_points)",
         )
         .eq("id", id)
         .single(),
@@ -66,6 +67,9 @@ export default async function EventDetailPage({
         : packageRow.physical_medal,
     }))
     .sort((a, b) => a.sort_order - b.sort_order);
+  const distanceLevels = sortEventDistanceLevels(
+    (event.event_distance_levels ?? []) as EventDistanceLevel[],
+  );
 
   const {
     data: { user },
@@ -85,6 +89,11 @@ export default async function EventDetailPage({
       r,
     ]),
   );
+  const myEventRegistration = ((myRegsRaw ?? []) as {
+    id: string;
+    package_id: string;
+    status: string;
+  }[])[0] ?? null;
 
   const leaderboard = buildEventBibLeaderboard(
     ((leaderboardRows ?? []) as unknown as LeaderboardSubmissionRow[]).map((row) => {
@@ -188,12 +197,58 @@ export default async function EventDetailPage({
 
         {/* ขวา: เลือกแพ็กเกจ */}
         <div id="packages" className="scroll-mt-24 space-y-3">
+          {event.event_mode === "distance_levels" && (
+            <Card className="space-y-3 border-sky-200 bg-sky-50/60">
+              <div>
+                <h2 className="font-display text-xl font-bold">
+                  {tx(locale, "ระดับระยะสะสม", "Cumulative distance levels")}
+                </h2>
+                <p className="mt-1 text-sm text-ink/55">
+                  {tx(
+                    locale,
+                    "สมัครงานครั้งเดียวและสะสมระยะผ่านแต่ละระดับตามลำดับ",
+                    "Register once and accumulate approved distance through each level.",
+                  )}
+                </p>
+              </div>
+              <ol className="space-y-2">
+                {distanceLevels.map((level, index) => (
+                  <li key={level.id} className="rounded-xl border border-sky-100 bg-white px-3 py-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-semibold">
+                        {index + 1}. {pickLocalized(locale, level.name, level.name_en)}
+                      </span>
+                      <Badge className="shrink-0 bg-sky-100 text-sky-700">
+                        {level.target_distance_km} km
+                      </Badge>
+                    </div>
+                    {pickLocalized(
+                      locale,
+                      level.reward_description ?? null,
+                      level.reward_description_en ?? null,
+                    ) && (
+                      <p className="mt-1 text-xs text-ink/50">
+                        {pickLocalized(
+                          locale,
+                          level.reward_description ?? null,
+                          level.reward_description_en ?? null,
+                        )}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </Card>
+          )}
           <h2 className="flex items-center gap-2 font-display text-xl font-bold">
             <HeadingIcon name="package" />
             {tx(locale, "เลือกแพ็กเกจ", "Choose a package")}
           </h2>
           {packages.map((p) => {
-            const myReg = myRegByPackageId.get(p.id);
+            const myReg =
+              event.event_mode === "distance_levels"
+                ? myEventRegistration
+                : myRegByPackageId.get(p.id);
             return (
               <Card
                 key={p.id}
@@ -240,7 +295,10 @@ export default async function EventDetailPage({
                 )}
                 <div className="mt-1 flex items-center gap-2 font-mono text-sm text-ink/50">
                   <span className="inline-flex items-center gap-1 tnum">
-                    <Road className="h-3.5 w-3.5" /> {p.target_distance_km} km
+                    <Road className="h-3.5 w-3.5" />{" "}
+                    {event.event_mode === "distance_levels"
+                      ? tx(locale, "ตัวเลือกสมัคร", "Registration option")
+                      : `${p.target_distance_km} km`}
                   </span>
                   {event.pricing !== "free" && Number(p.price) > 0 && (
                     <>
