@@ -70,6 +70,11 @@ export default async function EventDetailPage({
   const distanceLevels = sortEventDistanceLevels(
     (event.event_distance_levels ?? []) as EventDistanceLevel[],
   );
+  // งานระดับระยะสมัครผ่าน package ภายในรายการแรก และต้องมีระดับอย่างน้อย 1 ระดับ
+  // (register_for_event คืน distance_levels_required เมื่อยังไม่มีระดับ)
+  const isDistanceLevels = event.event_mode === "distance_levels";
+  const levelRegistrationPackage =
+    isDistanceLevels && distanceLevels.length > 0 ? packages[0] ?? null : null;
 
   const {
     data: { user },
@@ -94,6 +99,61 @@ export default async function EventDetailPage({
     package_id: string;
     status: string;
   }[])[0] ?? null;
+
+  const renderRegisterAction = (
+    packageId: string,
+    myReg: { id: string; status: string } | null | undefined,
+    fullWidth = false,
+    priceSuffix = "",
+  ) => {
+    const buttonClass = fullWidth
+      ? "w-full justify-center"
+      : "w-full shrink-0 whitespace-nowrap sm:w-auto sm:px-3";
+    return (
+      <>
+        {user && myReg ? (
+          myReg.status === "pending" && fullWidth ? (
+            <LinkButton href={`/dashboard/pay/${myReg.id}`} className={buttonClass}>
+              {tx(locale, "รอชำระเงิน", "Awaiting payment")}
+              <ChevronRight className="size-4 shrink-0" aria-hidden="true" />
+            </LinkButton>
+          ) : myReg.status === "pending" ? (
+            <Link href={`/dashboard/pay/${myReg.id}`} className="shrink-0">
+              <Badge className="bg-medal-soft text-medal hover:underline">
+                {tx(locale, "รอชำระเงิน", "Awaiting payment")} →
+              </Badge>
+            </Link>
+          ) : (
+            <LinkButton
+              href="/dashboard/events"
+              className={`${buttonClass} bg-[#12b76a] text-white hover:bg-[#0f9d5c]`}>
+              {tx(locale, "สมัครแล้ว", "Registered")}
+              <ChevronRight className="size-4 shrink-0" aria-hidden="true" />
+            </LinkButton>
+          )
+        ) : (
+          registrationOpen &&
+          (user ? (
+            <LinkButton
+              href={`/events/${event.id}/register?package=${packageId}`}
+              className={buttonClass}
+              icon="userPlus">
+              {tx(locale, "สมัคร", "Register")}
+              {priceSuffix}
+            </LinkButton>
+          ) : (
+            <LinkButton
+              href={`/login?next=/events/${event.id}`}
+              variant="ghost"
+              className={buttonClass}
+              icon="login">
+              {tx(locale, "เข้าสู่ระบบเพื่อสมัคร", "Sign in to register")}
+            </LinkButton>
+          ))
+        )}
+      </>
+    );
+  };
 
   const leaderboard = buildEventBibLeaderboard(
     ((leaderboardRows ?? []) as unknown as LeaderboardSubmissionRow[]).map((row) => {
@@ -228,6 +288,9 @@ export default async function EventDetailPage({
                       level.reward_description_en ?? null,
                     ) && (
                       <p className="mt-1 text-xs text-ink/50">
+                        <span className="font-bold text-[#ff4a00]">
+                          {tx(locale, "วิ่งสะสมครบรับ :", "Complete to receive:")}
+                        </span>{" "}
                         {pickLocalized(
                           locale,
                           level.reward_description ?? null,
@@ -240,111 +303,92 @@ export default async function EventDetailPage({
               </ol>
             </Card>
           )}
-          <h2 className="flex items-center gap-2 font-display text-xl font-bold">
-            <HeadingIcon name="package" />
-            {tx(locale, "เลือกแพ็กเกจ", "Choose a package")}
-          </h2>
-          {packages.map((p) => {
-            const myReg =
-              event.event_mode === "distance_levels"
-                ? myEventRegistration
-                : myRegByPackageId.get(p.id);
-            return (
-              <Card
-                key={p.id}
-                className="flex flex-col gap-3 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
-              >
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-display font-bold text-charcoal">{pickLocalized(locale, p.name, p.name_en)}</span>
-                  <Badge
-                    className={
-                      event.pricing === "free" || Number(p.price) === 0
-                        ? "bg-[rgb(10,164,57)] text-white"
-                        : "bg-[rgb(255,93,0)] text-white"
-                    }
-                  >
-                    {event.pricing === "free" || Number(p.price) === 0
-                      ? tx(locale, "ฟรี", "Free")
-                      : tx(locale, "มีค่าสมัคร", "Paid")}
-                  </Badge>
-                </div>
-                {(p.digital_medal || p.has_physical_medal) && (
-                  <div className="mt-1 flex flex-wrap items-center gap-2">
-                    {p.digital_medal && (
-                      <Badge
-                        className="max-w-full min-w-0 gap-1 bg-sky-100 text-sky-700"
-                        title={tx(locale, "เหรียญดิจิทัล", "Digital medal") + ": " + pickLocalized(locale, p.digital_medal.name, p.digital_medal.name_en)}
-                      >
-                        <Medal className="h-3 w-3 shrink-0" />
-                        <span className="truncate">{tx(locale, "เหรียญดิจิทัล", "Digital medal")}: {pickLocalized(locale, p.digital_medal.name, p.digital_medal.name_en)}</span>
-                      </Badge>
-                    )}
-                    {p.has_physical_medal && (
-                      <Badge
-                        className="max-w-full min-w-0 gap-1 bg-orange-100 text-orange-700"
-                        title={tx(locale, "เหรียญจริง", "Physical medal") + (p.physical_medal ? ": " + pickLocalized(locale, p.physical_medal.name, p.physical_medal.name_en) : "")}
-                      >
-                        <Medal className="h-3 w-3 shrink-0" />
-                        <span className="truncate">
-                          {tx(locale, "เหรียญจริง", "Physical medal")}{p.physical_medal ? ": " + pickLocalized(locale, p.physical_medal.name, p.physical_medal.name_en) : ""}
-                        </span>
-                      </Badge>
+          {isDistanceLevels ? (
+            levelRegistrationPackage ? (
+              renderRegisterAction(
+                levelRegistrationPackage.id,
+                myEventRegistration,
+                true,
+                event.pricing !== "free" && Number(levelRegistrationPackage.price) > 0
+                  ? ` · ${formatBaht(Number(levelRegistrationPackage.price))}`
+                  : "",
+              )
+            ) : (
+              <Card className="text-sm text-ink/55">
+                {tx(locale, "ยังไม่เปิดรับสมัครงานนี้", "Registration is not open for this event yet.")}
+              </Card>
+            )
+          ) : (
+            <>
+            <h2 className="flex items-center gap-2 font-display text-xl font-bold">
+              <HeadingIcon name="package" />
+              {tx(locale, "เลือกแพ็กเกจ", "Choose a package")}
+            </h2>
+            {packages.map((p) => {
+              const myReg = myRegByPackageId.get(p.id);
+              return (
+                <Card
+                  key={p.id}
+                  className="flex flex-col gap-3 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-display font-bold text-charcoal">{pickLocalized(locale, p.name, p.name_en)}</span>
+                    <Badge
+                      className={
+                        event.pricing === "free" || Number(p.price) === 0
+                          ? "bg-[rgb(10,164,57)] text-white"
+                          : "bg-[rgb(255,93,0)] text-white"
+                      }
+                    >
+                      {event.pricing === "free" || Number(p.price) === 0
+                        ? tx(locale, "ฟรี", "Free")
+                        : tx(locale, "มีค่าสมัคร", "Paid")}
+                    </Badge>
+                  </div>
+                  {(p.digital_medal || p.has_physical_medal) && (
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      {p.digital_medal && (
+                        <Badge
+                          className="max-w-full min-w-0 gap-1 bg-sky-100 text-sky-700"
+                          title={tx(locale, "เหรียญดิจิทัล", "Digital medal") + ": " + pickLocalized(locale, p.digital_medal.name, p.digital_medal.name_en)}
+                        >
+                          <Medal className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{tx(locale, "เหรียญดิจิทัล", "Digital medal")}: {pickLocalized(locale, p.digital_medal.name, p.digital_medal.name_en)}</span>
+                        </Badge>
+                      )}
+                      {p.has_physical_medal && (
+                        <Badge
+                          className="max-w-full min-w-0 gap-1 bg-orange-100 text-orange-700"
+                          title={tx(locale, "เหรียญจริง", "Physical medal") + (p.physical_medal ? ": " + pickLocalized(locale, p.physical_medal.name, p.physical_medal.name_en) : "")}
+                        >
+                          <Medal className="h-3 w-3 shrink-0" />
+                          <span className="truncate">
+                            {tx(locale, "เหรียญจริง", "Physical medal")}{p.physical_medal ? ": " + pickLocalized(locale, p.physical_medal.name, p.physical_medal.name_en) : ""}
+                          </span>
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+                  <div className="mt-1 flex items-center gap-2 font-mono text-sm text-ink/50">
+                    <span className="inline-flex items-center gap-1 tnum">
+                      <Road className="h-3.5 w-3.5" />{" "}
+                      {`${p.target_distance_km} km`}
+                    </span>
+                    {event.pricing !== "free" && Number(p.price) > 0 && (
+                      <>
+                        <span className="text-ink/25">·</span>
+                        {formatBaht(Number(p.price))}
+                      </>
                     )}
                   </div>
-                )}
-                <div className="mt-1 flex items-center gap-2 font-mono text-sm text-ink/50">
-                  <span className="inline-flex items-center gap-1 tnum">
-                    <Road className="h-3.5 w-3.5" />{" "}
-                    {event.event_mode === "distance_levels"
-                      ? tx(locale, "ตัวเลือกสมัคร", "Registration option")
-                      : `${p.target_distance_km} km`}
-                  </span>
-                  {event.pricing !== "free" && Number(p.price) > 0 && (
-                    <>
-                      <span className="text-ink/25">·</span>
-                      {formatBaht(Number(p.price))}
-                    </>
-                  )}
                 </div>
-              </div>
-              {user && myReg ? (
-                myReg.status === "pending" ? (
-                  <Link href={`/dashboard/pay/${myReg.id}`} className="shrink-0">
-                    <Badge className="bg-medal-soft text-medal hover:underline">
-                      {tx(locale, "รอชำระเงิน", "Awaiting payment")} →
-                    </Badge>
-                  </Link>
-                ) : (
-                  <LinkButton
-                    href="/dashboard/events"
-                    className="w-full shrink-0 whitespace-nowrap bg-[#12b76a] text-white hover:bg-[#0f9d5c] sm:w-auto sm:px-3">
-                    {tx(locale, "สมัครแล้ว", "Registered")}
-                    <ChevronRight className="size-4 shrink-0" aria-hidden="true" />
-                  </LinkButton>
-                )
-              ) : (
-                registrationOpen &&
-                (user ? (
-                  <LinkButton
-                    href={`/events/${event.id}/register?package=${p.id}`}
-                    className="w-full shrink-0 whitespace-nowrap sm:w-auto sm:px-3"
-                    icon="userPlus">
-                    {tx(locale, "สมัคร", "Register")}
-                  </LinkButton>
-                ) : (
-                  <LinkButton
-                    href={`/login?next=/events/${event.id}`}
-                    variant="ghost"
-                    className="w-full shrink-0 whitespace-nowrap sm:w-auto sm:px-3"
-                    icon="login">
-                    {tx(locale, "เข้าสู่ระบบเพื่อสมัคร", "Sign in to register")}
-                  </LinkButton>
-                ))
-              )}
-            </Card>
-            );
-          })}
+                {renderRegisterAction(p.id, myReg)}
+              </Card>
+              );
+            })}
+            </>
+          )}
           <EventBibLeaderboard rows={leaderboard} locale={locale} />
         </div>
       </div>

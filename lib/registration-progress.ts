@@ -5,6 +5,14 @@ export type RegistrationRunProgressStatus =
   | "completed"
   | "cancelled";
 
+export const registrationRunStatusLabel: Record<RegistrationRunProgressStatus, string> = {
+  registration_pending: "รอยืนยันใบสมัคร",
+  not_started: "ยังไม่มีผลอนุมัติ",
+  in_progress: "กำลังสะสมระยะ",
+  completed: "วิ่งครบแล้ว",
+  cancelled: "ยกเลิก",
+};
+
 export type RegistrationRunProgress = {
   status: RegistrationRunProgressStatus;
   approvedDistanceKm: number;

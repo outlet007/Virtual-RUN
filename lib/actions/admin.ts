@@ -361,6 +361,23 @@ async function getPackagePhysicalMedalId(
   return medal.id;
 }
 
+// งานระดับระยะสะสมไม่มีแพ็กเกจให้ Admin จัดการ ระบบดูแล package ภายในเอง
+async function assertSingleTargetEvent(
+  db: ReturnType<typeof createAdminClient>,
+  eventId: string,
+) {
+  const { data: event, error } = await db
+    .from("events")
+    .select("event_mode")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (error) err(`/admin/events/${eventId}?tab=packages`, error.message);
+  if (!event) err(`/admin/events/${eventId}?tab=packages`, "ไม่พบงาน");
+  if (event.event_mode === "distance_levels") {
+    err(distanceLevelPath(eventId), "งานระดับระยะสะสมตั้งค่าการสมัครในแท็บระดับระยะ");
+  }
+}
+
 export async function createPackage(formData: FormData) {
   await requireManager();
   const db = createAdminClient();
@@ -370,6 +387,7 @@ export async function createPackage(formData: FormData) {
   const name_en = String(formData.get("name_en") ?? "").trim() || null;
   const target_distance_km = Number(formData.get("target_distance_km") ?? 0);
   const activity_types = formData.getAll("activity_types").map(String);
+  if (event_id) await assertSingleTargetEvent(db, event_id);
 
   if (!event_id || !name || target_distance_km <= 0) {
     err(`/admin/events/${event_id}?tab=packages`, "กรอกชื่อแพ็กเกจและระยะเป้าหมายให้ถูกต้อง");
@@ -417,6 +435,7 @@ export async function updatePackage(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const name_en = String(formData.get("name_en") ?? "").trim() || null;
   const target_distance_km = Number(formData.get("target_distance_km") ?? 0);
+  if (event_id) await assertSingleTargetEvent(db, event_id);
   const activity_types = formData.getAll("activity_types").map(String);
 
   if (!id || !event_id || !name || target_distance_km <= 0) {
@@ -606,6 +625,123 @@ async function syncEventDistanceLevelAchievements(
   }
 }
 
+// register_for_event ยังต้องใช้ package_id จึงสร้าง package ภายในหนึ่งรายการต่องาน
+// target_distance_km (integer) อิงระดับสุดท้าย เพราะใช้ตรวจสิทธิ์จัดส่งเหรียญจริง
+async function ensureDistanceLevelPackage(
+  db: ReturnType<typeof createAdminClient>,
+  eventId: string,
+) {
+  const { data: finalLevel, error } = await db
+    .from("event_distance_levels")
+    .select("target_distance_km")
+    .eq("event_id", eventId)
+    .order("target_distance_km", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) err(distanceLevelPath(eventId), error.message);
+  if (!finalLevel) return null;
+  const target_distance_km = Math.ceil(Number(finalLevel.target_distance_km));
+
+  const { data: existing, error: packageError } = await db
+    .from("packages")
+    .select("id")
+    .eq("event_id", eventId)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (packageError) err(distanceLevelPath(eventId), packageError.message);
+
+  if (existing) {
+    const { error: updateError } = await db
+      .from("packages")
+      .update({ target_distance_km })
+      .eq("event_id", eventId);
+    if (updateError) err(distanceLevelPath(eventId), updateError.message);
+    return existing.id as string;
+  }
+
+  const { data: created, error: insertError } = await db
+    .from("packages")
+    .insert({
+      event_id: eventId,
+      name: "สมัครงานสะสมระยะ",
+      name_en: "Cumulative distance entry",
+      target_distance_km,
+      price: 0,
+      activity_types: ["run", "walk"],
+      has_physical_medal: false,
+      digital_medal_id: null,
+      physical_medal_id: null,
+      sort_order: 0,
+    })
+    .select("id")
+    .single();
+  if (insertError) err(distanceLevelPath(eventId), insertError.message);
+  revalidatePath("/");
+  return created.id as string;
+}
+
+export async function updateDistanceLevelRegistration(formData: FormData) {
+  await requireManager();
+  const db = createAdminClient();
+  const eventId = String(formData.get("event_id") ?? "");
+  if (!eventId) err("/admin/events", "ไม่พบงาน");
+
+  const { data: event, error: eventError } = await db
+    .from("events")
+    .select("event_mode, pricing")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (eventError) err(distanceLevelPath(eventId), eventError.message);
+  if (!event || event.event_mode !== "distance_levels") {
+    err(distanceLevelPath(eventId), "งานนี้ไม่ใช่งานระดับระยะสะสม");
+  }
+
+  const packageId = await ensureDistanceLevelPackage(db, eventId);
+  if (!packageId) {
+    err(distanceLevelPath(eventId), "กรุณาเพิ่มระดับระยะอย่างน้อย 1 ระดับก่อนตั้งค่าการสมัคร");
+  }
+
+  let price = 0;
+  if (event.pricing !== "free") {
+    price = Number(formData.get("price") ?? 0);
+    if (!Number.isFinite(price) || price < 0) {
+      err(distanceLevelPath(eventId), "กรอกราคาค่าสมัครให้ถูกต้อง");
+    }
+  }
+
+  const physical_medal_id = String(formData.get("physical_medal_id") ?? "").trim() || null;
+  if (physical_medal_id) {
+    const { data: medal, error: medalError } = await db
+      .from("physical_medals")
+      .select("id")
+      .eq("id", physical_medal_id)
+      .eq("event_id", eventId)
+      .maybeSingle();
+    if (medalError) err(distanceLevelPath(eventId), medalError.message);
+    if (!medal) err(distanceLevelPath(eventId), "เหรียญจริงที่เลือกไม่ใช่ของงานนี้");
+  }
+
+  const activity_types = formData.getAll("activity_types").map(String);
+  const { error } = await db
+    .from("packages")
+    .update({
+      price,
+      activity_types: activity_types.length > 0 ? activity_types : ["run", "walk"],
+      has_physical_medal: Boolean(physical_medal_id),
+      physical_medal_id,
+      digital_medal_id: null,
+    })
+    .eq("id", packageId);
+  if (error) err(distanceLevelPath(eventId), error.message);
+
+  revalidatePath(`/admin/events/${eventId}`);
+  revalidatePath(`/events/${eventId}`);
+  revalidatePath("/");
+  redirect(`${distanceLevelPath(eventId)}&registration_saved=1`);
+}
+
 export async function createEventDistanceLevel(formData: FormData) {
   await requireManager();
   const db = createAdminClient();
@@ -624,6 +760,7 @@ export async function createEventDistanceLevel(formData: FormData) {
     );
   }
 
+  await ensureDistanceLevelPackage(db, eventId);
   await syncEventDistanceLevelAchievements(db, eventId);
   revalidatePath(`/admin/events/${eventId}`);
   revalidatePath(`/events/${eventId}`);
@@ -677,6 +814,7 @@ export async function updateEventDistanceLevel(formData: FormData) {
     );
   }
 
+  await ensureDistanceLevelPackage(db, eventId);
   await syncEventDistanceLevelAchievements(db, eventId);
   revalidatePath(`/admin/events/${eventId}`);
   revalidatePath(`/events/${eventId}`);
@@ -706,6 +844,7 @@ export async function deleteEventDistanceLevel(formData: FormData) {
     .eq("event_id", eventId);
   if (error) err(distanceLevelPath(eventId), error.message);
 
+  await ensureDistanceLevelPackage(db, eventId);
   revalidatePath(`/admin/events/${eventId}`);
   revalidatePath(`/events/${eventId}`);
   redirect(`${distanceLevelPath(eventId)}&distance_level_deleted=1`);

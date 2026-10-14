@@ -34,6 +34,7 @@ import {
   createPhysicalMedal,
   updatePhysicalMedal,
   movePhysicalMedal,
+  updateDistanceLevelRegistration,
 } from "@/lib/actions/admin";
 import { manuallyApproveRegistration } from "@/lib/actions/admin-registrations";
 import { registrationStatusLabel, type ShippingAddress } from "@/lib/admin/registrations";
@@ -43,6 +44,7 @@ import { getBangkokDate } from "@/lib/event-registration";
 import { getEffectiveEventStatus } from "@/lib/event-status";
 import {
   getRegistrationRunProgress,
+  registrationRunStatusLabel,
   type RegistrationRunProgressStatus,
 } from "@/lib/registration-progress";
 import {
@@ -145,13 +147,6 @@ const registrationStatusClass: Record<string, string> = {
   confirmed: "bg-primary-soft text-primary-dark",
   cancelled: "bg-red-100 text-red-700",
 };
-const registrationRunStatusLabel: Record<RegistrationRunProgressStatus, string> = {
-  registration_pending: "รอยืนยันใบสมัคร",
-  not_started: "ยังไม่มีผลอนุมัติ",
-  in_progress: "กำลังสะสมระยะ",
-  completed: "วิ่งครบแล้ว",
-  cancelled: "ยกเลิก",
-};
 const registrationRunStatusClass: Record<RegistrationRunProgressStatus, string> = {
   registration_pending: "bg-medal-soft text-medal",
   not_started: "bg-lane text-muted",
@@ -184,6 +179,7 @@ export default async function EventDashboardPage({
     distance_level_added?: string;
     distance_level_saved?: string;
     distance_level_deleted?: string;
+    registration_saved?: string;
     registration_approved?: string;
     registration_q?: string;
     registration_status?: string;
@@ -354,6 +350,16 @@ export default async function EventDashboardPage({
     { label: "เหรียญที่ปลดล็อกแล้ว", value: medalsUnlocked ?? 0 },
   ];
 
+  // งานระดับระยะไม่แสดงแท็บแพ็กเกจ ระบบใช้ package ภายในรายการแรกเป็นค่าการสมัคร
+  const isDistanceLevels = event.event_mode === "distance_levels";
+  const registrationPackage = isDistanceLevels ? packages[0] ?? null : null;
+  const defaultTab =
+    isDistanceLevels && sp.tab === "packages"
+      ? "distance-levels"
+      : !isDistanceLevels && sp.tab === "distance-levels"
+        ? "packages"
+        : sp.tab;
+
   return (
     <div className="space-y-6">
       <Link href="/admin/events" className="text-sm text-ink/50 hover:text-ink">
@@ -366,6 +372,14 @@ export default async function EventDashboardPage({
       {(sp.saved || sp.created) && (
         <div className="rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
           บันทึกแล้ว
+        </div>
+      )}
+      {isDistanceLevels && (distanceLevels.length === 0 || !registrationPackage) && (
+        <div role="status" className="rounded-xl bg-medal-soft px-4 py-3 text-sm text-medal">
+          ผู้ใช้ยังสมัครงานนี้ไม่ได้ —{" "}
+          {distanceLevels.length === 0
+            ? "กรุณาเพิ่มระดับระยะอย่างน้อย 1 ระดับในแท็บระดับระยะ"
+            : "กรุณากดบันทึกการตั้งค่าการสมัครในแท็บระดับระยะ"}
         </div>
       )}
 
@@ -383,7 +397,7 @@ export default async function EventDashboardPage({
               <CalendarDays className="h-3.5 w-3.5" /> {formatDate(event.start_date)} –{" "}
               {formatDate(event.end_date)}
             </span>
-            {packages.length > 0 && (
+            {!isDistanceLevels && packages.length > 0 && (
               <span className="inline-flex items-center gap-1">
                 | <Road className="h-3.5 w-3.5" />{" "}
                 {(() => {
@@ -431,7 +445,7 @@ export default async function EventDashboardPage({
       </div>
 
       <Tabs
-        defaultTab={sp.tab}
+        defaultTab={defaultTab}
         tabs={[
           {
             id: "overview",
@@ -564,7 +578,7 @@ export default async function EventDashboardPage({
               </div>
             ),
           },
-          {
+          ...(!isDistanceLevels ? [{
             id: "packages",
             label: `แพ็กเกจ (${packages.length})`,
             content: (
@@ -720,22 +734,93 @@ export default async function EventDashboardPage({
         </form>
               </div>
             ),
-          },
-          {
+          }] : []),
+          ...(isDistanceLevels ? [{
             id: "distance-levels",
             label: `ระดับระยะ (${distanceLevels.length})`,
             content: (
-              <EventDistanceLevelsTab
-                eventId={event.id}
-                eventMode={event.event_mode}
-                levels={distanceLevels}
-                medals={medals.map((medal) => ({ id: medal.id, name: medal.name }))}
-                added={Boolean(sp.distance_level_added)}
-                saved={Boolean(sp.distance_level_saved)}
-                deleted={Boolean(sp.distance_level_deleted)}
-              />
+              <div className="space-y-4">
+                <form action={updateDistanceLevelRegistration}>
+                  <input type="hidden" name="event_id" value={event.id} />
+                  <Card className="space-y-3">
+                    <div>
+                      <p className="font-semibold">ตั้งค่าการสมัคร</p>
+                      <p className="text-sm text-ink/50">
+                        ผู้ใช้สมัครงานครั้งเดียวจากปุ่มสมัครใต้ระดับระยะสะสม เหรียญดิจิทัลกำหนดแยกในแต่ละระดับ
+                      </p>
+                    </div>
+                    {sp.registration_saved && (
+                      <p className="text-sm text-primary-dark">บันทึกการตั้งค่าการสมัครแล้ว</p>
+                    )}
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      {event.pricing === "paid" && (
+                        <div>
+                          <Label>ค่าสมัคร (บาท)</Label>
+                          <Input
+                            name="price"
+                            type="number"
+                            min="0"
+                            defaultValue={registrationPackage?.price ?? 0}
+                          />
+                        </div>
+                      )}
+                      <div>
+                        <Label>เหรียญจริง (จัดส่งเมื่อผ่านระดับสุดท้าย)</Label>
+                        <Select
+                          name="physical_medal_id"
+                          defaultValue={registrationPackage?.physical_medal_id ?? ""}
+                        >
+                          <option value="">ไม่มีเหรียญจริง</option>
+                          {physicalMedals.map((medal) => (
+                            <option key={medal.id} value={medal.id}>
+                              {medal.name}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-4 text-sm">
+                      <label className="flex items-center gap-1.5">
+                        <input
+                          type="checkbox"
+                          name="activity_types"
+                          value="run"
+                          defaultChecked={registrationPackage?.activity_types.includes("run") ?? true}
+                        />
+                        วิ่ง
+                      </label>
+                      <label className="flex items-center gap-1.5">
+                        <input
+                          type="checkbox"
+                          name="activity_types"
+                          value="walk"
+                          defaultChecked={registrationPackage?.activity_types.includes("walk") ?? true}
+                        />
+                        เดิน
+                      </label>
+                    </div>
+                    <Button
+                      type="submit"
+                      variant="ghost"
+                      icon="save"
+                      disabled={distanceLevels.length === 0}
+                    >
+                      บันทึกการตั้งค่าการสมัคร
+                    </Button>
+                  </Card>
+                </form>
+                <EventDistanceLevelsTab
+                  eventId={event.id}
+                  eventMode={event.event_mode}
+                  levels={distanceLevels}
+                  medals={medals.map((medal) => ({ id: medal.id, name: medal.name }))}
+                  added={Boolean(sp.distance_level_added)}
+                  saved={Boolean(sp.distance_level_saved)}
+                  deleted={Boolean(sp.distance_level_deleted)}
+                />
+              </div>
             ),
-          },
+          }] : []),
           {
             id: "medals",
             label: `เหรียญดิจิทัล (${medals.length})`,

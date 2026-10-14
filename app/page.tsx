@@ -33,6 +33,8 @@ type EventRow = {
   start_date: string;
   end_date: string;
   packages: PackageRow[];
+  event_mode: "single_target" | "distance_levels";
+  event_distance_levels: { target_distance_km: number }[] | null;
 };
 type HomeArticleRow = {
   id: string;
@@ -63,6 +65,22 @@ type HomeArticleRow = {
     | null;
 };
 
+// งานระดับระยะสะสมแสดงช่วงระยะจากระดับแรกถึงระดับสุดท้าย และไม่แสดงจำนวนแพ็กเกจ
+// (package ของงานแบบนี้เป็นรายการภายในที่ระบบสร้างเอง)
+function getEventDistanceSummary(ev: EventRow) {
+  const isDistanceLevels = ev.event_mode === "distance_levels";
+  const distances = isDistanceLevels
+    ? (ev.event_distance_levels ?? []).map((level) => Number(level.target_distance_km))
+    : ev.packages.map((p) => p.target_distance_km);
+  if (distances.length === 0) return null;
+  const minKm = Math.min(...distances);
+  const maxKm = Math.max(...distances);
+  return {
+    range: minKm === maxKm ? `${minKm}` : `${minKm}–${maxKm}`,
+    packageCount: isDistanceLevels ? null : ev.packages.length,
+  };
+}
+
 export default async function HomePage({
   searchParams,
 }: {
@@ -91,7 +109,7 @@ export default async function HomePage({
   let query = supabase
     .from("events")
     .select(
-      "id, title, title_en, description, description_en, cover_image, pricing, start_date, end_date, packages(id, name, name_en, target_distance_km, price, has_physical_medal)",
+      "id, title, title_en, description, description_en, cover_image, pricing, start_date, end_date, event_mode, packages(id, name, name_en, target_distance_km, price, has_physical_medal), event_distance_levels(target_distance_km)",
       { count: "exact" },
     )
     .eq("status", "open")
@@ -109,7 +127,7 @@ export default async function HomePage({
   let pastQuery = supabase
     .from("events")
     .select(
-      "id, title, title_en, description, description_en, cover_image, pricing, start_date, end_date, packages(id, name, name_en, target_distance_km, price, has_physical_medal)",
+      "id, title, title_en, description, description_en, cover_image, pricing, start_date, end_date, event_mode, packages(id, name, name_en, target_distance_km, price, has_physical_medal), event_distance_levels(target_distance_km)",
       { count: "exact" },
     )
     .in("status", ["open", "closed"])
@@ -241,13 +259,7 @@ export default async function HomePage({
           <>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {list.map((ev) => {
-                const hasPackages = ev.packages.length > 0;
-                const minKm = hasPackages
-                  ? Math.min(...ev.packages.map((p) => p.target_distance_km))
-                  : 0;
-                const maxKm = hasPackages
-                  ? Math.max(...ev.packages.map((p) => p.target_distance_km))
-                  : 0;
+                const distanceSummary = getEventDistanceSummary(ev);
                 return (
                   <Link key={ev.id} href={`/events/${ev.id}`} className="group">
                     <Card className="flex h-full flex-col overflow-hidden p-0 sm:p-0 hover:border-primary/40">
@@ -284,11 +296,13 @@ export default async function HomePage({
                             <CalendarDays className="h-3.5 w-3.5" /> {formatDate(ev.start_date)} –{" "}
                             {formatDate(ev.end_date)}
                           </span>
-                          {hasPackages && (
+                          {distanceSummary && (
                             <span className="inline-flex items-center gap-1">
                               | <Road className="h-3.5 w-3.5" />{" "}
-                              {minKm === maxKm ? `${minKm}` : `${minKm}–${maxKm}`} km |{" "}
-                              {ev.packages.length} {tx(locale, "แพ็กเกจ", "packages")}
+                              {distanceSummary.range} km
+                              {distanceSummary.packageCount !== null && (
+                                <> | {distanceSummary.packageCount} {tx(locale, "แพ็กเกจ", "packages")}</>
+                              )}
                             </span>
                           )}
                         </p>
@@ -363,13 +377,7 @@ export default async function HomePage({
 
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {pastList.map((ev) => {
-              const hasPackages = ev.packages.length > 0;
-              const minKm = hasPackages
-                ? Math.min(...ev.packages.map((p) => p.target_distance_km))
-                : 0;
-              const maxKm = hasPackages
-                ? Math.max(...ev.packages.map((p) => p.target_distance_km))
-                : 0;
+              const distanceSummary = getEventDistanceSummary(ev);
 
               return (
                 <Link key={ev.id} href={`/events/${ev.id}`} className="group">
@@ -401,11 +409,13 @@ export default async function HomePage({
                           <CalendarDays className="h-3.5 w-3.5" /> {formatDate(ev.start_date)} –{" "}
                           {formatDate(ev.end_date)}
                         </span>
-                        {hasPackages && (
+                        {distanceSummary && (
                           <span className="inline-flex items-center gap-1">
                             | <Road className="h-3.5 w-3.5" />{" "}
-                            {minKm === maxKm ? `${minKm}` : `${minKm}–${maxKm}`} km |{" "}
-                            {ev.packages.length} {tx(locale, "แพ็กเกจ", "packages")}
+                            {distanceSummary.range} km
+                            {distanceSummary.packageCount !== null && (
+                              <> | {distanceSummary.packageCount} {tx(locale, "แพ็กเกจ", "packages")}</>
+                            )}
                           </span>
                         )}
                       </p>

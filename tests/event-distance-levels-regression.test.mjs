@@ -24,6 +24,27 @@ test("migration creates secured event distance levels and idempotent achievement
   );
 });
 
+test("event applicant CSV export includes run status and management columns", async () => {
+  const route = await readFile("app/admin/events/[id]/registrations/export/route.ts", "utf8");
+
+  assert.match(route, /"สถานะการวิ่ง"/);
+  assert.match(route, /"การจัดการ"/);
+  assert.match(route, /registrationRunStatusLabel\[runProgress\.status\]/);
+  assert.match(route, /getRegistrationRunProgress\(/);
+  assert.match(route, /getEventDistanceLevelProgress\(/);
+  assert.match(route, /\.eq\("status", "approved"\)/);
+  assert.match(route, /isDistanceLevels \? \["ระดับปัจจุบัน", "ความคืบหน้าระดับ"\] : \[\]/);
+});
+
+test("home event cards show level distance range without package count", async () => {
+  const home = await readFile("app/page.tsx", "utf8");
+
+  assert.match(home, /event_distance_levels\(target_distance_km\)/);
+  assert.match(home, /function getEventDistanceSummary/);
+  assert.match(home, /packageCount: isDistanceLevels \? null : ev\.packages\.length/);
+  assert.doesNotMatch(home, /Math\.min\(\.\.\.ev\.packages/);
+});
+
 test("admin, public event and applicant views expose cumulative levels", async () => {
   const [adminPage, publicPage, adminActions, myEvents] = await Promise.all([
     readFile("app/admin/events/[id]/page.tsx", "utf8"),
@@ -33,6 +54,20 @@ test("admin, public event and applicant views expose cumulative levels", async (
   ]);
 
   assert.match(adminPage, /id: "distance-levels"/);
+  // distance_levels events register through one system-managed package, so admins
+  // see only the levels tab (with registration settings) and never the packages tab.
+  assert.match(adminPage, /\.\.\.\(!isDistanceLevels \? \[\{\s*id: "packages"/);
+  assert.match(adminPage, /\.\.\.\(isDistanceLevels \? \[\{\s*id: "distance-levels"/);
+  assert.match(adminPage, /defaultTab=\{defaultTab\}/);
+  assert.match(adminPage, /action=\{updateDistanceLevelRegistration\}/);
+  assert.match(adminActions, /async function ensureDistanceLevelPackage/);
+  assert.match(adminActions, /export async function updateDistanceLevelRegistration/);
+  assert.match(adminActions, /assertSingleTargetEvent/);
+  assert.match(
+    publicPage,
+    /renderRegisterAction\(\s*levelRegistrationPackage\.id,\s*myEventRegistration,\s*true,/,
+  );
+  assert.match(publicPage, /isDistanceLevels && distanceLevels\.length > 0 \? packages\[0\]/);
   assert.match(adminPage, /getEventDistanceLevelProgress/);
   assert.match(adminPage, /remainingDistanceKm/);
   assert.match(publicPage, /event_distance_levels/);
