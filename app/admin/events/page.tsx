@@ -6,6 +6,7 @@ import { formatDate, stripHtml } from "@/lib/utils";
 import { getBangkokDate } from "@/lib/event-registration";
 import { getAdminEventStatusFilter, getEffectiveEventStatus } from "@/lib/event-status";
 import { CreateEventModal } from "@/components/admin/create-event-modal";
+import { requireAdmin } from "@/lib/auth/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,7 @@ export default async function AdminEventsPage({
   }>;
 }) {
   const sp = await searchParams;
+  const { role } = await requireAdmin();
   const db = createAdminClient();
   const today = getBangkokDate();
   const page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
@@ -92,7 +94,9 @@ export default async function AdminEventsPage({
           <HeadingIcon name="calendar" />
           งานทั้งหมด
         </h2>
-        <CreateEventModal initialOpen={sp.create === "1"} error={sp.error} />
+        {role !== "staff" && (
+          <CreateEventModal initialOpen={sp.create === "1"} error={sp.error} />
+        )}
       </div>
 
       {sp.event_deleted && (

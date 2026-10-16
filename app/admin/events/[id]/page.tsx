@@ -17,6 +17,10 @@ import {
 import { EditEventModal } from "@/components/admin/edit-event-modal";
 import { EventLeaderboardCard } from "@/components/admin/event-leaderboard";
 import { EventDistanceLevelsTab } from "@/components/admin/event-distance-levels-tab";
+import { EventSubmissionsTab } from "@/components/admin/event-submissions-tab";
+import { EventStaffRegistrationsTab } from "@/components/admin/event-staff-registrations-tab";
+import { EventPaymentsTab } from "@/components/admin/event-payments-tab";
+import { EventShipmentsTab } from "@/components/admin/event-shipments-tab";
 import { RegistrationTrendChart } from "@/components/admin/registration-trend-chart";
 import { MedalDeleteButton } from "@/components/admin/medal-delete-button";
 import { PhysicalMedalDeleteButton } from "@/components/admin/physical-medal-delete-button";
@@ -37,6 +41,7 @@ import {
   updateDistanceLevelRegistration,
 } from "@/lib/actions/admin";
 import { manuallyApproveRegistration } from "@/lib/actions/admin-registrations";
+import { requireAdmin } from "@/lib/auth/admin";
 import { registrationStatusLabel, type ShippingAddress } from "@/lib/admin/registrations";
 import { buildEventLeaderboards, buildRegistrationSeries } from "@/lib/admin/day8";
 import { formatDate } from "@/lib/utils";
@@ -183,6 +188,19 @@ export default async function EventDashboardPage({
     registration_approved?: string;
     registration_q?: string;
     registration_status?: string;
+    submission_status?: string;
+    submission_q?: string;
+    submission_activity?: string;
+    submission_ocr?: string;
+    reviewed?: string;
+    ocr_reprocessed?: string;
+    payment_confirmed?: string;
+    payment_rejected?: string;
+    payment_q?: string;
+    shipment_saved?: string;
+    shipment_error?: string;
+    shipment_q?: string;
+    shipment_status?: string;
     tab?: string;
     period?: string;
   }>;
@@ -190,7 +208,61 @@ export default async function EventDashboardPage({
   const { id } = await params;
   const sp = await searchParams;
   const period = sp.period === "monthly" ? "monthly" : "daily";
+  const { role } = await requireAdmin();
   const db = createAdminClient();
+
+  if (role === "staff") {
+    const { data: staffEvent } = await db
+      .from("events")
+      .select("id, title")
+      .eq("id", id)
+      .single();
+
+    if (!staffEvent) notFound();
+
+    return (
+      <div className="space-y-6">
+        <Link href="/admin/events" className="text-sm text-ink/50 hover:text-ink">
+          ← งานทั้งหมด
+        </Link>
+        <div>
+          <p className="font-mono text-xs uppercase tracking-[0.18em] text-primary-dark">
+            ตรวจผลวิ่ง
+          </p>
+          <h2 className="mt-1 font-display text-2xl font-bold">{staffEvent.title}</h2>
+        </div>
+        <Tabs
+          defaultTab={
+            sp.tab === "submissions" || sp.tab === "payments" || sp.tab === "shipments"
+              ? sp.tab
+              : "registrations"
+          }
+          tabs={[
+            {
+              id: "registrations",
+              label: "ผู้สมัคร",
+              content: <EventStaffRegistrationsTab eventId={id} searchParams={sp} />,
+            },
+            {
+              id: "submissions",
+              label: "ตรวจผลวิ่ง",
+              content: <EventSubmissionsTab eventId={id} searchParams={sp} />,
+            },
+            {
+              id: "payments",
+              label: "การชำระเงิน",
+              content: <EventPaymentsTab eventId={id} searchParams={sp} />,
+            },
+            {
+              id: "shipments",
+              label: "จัดส่งเหรียญ",
+              content: <EventShipmentsTab eventId={id} searchParams={sp} />,
+            },
+          ]}
+        />
+      </div>
+    );
+  }
 
   const { data: event } = await db
     .from("events")
@@ -1355,7 +1427,23 @@ export default async function EventDashboardPage({
                   </Card>
                 )}
               </div>
-            ),          },
+            ),
+          },
+          {
+            id: "submissions",
+            label: "ตรวจผลวิ่ง",
+            content: <EventSubmissionsTab eventId={event.id} searchParams={sp} />,
+          },
+          {
+            id: "payments",
+            label: "การชำระเงิน",
+            content: <EventPaymentsTab eventId={event.id} searchParams={sp} />,
+          },
+          {
+            id: "shipments",
+            label: "จัดส่งเหรียญ",
+            content: <EventShipmentsTab eventId={event.id} searchParams={sp} />,
+          },
         ]}
       />
     </div>

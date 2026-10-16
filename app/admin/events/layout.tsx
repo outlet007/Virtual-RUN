@@ -1,6 +1,6 @@
-import { requireManager } from "@/lib/auth/admin";
+import { requireAdmin } from "@/lib/auth/admin";
 
 export default async function AdminEventsLayout({ children }: { children: React.ReactNode }) {
-  await requireManager();
+  await requireAdmin();
   return children;
 }

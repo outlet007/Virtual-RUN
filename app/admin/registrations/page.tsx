@@ -8,7 +8,7 @@ import {
   normalizeAccountType,
   type AccountType,
 } from "@/lib/admin/users";
-import { requireAdmin } from "@/lib/auth/admin";
+import { requireManager } from "@/lib/auth/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +31,7 @@ export default async function AdminRegistrationsPage({
 }: {
   searchParams: Promise<{ q?: string; accountType?: string }>;
 }) {
-  await requireAdmin();
+  await requireManager();
   const sp = await searchParams;
   const q = (sp.q ?? "").trim();
   const accountType = normalizeAccountType(sp.accountType);

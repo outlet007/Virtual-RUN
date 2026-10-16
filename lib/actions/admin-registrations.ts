@@ -2,12 +2,12 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/auth/admin";
+import { requireManager } from "@/lib/auth/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyUser } from "@/lib/notifications";
 
 export async function manuallyApproveRegistration(formData: FormData) {
-  await requireAdmin();
+  await requireManager();
   const registrationId = String(formData.get("registration_id") ?? "");
   const eventId = String(formData.get("event_id") ?? "");
   const returnPath = /^[0-9a-f-]{36}$/i.test(eventId)

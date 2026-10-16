@@ -64,6 +64,7 @@ export const shipmentStatusLabel: Record<ShipmentStatus, string> = {
 };
 
 export type ShipmentFilters = {
+  eventId?: string;
   q?: string;
   status?: ShipmentStatusFilter;
 };
@@ -93,7 +94,7 @@ export function normalizeShipmentStatusFilter(value: string | undefined): Shipme
 
 export async function getAdminShipments(filters: ShipmentFilters = {}) {
   const db = createAdminClient();
-  const { data, error } = await db
+  let query = db
     .from("registrations")
     .select(
       "id, bib_number, shipping_address, registered_at, users(name, email), packages!inner(name, has_physical_medal, target_distance_km), events(title), shipments(carrier, tracking_no, status, shipped_at), submissions(distance_km, status)",
@@ -101,6 +102,8 @@ export async function getAdminShipments(filters: ShipmentFilters = {}) {
     .eq("status", "confirmed")
     .eq("packages.has_physical_medal", true)
     .order("registered_at", { ascending: true });
+  if (filters.eventId) query = query.eq("event_id", filters.eventId);
+  const { data, error } = await query;
   if (error) throw new Error(error.message);
 
   const rows = ((data ?? []) as unknown as RawShipmentRegistration[])

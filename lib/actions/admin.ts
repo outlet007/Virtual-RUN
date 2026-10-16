@@ -852,34 +852,43 @@ export async function deleteEventDistanceLevel(formData: FormData) {
 
 // ---------- Submissions ----------
 
+// Build only an internal event-tab destination; never accept an arbitrary return URL.
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function eventSubmissionsPath(eventId: string) {
+  return UUID_PATTERN.test(eventId)
+    ? `/admin/events/${eventId}?tab=submissions`
+    : "/admin/events";
+}
 export async function reprocessSubmissionOcr(formData: FormData) {
   await requireAdmin();
   const db = createAdminClient();
   const id = String(formData.get("id") ?? "");
+  const returnPath = eventSubmissionsPath(String(formData.get("event_id") ?? ""));
 
-  if (!id) err("/admin/submissions", "ไม่พบรายการผลวิ่ง");
+  if (!id) err(returnPath, "ไม่พบรายการผลวิ่ง");
 
   const { data: submission, error } = await db
     .from("submissions")
     .select("distance_km, evidence_url, source")
     .eq("id", id)
     .single();
-  if (error) err("/admin/submissions", error.message);
+  if (error) err(returnPath, error.message);
   if (!submission.evidence_url || submission.source !== "upload") {
-    err("/admin/submissions", "รายการนี้ไม่มีรูปหลักฐานสำหรับตรวจ OCR");
+    err(returnPath, "รายการนี้ไม่มีรูปหลักฐานสำหรับตรวจ OCR");
   }
 
   const fileExtension = submission.evidence_url.split(".").pop()?.toLowerCase();
   const extension = fileExtension === "jpeg" ? "jpg" : fileExtension;
   if (extension !== "png" && extension !== "jpg" && extension !== "webp") {
-    err("/admin/submissions", "ชนิดไฟล์หลักฐานไม่รองรับ OCR");
+    err(returnPath, "ชนิดไฟล์หลักฐานไม่รองรับ OCR");
   }
 
   const { data: evidence, error: downloadError } = await db.storage
     .from("run-evidence")
     .download(submission.evidence_url);
   if (downloadError || !evidence) {
-    err("/admin/submissions", downloadError?.message ?? "ดาวน์โหลดหลักฐานไม่สำเร็จ");
+    err(returnPath, downloadError?.message ?? "ดาวน์โหลดหลักฐานไม่สำเร็จ");
   }
 
   const ocr = await readRunEvidence(
@@ -897,10 +906,10 @@ export async function reprocessSubmissionOcr(formData: FormData) {
       ocr_processed_at: new Date().toISOString(),
     })
     .eq("id", id);
-  if (updateError) err("/admin/submissions", updateError.message);
+  if (updateError) err(returnPath, updateError.message);
 
-  revalidatePath("/admin/submissions");
-  redirect(`/admin/submissions?ocr_reprocessed=${ocr.status}`);
+  revalidatePath(returnPath.split("?")[0]);
+  redirect(`${returnPath}${returnPath.includes("?") ? "&" : "?"}ocr_reprocessed=${ocr.status}`);
 }
 
 export async function reviewSubmission(formData: FormData) {
@@ -910,12 +919,13 @@ export async function reviewSubmission(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const decision = String(formData.get("decision") ?? "");
   const reviewNote = String(formData.get("review_note") ?? "").trim();
+  const returnPath = eventSubmissionsPath(String(formData.get("event_id") ?? ""));
 
   if (
     !id ||
     (decision !== "pending" && decision !== "approve" && decision !== "reject")
   ) {
-    err("/admin/submissions", "คำขอไม่ถูกต้อง");
+    err(returnPath, "คำขอไม่ถูกต้อง");
   }
   const status =
     decision === "approve"
@@ -934,13 +944,13 @@ export async function reviewSubmission(formData: FormData) {
     .single();
   if (error?.message === "duplicate_approval_reason_required") {
     err(
-      "/admin/submissions",
+      returnPath,
       "การอนุมัติหลักฐานซ้ำแบบ normalized/perceptual ต้องระบุเหตุผลอย่างน้อย 10 ตัวอักษร",
     );
   }
-  if (error) err("/admin/submissions", error.message);
+  if (error) err(returnPath, error.message);
   const submission = submissionRaw as GuardedReviewResult | null;
-  if (!submission) err("/admin/submissions", "ไม่พบผลการตรวจที่บันทึก");
+  if (!submission) err(returnPath, "ไม่พบผลการตรวจที่บันทึก");
 
   if (
     status === "approved" &&
@@ -979,9 +989,9 @@ export async function reviewSubmission(formData: FormData) {
     });
   }
 
-  revalidatePath("/admin/submissions");
+  revalidatePath(returnPath.split("?")[0]);
   revalidatePath("/dashboard");
-  redirect(`/admin/submissions?reviewed=${status}`);
+  redirect(`${returnPath}${returnPath.includes("?") ? "&" : "?"}reviewed=${status}`);
 }
 
 // ---------- Admins ----------
@@ -1053,13 +1063,43 @@ export async function removeAdminRole(formData: FormData) {
 
 // ---------- Payments ----------
 
+function eventPaymentsPath(eventId: string) {
+  return UUID_PATTERN.test(eventId)
+    ? "/admin/events/" + eventId + "?tab=payments"
+    : "/admin/events";
+}
+
+async function requirePaymentInEvent(
+  db: ReturnType<typeof createAdminClient>,
+  paymentId: string,
+  registrationId: string,
+  eventId: string,
+  returnPath: string,
+) {
+  if (!paymentId || !registrationId || !UUID_PATTERN.test(eventId)) {
+    err(returnPath, "ไม่พบรายการชำระเงิน");
+  }
+
+  const { data, error } = await db
+    .from("payments")
+    .select("id, registrations!inner(id, event_id)")
+    .eq("id", paymentId)
+    .eq("registrations.id", registrationId)
+    .eq("registrations.event_id", eventId)
+    .maybeSingle();
+
+  if (error || !data) err(returnPath, error?.message ?? "ไม่พบรายการชำระเงินในงานนี้");
+}
+
 export async function confirmPayment(formData: FormData) {
   await requireAdmin();
   const db = createAdminClient();
 
+  const eventId = String(formData.get("event_id") ?? "");
   const paymentId = String(formData.get("payment_id") ?? "");
   const registrationId = String(formData.get("registration_id") ?? "");
-  if (!paymentId || !registrationId) err("/admin/payments", "ไม่พบรายการชำระเงิน");
+  const returnPath = eventPaymentsPath(eventId);
+  await requirePaymentInEvent(db, paymentId, registrationId, eventId, returnPath);
 
   const reviewResult = await db
     .rpc("review_payment", {
@@ -1068,7 +1108,7 @@ export async function confirmPayment(formData: FormData) {
       p_decision: "confirm",
     })
     .single();
-  if (reviewResult.error) err("/admin/payments", reviewResult.error.message);
+  if (reviewResult.error) err(returnPath, reviewResult.error.message);
   const review = reviewResult.data as {
     user_id: string;
     bib_number: string | null;
@@ -1077,35 +1117,35 @@ export async function confirmPayment(formData: FormData) {
 
   if (review?.changed) {
     await notifyUser(review.user_id, "payment_confirmed", {
-      dedupeKey: `payment:${paymentId}:confirmed`,
+      dedupeKey: "payment:" + paymentId + ":confirmed",
       subject: "ยืนยันการชำระเงินสำเร็จ",
-      text: `ชำระเงินสำเร็จแล้ว หมายเลข BIB ของคุณคือ ${review.bib_number}`,
+      text: "ชำระเงินสำเร็จแล้ว หมายเลข BIB ของคุณคือ " + review.bib_number,
     });
   }
 
-  revalidatePath("/admin/payments");
-  revalidatePath("/admin/dashboard");
-  redirect("/admin/payments?confirmed=1");
+  revalidatePath("/admin/events/" + eventId);
+  redirect(returnPath + "&payment_confirmed=1");
 }
 
 export async function rejectPayment(formData: FormData) {
   await requireAdmin();
   const db = createAdminClient();
 
+  const eventId = String(formData.get("event_id") ?? "");
   const paymentId = String(formData.get("payment_id") ?? "");
   const registrationId = String(formData.get("registration_id") ?? "");
-  if (!paymentId || !registrationId) err("/admin/payments", "ไม่พบรายการชำระเงิน");
+  const returnPath = eventPaymentsPath(eventId);
+  await requirePaymentInEvent(db, paymentId, registrationId, eventId, returnPath);
 
   const { error } = await db.rpc("review_payment", {
     p_payment_id: paymentId,
     p_registration_id: registrationId,
     p_decision: "reject",
   });
-  if (error) err("/admin/payments", error.message);
+  if (error) err(returnPath, error.message);
 
-  revalidatePath("/admin/payments");
-  revalidatePath("/admin/dashboard");
-  redirect("/admin/payments?rejected=1");
+  revalidatePath("/admin/events/" + eventId);
+  redirect(returnPath + "&payment_rejected=1");
 }
 // ---------- Medals ----------
 

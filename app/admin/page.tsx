@@ -4,7 +4,6 @@ import { RegistrationTrendChart } from "@/components/admin/registration-trend-ch
 import { Card, HeadingIcon } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth/admin";
 import { buildEventLeaderboards, buildRegistrationSeries } from "@/lib/admin/day8";
-import { getAdminShipments } from "@/lib/admin/shipments";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -31,7 +30,7 @@ export default async function AdminOverviewPage({
 }) {
   const { role } = await requireAdmin();
   if (role === "admin") redirect("/admin/events");
-  if (role === "staff") redirect("/admin/submissions");
+  if (role === "staff") redirect("/admin/events");
 
   const { period: rawPeriod } = await searchParams;
   const period = rawPeriod === "monthly" ? "monthly" : "daily";
@@ -43,9 +42,6 @@ export default async function AdminOverviewPage({
   const db = createAdminClient();
   const [
     { count: openEvents },
-    { count: pendingSubs },
-    { count: pendingPayments },
-    pendingShipmentRows,
     { count: totalMembers },
     { count: totalEvents },
     { count: totalRegistrations },
@@ -55,14 +51,10 @@ export default async function AdminOverviewPage({
     { data: pointsRows },
     { count: medalsUnlocked },
     { count: redemptionsCount },
-    { data: paidPayments },
     { data: registrationTrendRows, error: registrationTrendError },
     { data: leaderboardRows, error: leaderboardError },
   ] = await Promise.all([
     db.from("events").select("id", { count: "exact", head: true }).eq("status", "open"),
-    db.from("submissions").select("id", { count: "exact", head: true }).in("status", ["pending", "flagged"]),
-    db.from("payments").select("id", { count: "exact", head: true }).eq("status", "pending"),
-    getAdminShipments({ status: "pending" }),
     db.from("users").select("id", { count: "exact", head: true }),
     db.from("events").select("id", { count: "exact", head: true }),
     db.from("registrations").select("id", { count: "exact", head: true }),
@@ -72,7 +64,6 @@ export default async function AdminOverviewPage({
     db.from("points_ledger").select("delta").gt("delta", 0),
     db.from("user_medals").select("id", { count: "exact", head: true }),
     db.from("redemptions").select("id", { count: "exact", head: true }),
-    db.from("payments").select("amount").eq("status", "paid"),
     db.from("registrations").select("registered_at").gte("registered_at", registrationRangeStart.toISOString()),
     db
       .from("submissions")
@@ -85,7 +76,6 @@ export default async function AdminOverviewPage({
 
   const totalDistanceKm = (distanceRows ?? []).reduce((sum, row) => sum + Number(row.distance_km), 0);
   const totalPointsAwarded = (pointsRows ?? []).reduce((sum, row) => sum + row.delta, 0);
-  const totalRevenue = (paidPayments ?? []).reduce((sum, row) => sum + Number(row.amount), 0);
   const registrationSeries = buildRegistrationSeries(
     (registrationTrendRows ?? []).map((row) => ({ registeredAt: row.registered_at })),
     period,
@@ -111,9 +101,6 @@ export default async function AdminOverviewPage({
 
   const actionStats = [
     { label: "งานที่เปิดรับสมัคร", value: openEvents ?? 0, href: "/admin/events" },
-    { label: "ผลวิ่งรอตรวจ", value: pendingSubs ?? 0, href: "/admin/submissions" },
-    { label: "การชำระเงินรอตรวจสอบ", value: pendingPayments ?? 0, href: "/admin/payments" },
-    { label: "ผู้สมัครรอจัดส่งเหรียญ", value: pendingShipmentRows.length, href: "/admin/shipments" },
   ];
 
   const overviewStats = [
@@ -126,7 +113,6 @@ export default async function AdminOverviewPage({
     { label: "แต้มที่แจกไปแล้ว", value: totalPointsAwarded.toLocaleString("th-TH") },
     { label: "เหรียญที่ปลดล็อกแล้ว", value: (medalsUnlocked ?? 0).toLocaleString("th-TH") },
     { label: "รางวัลที่แลกแล้ว", value: (redemptionsCount ?? 0).toLocaleString("th-TH") },
-    { label: "ยอดชำระเงินสะสม (บาท)", value: totalRevenue.toLocaleString("th-TH", { maximumFractionDigits: 2 }) },
   ];
 
   return (

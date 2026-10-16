@@ -1,10 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ExternalLink, X } from "lucide-react";
+import { CalendarDays, Clock, ExternalLink, Route, X } from "lucide-react";
 import { Button, HeadingIcon } from "@/components/ui";
 
-export function EvidenceLightbox({ src, alt }: { src: string; alt: string }) {
+type EvidenceLightboxProps = {
+  src: string;
+  alt: string;
+  distanceLabel: string;
+  durationLabel: string;
+  activityDateLabel: string;
+};
+
+export function EvidenceLightbox({
+  src,
+  alt,
+  distanceLabel,
+  durationLabel,
+  activityDateLabel,
+}: EvidenceLightboxProps) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -33,7 +47,6 @@ export function EvidenceLightbox({ src, alt }: { src: string; alt: string }) {
         className="mt-3 h-10 gap-2 px-4"
         onClick={() => setOpen(true)}
       >
-
         ดูหลักฐาน
       </Button>
 
@@ -65,13 +78,46 @@ export function EvidenceLightbox({ src, alt }: { src: string; alt: string }) {
               </button>
             </div>
 
+            <div
+              className="grid grid-cols-1 gap-2 border-b border-lane bg-paper px-4 py-3 sm:grid-cols-3 sm:px-5"
+              aria-label="ข้อมูลที่ผู้สมัครกรอก"
+            >
+              <div className="rounded-xl bg-primary-soft px-3 py-2.5">
+                <p className="flex items-center gap-1.5 text-xs font-medium text-ink/55">
+                  <Route className="size-4" aria-hidden="true" />
+                  ระยะทางที่กรอก
+                </p>
+                <p className="mt-1 font-mono text-base font-bold text-primary-dark tnum">
+                  {distanceLabel}
+                </p>
+              </div>
+              <div className="rounded-xl bg-lane/60 px-3 py-2.5">
+                <p className="flex items-center gap-1.5 text-xs font-medium text-ink/55">
+                  <Clock className="size-4" aria-hidden="true" />
+                  เวลาที่กรอก
+                </p>
+                <p className="mt-1 font-mono text-base font-bold text-ink tnum">
+                  {durationLabel}
+                </p>
+              </div>
+              <div className="rounded-xl bg-lane/60 px-3 py-2.5">
+                <p className="flex items-center gap-1.5 text-xs font-medium text-ink/55">
+                  <CalendarDays className="size-4" aria-hidden="true" />
+                  วันที่ทำกิจกรรม
+                </p>
+                <p className="mt-1 font-mono text-base font-bold text-ink tnum">
+                  {activityDateLabel}
+                </p>
+              </div>
+            </div>
+
             <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-ink/95 p-3 sm:p-5">
               {/* Signed URLs are temporary and already authorized by the server. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={src}
                 alt={alt}
-                className="max-h-[75vh] max-w-full rounded-lg object-contain"
+                className="max-h-[68vh] max-w-full rounded-lg object-contain"
               />
             </div>
 

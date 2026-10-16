@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Card, Button, HeadingIcon, Input, Label, Select, ImageUploadField } from "@/components/ui";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { createEvent } from "@/lib/actions/admin";
+import { requireManager } from "@/lib/auth/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,7 @@ export default async function NewEventPage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
+  await requireManager();
   const { error } = await searchParams;
 
   return (

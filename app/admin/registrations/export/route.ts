@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth/admin";
+import { requireManager } from "@/lib/auth/admin";
 import { ACCOUNT_TYPE_LABELS, getAdminSystemUsers } from "@/lib/admin/users";
 import { createUtf8BomCsv } from "@/lib/csv";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  await requireAdmin();
+  await requireManager();
 
   const users = await getAdminSystemUsers({
     q: request.nextUrl.searchParams.get("q") ?? undefined,

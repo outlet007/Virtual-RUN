@@ -14,34 +14,38 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 type Relation<T> = T | T[] | null;
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 function firstRelation<T>(value: Relation<T>) {
   return Array.isArray(value) ? (value[0] ?? null) : value;
 }
 
 function shipmentReturnUrl(formData: FormData, values: Record<string, string>) {
-  const params = new URLSearchParams();
+  const eventId = String(formData.get("event_id") ?? "");
+  if (!UUID_PATTERN.test(eventId)) return "/admin/events";
+  const params = new URLSearchParams({ tab: "shipments" });
   const q = String(formData.get("return_q") ?? "").trim();
   const status = String(formData.get("return_status") ?? "pending").trim();
-  if (q) params.set("q", q);
-  if (status) params.set("status", status);
+  if (q) params.set("shipment_q", q);
+  if (status) params.set("shipment_status", status);
   Object.entries(values).forEach(([key, value]) => params.set(key, value));
-  return `/admin/shipments?${params.toString()}`;
+  return "/admin/events/" + eventId + "?" + params.toString();
 }
-
 function shipmentError(formData: FormData, message: string): never {
-  redirect(shipmentReturnUrl(formData, { error: message }));
+  redirect(shipmentReturnUrl(formData, { shipment_error: message }));
 }
 
 export async function updateShipmentStatus(formData: FormData) {
   await requireAdmin();
   const db = createAdminClient();
 
+  const eventId = String(formData.get("event_id") ?? "");
   const registrationId = String(formData.get("registration_id") ?? "");
   const carrier = String(formData.get("carrier") ?? "").trim();
   const trackingNo = String(formData.get("tracking_no") ?? "").trim();
   const status = String(formData.get("status") ?? "pending") as ShipmentStatus;
 
-  if (!registrationId) shipmentError(formData, "ไม่พบผู้สมัคร");
+  if (!UUID_PATTERN.test(eventId) || !registrationId) shipmentError(formData, "ไม่พบผู้สมัคร");
   if (!SHIPMENT_STATUSES.includes(status)) shipmentError(formData, "สถานะการจัดส่งไม่ถูกต้อง");
   if ((status === "shipped" || status === "delivered") && (!carrier || !trackingNo)) {
     shipmentError(formData, "กรุณากรอกผู้ให้บริการขนส่งและเลขพัสดุก่อนเปลี่ยนสถานะเป็นจัดส่งแล้ว");
@@ -53,6 +57,7 @@ export async function updateShipmentStatus(formData: FormData) {
       "id, user_id, status, packages!inner(has_physical_medal, target_distance_km), submissions(distance_km, status), shipments(status, shipped_at)",
     )
     .eq("id", registrationId)
+    .eq("event_id", eventId)
     .single();
   if (registrationError || !data) shipmentError(formData, registrationError?.message ?? "ไม่พบผู้สมัคร");
 
@@ -115,6 +120,6 @@ export async function updateShipmentStatus(formData: FormData) {
   }
 
   revalidatePath("/admin");
-  revalidatePath("/admin/shipments");
-  redirect(shipmentReturnUrl(formData, { saved: "1" }));
+  revalidatePath("/admin/events/" + eventId);
+  redirect(shipmentReturnUrl(formData, { shipment_saved: "1" }));
 }

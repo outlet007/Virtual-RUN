@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth/admin";
+import { requireManager } from "@/lib/auth/admin";
 import { registrationStatusLabel, type ShippingAddress } from "@/lib/admin/registrations";
 import { createUtf8BomCsv } from "@/lib/csv";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -40,7 +40,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  await requireAdmin();
+  await requireManager();
 
   const { id } = await params;
   const registrationQuery = request.nextUrl.searchParams.get("registration_q")?.trim() ?? "";

@@ -6,9 +6,10 @@ import { tx } from "@/lib/i18n/shared";
 
 const operationalTabs = [
   { href: "/admin/registrations", label: "สมาชิก" },
-  { href: "/admin/submissions", label: "ตรวจผลวิ่ง" },
-  { href: "/admin/payments", label: "การชำระเงิน" },
-  { href: "/admin/shipments", label: "จัดส่งเหรียญ" },
+];
+
+const staffTabs = [
+  { href: "/admin/events", label: "งาน" },
 ];
 
 const managerTabs = [
@@ -51,7 +52,7 @@ export default async function AdminLayout({
       ? superAdminTabs
       : role === "admin"
         ? adminTabs
-        : operationalTabs;
+        : staffTabs;
 
   return (
     <div className="space-y-6">
@@ -81,8 +82,6 @@ export default async function AdminLayout({
                   "/admin": "Overview",
                   "/admin/registrations": "Registrations",
                   "/admin/submissions": "Submissions",
-                  "/admin/payments": "Payments",
-                  "/admin/shipments": "Shipments",
                   "/admin/events": "Events",
                   "/admin/articles": "Articles",
                   "/admin/rewards": "Rewards",
