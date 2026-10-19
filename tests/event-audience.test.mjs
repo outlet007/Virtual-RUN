@@ -102,7 +102,13 @@ test("admin forms, event pages and registration guard expose the audience", asyn
   assert.match(eventPage, /getEventAudienceEligibility\(user, audience\)/);
   assert.match(eventPage, /audienceEligibility === "google_required"/);
   assert.match(eventPage, /user && !userMatchesAudience \?/);
+  // ข้อความแจ้งกลุ่มผู้สมัครที่สมัครได้ใช้ตัวอักษรสี #FF4A00
+  assert.match(eventPage, /bg-medal-soft px-3 py-2 text-sm text-\[#FF4A00\]`\}\s*>\s*\{audienceNotice\}/);
   assert.match(registerPage, /getEventAudienceEligibility\(user, parseEventAudience\(eventData\.audience\)\)/);
   assert.match(home, /parseEventAudience\(ev\.audience\) !== "all"/);
+  // ป้ายกลุ่มผู้สมัคร: พื้น #FF4A00 ตัวอักษรสีขาว ทั้งการ์ดหน้าแรกและหน้ารายละเอียดงาน
+  for (const source of [home, eventPage]) {
+    assert.match(source, /<Badge className="[^"]*bg-\[#FF4A00\] text-sm text-white[^"]*">\s*\{tx\(locale, "เฉพาะ", "For "\)\}/);
+  }
   assert.match(errors, /event_audience_not_allowed/);
 });

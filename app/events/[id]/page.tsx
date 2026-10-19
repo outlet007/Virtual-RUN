@@ -159,7 +159,7 @@ export default async function EventDetailPage({
           registrationOpen &&
           (user && !userMatchesAudience ? (
             <p
-              className={`${fullWidth ? "w-full" : "sm:max-w-56"} rounded-xl bg-medal-soft px-3 py-2 text-sm text-medal`}
+              className={`${fullWidth ? "w-full" : "sm:max-w-56"} rounded-xl bg-medal-soft px-3 py-2 text-sm text-[#FF4A00]`}
             >
               {audienceNotice}
             </p>
@@ -238,7 +238,7 @@ export default async function EventDetailPage({
               {event.pricing === "free" ? tx(locale, "ฟรี", "Free") : tx(locale, "มีค่าสมัคร", "Paid")}
             </Badge>
             {audience !== "all" && (
-              <Badge className="ml-2 w-fit bg-white text-sm text-ink shadow-sm">
+              <Badge className="ml-2 w-fit bg-[#FF4A00] text-sm text-white shadow-sm">
                 {tx(locale, "เฉพาะ", "For ")}
                 {pickLocalized(locale, eventAudienceLabel[audience].th, eventAudienceLabel[audience].en)}
               </Badge>

@@ -288,7 +288,7 @@ export default async function HomePage({
                           {ev.pricing === "free" ? tx(locale, "ฟรี", "Free") : tx(locale, "มีค่าสมัคร", "Paid")}
                         </Badge>
                         {parseEventAudience(ev.audience) !== "all" && (
-                          <Badge className="absolute left-3 top-3 bg-white text-sm text-ink shadow-sm">
+                          <Badge className="absolute left-3 top-3 bg-[#FF4A00] text-sm text-white shadow-sm">
                             {tx(locale, "เฉพาะ", "For ")}
                             {pickLocalized(
                               locale,
