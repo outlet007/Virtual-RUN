@@ -11,6 +11,12 @@ import { isEventRegistrationOpen } from "@/lib/event-registration";
 import { getLocale } from "@/lib/i18n/server";
 import { pickLocalized, tx } from "@/lib/i18n/shared";
 import { sortEventDistanceLevels, type EventDistanceLevel } from "@/lib/event-distance-levels";
+import {
+  eventAudienceLabel,
+  getEventAudienceDomains,
+  getEventAudienceEligibility,
+  parseEventAudience,
+} from "@/lib/event-audience";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +46,7 @@ export default async function EventDetailPage({
       supabase
         .from("events")
         .select(
-          "id, title, title_en, description, description_en, cover_image, cover_position_x, cover_position_y, poster_image, pricing, event_mode, start_date, end_date, status, packages(id, name, name_en, target_distance_km, price, has_physical_medal, digital_medal:medals!packages_digital_medal_id_fkey(id, name, name_en), physical_medal:physical_medals!packages_physical_medal_id_fkey(id, name, name_en), sort_order), event_distance_levels(id, name, name_en, target_distance_km, sort_order, reward_description, reward_description_en, bonus_points)",
+          "id, title, title_en, description, description_en, cover_image, cover_position_x, cover_position_y, poster_image, pricing, event_mode, audience, start_date, end_date, status, packages(id, name, name_en, target_distance_km, price, has_physical_medal, digital_medal:medals!packages_digital_medal_id_fkey(id, name, name_en), physical_medal:physical_medals!packages_physical_medal_id_fkey(id, name, name_en), sort_order), event_distance_levels(id, name, name_en, target_distance_km, sort_order, reward_description, reward_description_en, bonus_points)",
         )
         .eq("id", id)
         .single(),
@@ -100,6 +106,24 @@ export default async function EventDetailPage({
     status: string;
   }[])[0] ?? null;
 
+  // ตรวจกลุ่มผู้สมัครเพื่อซ่อนปุ่มเท่านั้น register_for_event ตรวจซ้ำจากบัญชี Google ใน auth.identities
+  const audience = parseEventAudience(event.audience);
+  const audienceEligibility = getEventAudienceEligibility(user, audience);
+  const userMatchesAudience = audienceEligibility === "eligible";
+  const audienceDomains = getEventAudienceDomains(audience);
+  const audienceNotice =
+    audienceEligibility === "google_required"
+      ? tx(
+          locale,
+          `กรุณาออกจากระบบ แล้วเข้าสู่ระบบด้วย Google ของมหาวิทยาลัย (${audienceDomains.join(" หรือ ")}) เพื่อสมัครงานนี้`,
+          `Please sign out and sign in with your university Google account (${audienceDomains.join(" or ")}) to register.`,
+        )
+      : tx(
+          locale,
+          `งานนี้เปิดรับเฉพาะ${eventAudienceLabel[audience].th} (${audienceDomains.join(" หรือ ")}) เท่านั้น`,
+          `This event is only for ${eventAudienceLabel[audience].en.toLowerCase()} (${audienceDomains.join(" or ")}).`,
+        );
+
   const renderRegisterAction = (
     packageId: string,
     myReg: { id: string; status: string } | null | undefined,
@@ -133,7 +157,13 @@ export default async function EventDetailPage({
           )
         ) : (
           registrationOpen &&
-          (user ? (
+          (user && !userMatchesAudience ? (
+            <p
+              className={`${fullWidth ? "w-full" : "sm:max-w-56"} rounded-xl bg-medal-soft px-3 py-2 text-sm text-medal`}
+            >
+              {audienceNotice}
+            </p>
+          ) : user ? (
             <LinkButton
               href={`/events/${event.id}/register?package=${packageId}`}
               className={buttonClass}
@@ -207,6 +237,12 @@ export default async function EventDetailPage({
             >
               {event.pricing === "free" ? tx(locale, "ฟรี", "Free") : tx(locale, "มีค่าสมัคร", "Paid")}
             </Badge>
+            {audience !== "all" && (
+              <Badge className="ml-2 w-fit bg-white text-sm text-ink shadow-sm">
+                {tx(locale, "เฉพาะ", "For ")}
+                {pickLocalized(locale, eventAudienceLabel[audience].th, eventAudienceLabel[audience].en)}
+              </Badge>
+            )}
             <h1 className="mt-3 flex items-center gap-3 font-display text-3xl font-bold leading-tight text-white drop-shadow-md sm:text-4xl">
               <HeadingIcon name="calendar" className="size-7 text-primary sm:size-8" />
               {eventTitle}

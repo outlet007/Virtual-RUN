@@ -7,6 +7,7 @@ import { formatBaht } from "@/lib/utils";
 import { isEventRegistrationOpen } from "@/lib/event-registration";
 import { getLocale } from "@/lib/i18n/server";
 import { pickLocalized, tx } from "@/lib/i18n/shared";
+import { getEventAudienceEligibility, parseEventAudience } from "@/lib/event-audience";
 
 export const dynamic = "force-dynamic";
 
@@ -29,20 +30,38 @@ export default async function RegisterPage({
   if (!packageId) notFound();
   const { data: pkg } = await supabase
     .from("packages")
-    .select("id, event_id, name, name_en, target_distance_km, price, has_physical_medal, events(title, title_en, status, end_date, event_mode)")
+    .select("id, event_id, name, name_en, target_distance_km, price, has_physical_medal, events(title, title_en, status, end_date, event_mode, audience)")
     .eq("id", packageId)
     .single();
 
   if (!pkg || pkg.event_id !== id) notFound();
   // relation อาจกลับมาเป็น object หรือ array แล้วแต่กรณี
   const ev = pkg.events as unknown as
-    | { title: string; title_en: string | null; status: string | null; end_date: string | null; event_mode: string }
-    | { title: string; title_en: string | null; status: string | null; end_date: string | null; event_mode: string }[]
+    | { title: string; title_en: string | null; status: string | null; end_date: string | null; event_mode: string; audience: string }
+    | { title: string; title_en: string | null; status: string | null; end_date: string | null; event_mode: string; audience: string }[]
     | null;
   const eventData = Array.isArray(ev) ? ev[0] ?? null : ev;
   if (!eventData) notFound();
   if (!isEventRegistrationOpen(eventData)) {
     redirect(`/events/${id}?error=${encodeURIComponent(tx(locale, "งานนี้สิ้นสุดแล้วและไม่เปิดรับสมัคร", "This event has ended and registration is closed"))}`);
+  }
+  const audienceEligibility = getEventAudienceEligibility(user, parseEventAudience(eventData.audience));
+  if (audienceEligibility !== "eligible") {
+    redirect(
+      `/events/${id}?error=${encodeURIComponent(
+        audienceEligibility === "google_required"
+          ? tx(
+              locale,
+              "กรุณาเข้าสู่ระบบด้วย Google ของมหาวิทยาลัยเพื่อสมัครงานนี้",
+              "Please sign in with your university Google account to register",
+            )
+          : tx(
+              locale,
+              "อีเมลของคุณไม่อยู่ในกลุ่มผู้สมัครที่งานนี้เปิดรับ",
+              "Your email is not eligible for this event",
+            ),
+      )}`,
+    );
   }
   if (eventData.event_mode === "distance_levels") {
     const { data: activeRegistration } = await supabase

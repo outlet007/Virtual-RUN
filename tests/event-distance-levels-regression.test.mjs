@@ -45,6 +45,31 @@ test("home event cards show level distance range without package count", async (
   assert.doesNotMatch(home, /Math\.min\(\.\.\.ev\.packages/);
 });
 
+test("admin event tabs open on statistics first, before overview", async () => {
+  const adminPage = await readFile("app/admin/events/[id]/page.tsx", "utf8");
+  const managerTabs = adminPage.slice(adminPage.indexOf("defaultTab={defaultTab}"));
+  const tabIds = [...managerTabs.matchAll(/^ {12}id: "([^"]+)",/gm)].map((match) => match[1]);
+
+  assert.deepEqual(tabIds.slice(0, 2), ["statistics", "overview"]);
+});
+
+test("free events hide payment, physical medal and shipment tabs", async () => {
+  const [adminPage, medalFields, actions] = await Promise.all([
+    readFile("app/admin/events/[id]/page.tsx", "utf8"),
+    readFile("components/admin/package-medal-fields.tsx", "utf8"),
+    readFile("lib/actions/admin.ts", "utf8"),
+  ]);
+
+  assert.match(adminPage, /const isPaidEvent = event\.pricing === "paid";/);
+  assert.match(adminPage, /\.\.\.\(isPaidEvent \? \[\{\s*id: "physical-medals"/);
+  assert.match(adminPage, /\.\.\.\(isPaidEvent \? \[\s*\{\s*id: "payments"[\s\S]*?id: "shipments"/);
+  assert.match(adminPage, /const staffEventIsPaid = staffEvent\.pricing === "paid";/);
+  assert.match(adminPage, /\.\.\.\(staffEventIsPaid \? \[\s*\{\s*id: "payments"[\s\S]*?id: "shipments"/);
+  assert.match(adminPage, /showPhysicalMedal=\{isPaidEvent\}/);
+  assert.match(medalFields, /showPhysicalMedal && hasPhysicalMedal/);
+  assert.match(actions, /if \(!\(await isPaidEvent\(db, eventId\)\)\) return null;/);
+});
+
 test("admin, public event and applicant views expose cumulative levels", async () => {
   const [adminPage, publicPage, adminActions, myEvents] = await Promise.all([
     readFile("app/admin/events/[id]/page.tsx", "utf8"),

@@ -9,6 +9,7 @@ import { getLocale } from "@/lib/i18n/server";
 import { formatLocalizedDate, pickLocalized, tx } from "@/lib/i18n/shared";
 import { getSystemSettings } from "@/lib/system-settings";
 import { getHeroSignupHref } from "@/lib/hero-banner";
+import { eventAudienceLabel, parseEventAudience } from "@/lib/event-audience";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,7 @@ type EventRow = {
   end_date: string;
   packages: PackageRow[];
   event_mode: "single_target" | "distance_levels";
+  audience: string;
   event_distance_levels: { target_distance_km: number }[] | null;
 };
 type HomeArticleRow = {
@@ -109,7 +111,7 @@ export default async function HomePage({
   let query = supabase
     .from("events")
     .select(
-      "id, title, title_en, description, description_en, cover_image, pricing, start_date, end_date, event_mode, packages(id, name, name_en, target_distance_km, price, has_physical_medal), event_distance_levels(target_distance_km)",
+      "id, title, title_en, description, description_en, cover_image, pricing, start_date, end_date, event_mode, audience, packages(id, name, name_en, target_distance_km, price, has_physical_medal), event_distance_levels(target_distance_km)",
       { count: "exact" },
     )
     .eq("status", "open")
@@ -127,7 +129,7 @@ export default async function HomePage({
   let pastQuery = supabase
     .from("events")
     .select(
-      "id, title, title_en, description, description_en, cover_image, pricing, start_date, end_date, event_mode, packages(id, name, name_en, target_distance_km, price, has_physical_medal), event_distance_levels(target_distance_km)",
+      "id, title, title_en, description, description_en, cover_image, pricing, start_date, end_date, event_mode, audience, packages(id, name, name_en, target_distance_km, price, has_physical_medal), event_distance_levels(target_distance_km)",
       { count: "exact" },
     )
     .in("status", ["open", "closed"])
@@ -285,6 +287,16 @@ export default async function HomePage({
                         >
                           {ev.pricing === "free" ? tx(locale, "ฟรี", "Free") : tx(locale, "มีค่าสมัคร", "Paid")}
                         </Badge>
+                        {parseEventAudience(ev.audience) !== "all" && (
+                          <Badge className="absolute left-3 top-3 bg-white text-sm text-ink shadow-sm">
+                            {tx(locale, "เฉพาะ", "For ")}
+                            {pickLocalized(
+                              locale,
+                              eventAudienceLabel[parseEventAudience(ev.audience)].th,
+                              eventAudienceLabel[parseEventAudience(ev.audience)].en,
+                            )}
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex flex-1 flex-col gap-2 p-5">
                         <h3 className="flex items-start gap-2 font-display font-bold">

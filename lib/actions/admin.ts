@@ -11,6 +11,7 @@ import {
   requireSuperAdmin,
 } from "@/lib/auth/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { parseEventAudience } from "@/lib/event-audience";
 import { isValidBibPrefix, normalizeBibPrefix } from "@/lib/bib";
 import {
   awardForApprovedSubmission,
@@ -130,6 +131,7 @@ export async function createEvent(formData: FormData) {
   const description_en = sanitizeDescription(String(formData.get("description_en") ?? "").trim());
   const pricing = String(formData.get("pricing") ?? "free");
   const event_mode = parseEventMode(formData.get("event_mode"));
+  const audience = parseEventAudience(formData.get("audience"));
   const start_date = String(formData.get("start_date") ?? "");
   const end_date = String(formData.get("end_date") ?? "");
   const status = String(formData.get("status") ?? "draft");
@@ -166,6 +168,7 @@ export async function createEvent(formData: FormData) {
       poster_image,
       pricing,
       event_mode,
+      audience,
       start_date,
       end_date,
       status: getEffectiveEventStatus(status, end_date),
@@ -192,6 +195,7 @@ export async function updateEvent(formData: FormData) {
   const description_en = sanitizeDescription(String(formData.get("description_en") ?? "").trim());
   const pricing = String(formData.get("pricing") ?? "free");
   const event_mode = parseEventMode(formData.get("event_mode"));
+  const audience = parseEventAudience(formData.get("audience"));
   const start_date = String(formData.get("start_date") ?? "");
   const end_date = String(formData.get("end_date") ?? "");
   const status = String(formData.get("status") ?? "draft");
@@ -244,6 +248,7 @@ export async function updateEvent(formData: FormData) {
       poster_image,
       pricing,
       event_mode,
+      audience,
       start_date,
       end_date,
       status: getEffectiveEventStatus(status, end_date),
@@ -287,6 +292,12 @@ export async function deleteEvent(formData: FormData) {
 }
 
 // ---------- Packages ----------
+
+async function isPaidEvent(db: ReturnType<typeof createAdminClient>, eventId: string) {
+  const { data, error } = await db.from("events").select("pricing").eq("id", eventId).maybeSingle();
+  if (error) err(`/admin/events/${eventId}?tab=packages`, error.message);
+  return data?.pricing === "paid";
+}
 
 async function getPackagePrice(
   db: ReturnType<typeof createAdminClient>,
@@ -341,6 +352,8 @@ async function getPackagePhysicalMedalId(
   formData: FormData,
 ) {
   if (formData.get("has_physical_medal") !== "on") return null;
+  // งานฟรีไม่มีเหรียญจริงและการจัดส่ง
+  if (!(await isPaidEvent(db, eventId))) return null;
 
   const medalId = String(formData.get("physical_medal_id") ?? "");
   if (!medalId) {
@@ -711,7 +724,11 @@ export async function updateDistanceLevelRegistration(formData: FormData) {
     }
   }
 
-  const physical_medal_id = String(formData.get("physical_medal_id") ?? "").trim() || null;
+  // งานฟรีไม่มีเหรียญจริงและการจัดส่ง
+  const physical_medal_id =
+    event.pricing === "paid"
+      ? String(formData.get("physical_medal_id") ?? "").trim() || null
+      : null;
   if (physical_medal_id) {
     const { data: medal, error: medalError } = await db
       .from("physical_medals")

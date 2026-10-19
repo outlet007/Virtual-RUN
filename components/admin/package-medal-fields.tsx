@@ -14,6 +14,7 @@ type PackageMedalFieldsProps = {
   defaultDigitalMedalId?: string | null;
   defaultPhysicalMedalId?: string | null;
   defaultHasPhysicalMedal?: boolean;
+  showPhysicalMedal?: boolean;
 };
 
 export function PackageMedalFields({
@@ -22,6 +23,7 @@ export function PackageMedalFields({
   defaultDigitalMedalId = null,
   defaultPhysicalMedalId = null,
   defaultHasPhysicalMedal = false,
+  showPhysicalMedal = true,
 }: PackageMedalFieldsProps) {
   const [hasDigitalMedal, setHasDigitalMedal] = useState(Boolean(defaultDigitalMedalId));
   const [hasPhysicalMedal, setHasPhysicalMedal] = useState(
@@ -40,15 +42,17 @@ export function PackageMedalFields({
           />
           มีเหรียญดิจิทัล
         </label>
-        <label className="flex items-center gap-1.5">
-          <input
-            type="checkbox"
-            name="has_physical_medal"
-            checked={hasPhysicalMedal}
-            onChange={(event) => setHasPhysicalMedal(event.target.checked)}
-          />
-          มีเหรียญจริง
-        </label>
+        {showPhysicalMedal && (
+          <label className="flex items-center gap-1.5">
+            <input
+              type="checkbox"
+              name="has_physical_medal"
+              checked={hasPhysicalMedal}
+              onChange={(event) => setHasPhysicalMedal(event.target.checked)}
+            />
+            มีเหรียญจริง
+          </label>
+        )}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -66,7 +70,7 @@ export function PackageMedalFields({
           </div>
         )}
 
-        {hasPhysicalMedal && (
+        {showPhysicalMedal && hasPhysicalMedal && (
           <div>
             <Label>เหรียญจริงที่ผูกกับแพ็กเกจ</Label>
             <Select name="physical_medal_id" defaultValue={defaultPhysicalMedalId ?? ""} required>

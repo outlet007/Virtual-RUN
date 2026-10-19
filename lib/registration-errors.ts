@@ -7,6 +7,9 @@ export function getRegistrationErrorMessage(error: RegistrationDatabaseError): s
   if (error.message === "event_registration_exists") {
     return "คุณสมัครงานระดับระยะนี้แล้ว";
   }
+  if (error.message === "event_audience_not_allowed") {
+    return "งานนี้เปิดรับเฉพาะบัญชี Google ของมหาวิทยาลัยในกลุ่มที่กำหนด กรุณาเข้าสู่ระบบด้วย Google ของมหาวิทยาลัย";
+  }
   if (error.message === "distance_levels_required") {
     return "งานนี้ยังไม่ได้กำหนดระดับระยะ กรุณาติดต่อผู้ดูแลระบบ";
   }

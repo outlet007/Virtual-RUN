@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { Button, Card, HeadingIcon, Input, Label, Select, ImageUploadField } from "@/components/ui";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { updateEvent } from "@/lib/actions/admin";
+import { EventAudienceField } from "@/components/admin/event-audience-field";
 
 type EventForModal = {
   id: string;
@@ -19,6 +20,7 @@ type EventForModal = {
   poster_image: string | null;
   pricing: string;
   event_mode: string;
+  audience: string;
   status: string;
   start_date: string;
   end_date: string;
@@ -132,6 +134,7 @@ export function EditEventModal({ event }: { event: EventForModal }) {
                     เปลี่ยนรูปแบบไม่ได้หลังจากมีผู้สมัครในงานแล้ว
                   </p>
                 </div>
+                <EventAudienceField defaultValue={event.audience} />
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <Label>วันที่เริ่ม</Label>

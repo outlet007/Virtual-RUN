@@ -214,11 +214,12 @@ export default async function EventDashboardPage({
   if (role === "staff") {
     const { data: staffEvent } = await db
       .from("events")
-      .select("id, title")
+      .select("id, title, pricing")
       .eq("id", id)
       .single();
 
     if (!staffEvent) notFound();
+    const staffEventIsPaid = staffEvent.pricing === "paid";
 
     return (
       <div className="space-y-6">
@@ -233,7 +234,8 @@ export default async function EventDashboardPage({
         </div>
         <Tabs
           defaultTab={
-            sp.tab === "submissions" || sp.tab === "payments" || sp.tab === "shipments"
+            sp.tab === "submissions" ||
+            (staffEventIsPaid && (sp.tab === "payments" || sp.tab === "shipments"))
               ? sp.tab
               : "registrations"
           }
@@ -248,16 +250,18 @@ export default async function EventDashboardPage({
               label: "ตรวจผลวิ่ง",
               content: <EventSubmissionsTab eventId={id} searchParams={sp} />,
             },
-            {
-              id: "payments",
-              label: "การชำระเงิน",
-              content: <EventPaymentsTab eventId={id} searchParams={sp} />,
-            },
-            {
-              id: "shipments",
-              label: "จัดส่งเหรียญ",
-              content: <EventShipmentsTab eventId={id} searchParams={sp} />,
-            },
+            ...(staffEventIsPaid ? [
+              {
+                id: "payments",
+                label: "การชำระเงิน",
+                content: <EventPaymentsTab eventId={id} searchParams={sp} />,
+              },
+              {
+                id: "shipments",
+                label: "จัดส่งเหรียญ",
+                content: <EventShipmentsTab eventId={id} searchParams={sp} />,
+              },
+            ] : []),
           ]}
         />
       </div>
@@ -267,7 +271,7 @@ export default async function EventDashboardPage({
   const { data: event } = await db
     .from("events")
     .select(
-      "id, title, title_en, bib_prefix, description, description_en, cover_image, cover_position_x, cover_position_y, poster_image, pricing, event_mode, start_date, end_date, status, packages(id, name, name_en, target_distance_km, price, activity_types, has_physical_medal, digital_medal_id, digital_medal:medals!packages_digital_medal_id_fkey(id, name, name_en), physical_medal_id, physical_medal:physical_medals!packages_physical_medal_id_fkey(id, name, name_en), sort_order), medals(id, name, name_en, tier, bonus_points, image_url, unlock_rule, sort_order), physical_medals(id, name, name_en, description_en, tier, bonus_points, image_url, unlock_rule, sort_order), event_distance_levels(id, name, name_en, target_distance_km, sort_order, digital_medal_id, reward_description, reward_description_en, bonus_points)",
+      "id, title, title_en, bib_prefix, description, description_en, cover_image, cover_position_x, cover_position_y, poster_image, pricing, event_mode, audience, start_date, end_date, status, packages(id, name, name_en, target_distance_km, price, activity_types, has_physical_medal, digital_medal_id, digital_medal:medals!packages_digital_medal_id_fkey(id, name, name_en), physical_medal_id, physical_medal:physical_medals!packages_physical_medal_id_fkey(id, name, name_en), sort_order), medals(id, name, name_en, tier, bonus_points, image_url, unlock_rule, sort_order), physical_medals(id, name, name_en, description_en, tier, bonus_points, image_url, unlock_rule, sort_order), event_distance_levels(id, name, name_en, target_distance_km, sort_order, digital_medal_id, reward_description, reward_description_en, bonus_points)",
     )
     .eq("id", id)
     .single();
@@ -424,6 +428,8 @@ export default async function EventDashboardPage({
 
   // งานระดับระยะไม่แสดงแท็บแพ็กเกจ ระบบใช้ package ภายในรายการแรกเป็นค่าการสมัคร
   const isDistanceLevels = event.event_mode === "distance_levels";
+  // งานฟรีไม่มีการชำระเงิน เหรียญจริง และการจัดส่ง จึงไม่แสดงแท็บเหล่านี้
+  const isPaidEvent = event.pricing === "paid";
   const registrationPackage = isDistanceLevels ? packages[0] ?? null : null;
   const defaultTab =
     isDistanceLevels && sp.tab === "packages"
@@ -499,6 +505,7 @@ export default async function EventDashboardPage({
               poster_image: event.poster_image,
               pricing: event.pricing,
               event_mode: event.event_mode,
+              audience: event.audience,
               status: effectiveStatus,
               start_date: event.start_date,
               end_date: event.end_date,
@@ -519,62 +526,6 @@ export default async function EventDashboardPage({
       <Tabs
         defaultTab={defaultTab}
         tabs={[
-          {
-            id: "overview",
-            label: "ภาพรวม",
-            content: (
-              <div className="space-y-6">
-                <Card className="space-y-3">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <p className="mb-1 text-xs uppercase tracking-wider text-ink/40">
-                        รูปปกงาน (banner)
-                      </p>
-                      {event.cover_image ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={event.cover_image}
-                          alt=""
-                          className="h-40 w-full rounded-xl border border-lane object-cover"
-                          style={{
-                            objectPosition:
-                              [event.cover_position_x, event.cover_position_y].join("% ") + "%",
-                          }}
-                        />
-                      ) : (
-                        <div className="flex h-40 w-full items-center justify-center rounded-xl border border-dashed border-lane text-sm text-ink/30">
-                          ยังไม่มีรูป
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <p className="mb-1 text-xs uppercase tracking-wider text-ink/40">
-                        รูป poster
-                      </p>
-                      {event.poster_image ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={event.poster_image}
-                          alt=""
-                          className="h-40 w-full rounded-xl border border-lane object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-40 w-full items-center justify-center rounded-xl border border-dashed border-lane text-sm text-ink/30">
-                          ยังไม่มีรูป
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  {event.description && (
-                    <div
-                      className="prose prose-sm max-w-none text-ink/70"
-                      dangerouslySetInnerHTML={{ __html: event.description }}
-                    />
-                  )}
-                </Card>
-              </div>
-            ),
-          },
           {
             id: "statistics",
             label: "สถิติงาน",
@@ -647,6 +598,62 @@ export default async function EventDashboardPage({
                   </div>
                   <EventLeaderboardCard leaderboard={eventLeaderboard} />
                 </section>
+              </div>
+            ),
+          },
+          {
+            id: "overview",
+            label: "ภาพรวม",
+            content: (
+              <div className="space-y-6">
+                <Card className="space-y-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <p className="mb-1 text-xs uppercase tracking-wider text-ink/40">
+                        รูปปกงาน (banner)
+                      </p>
+                      {event.cover_image ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={event.cover_image}
+                          alt=""
+                          className="h-40 w-full rounded-xl border border-lane object-cover"
+                          style={{
+                            objectPosition:
+                              [event.cover_position_x, event.cover_position_y].join("% ") + "%",
+                          }}
+                        />
+                      ) : (
+                        <div className="flex h-40 w-full items-center justify-center rounded-xl border border-dashed border-lane text-sm text-ink/30">
+                          ยังไม่มีรูป
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <p className="mb-1 text-xs uppercase tracking-wider text-ink/40">
+                        รูป poster
+                      </p>
+                      {event.poster_image ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={event.poster_image}
+                          alt=""
+                          className="h-40 w-full rounded-xl border border-lane object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-40 w-full items-center justify-center rounded-xl border border-dashed border-lane text-sm text-ink/30">
+                          ยังไม่มีรูป
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {event.description && (
+                    <div
+                      className="prose prose-sm max-w-none text-ink/70"
+                      dangerouslySetInnerHTML={{ __html: event.description }}
+                    />
+                  )}
+                </Card>
               </div>
             ),
           },
@@ -755,6 +762,7 @@ export default async function EventDashboardPage({
                   defaultDigitalMedalId={p.digital_medal_id}
                   defaultPhysicalMedalId={p.physical_medal_id}
                   defaultHasPhysicalMedal={p.has_physical_medal}
+                  showPhysicalMedal={isPaidEvent}
                 />
                 <div className="flex flex-wrap items-center gap-2">
                   <Button variant="ghost" type="submit" icon="save">
@@ -800,7 +808,11 @@ export default async function EventDashboardPage({
                 เดิน
               </label>
             </div>
-            <PackageMedalFields digitalMedals={medals} physicalMedals={physicalMedals} />
+            <PackageMedalFields
+              digitalMedals={medals}
+              physicalMedals={physicalMedals}
+              showPhysicalMedal={isPaidEvent}
+            />
             <Button type="submit" icon="add">เพิ่มแพ็กเกจ</Button>
           </Card>
         </form>
@@ -836,6 +848,7 @@ export default async function EventDashboardPage({
                           />
                         </div>
                       )}
+                      {isPaidEvent && (
                       <div>
                         <Label>เหรียญจริง (จัดส่งเมื่อผ่านระดับสุดท้าย)</Label>
                         <Select
@@ -850,6 +863,7 @@ export default async function EventDashboardPage({
                           ))}
                         </Select>
                       </div>
+                      )}
                     </div>
                     <div className="flex flex-wrap items-center gap-4 text-sm">
                       <label className="flex items-center gap-1.5">
@@ -1027,7 +1041,7 @@ export default async function EventDashboardPage({
               </div>
             ),
           },
-          {
+          ...(isPaidEvent ? [{
             id: "physical-medals",
             label: `เหรียญจริง (${physicalMedals.length})`,
             content: (
@@ -1181,7 +1195,7 @@ export default async function EventDashboardPage({
                 </form>
               </div>
             ),
-          },
+          }] : []),
           {
             id: "registrations",
             label: "ผู้สมัคร (" + regList.length + ")",
@@ -1434,16 +1448,18 @@ export default async function EventDashboardPage({
             label: "ตรวจผลวิ่ง",
             content: <EventSubmissionsTab eventId={event.id} searchParams={sp} />,
           },
-          {
-            id: "payments",
-            label: "การชำระเงิน",
-            content: <EventPaymentsTab eventId={event.id} searchParams={sp} />,
-          },
-          {
-            id: "shipments",
-            label: "จัดส่งเหรียญ",
-            content: <EventShipmentsTab eventId={event.id} searchParams={sp} />,
-          },
+          ...(isPaidEvent ? [
+            {
+              id: "payments",
+              label: "การชำระเงิน",
+              content: <EventPaymentsTab eventId={event.id} searchParams={sp} />,
+            },
+            {
+              id: "shipments",
+              label: "จัดส่งเหรียญ",
+              content: <EventShipmentsTab eventId={event.id} searchParams={sp} />,
+            },
+          ] : []),
         ]}
       />
     </div>

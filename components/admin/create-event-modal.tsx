@@ -6,6 +6,7 @@ import { X } from "lucide-react";
 import { Button, Card, HeadingIcon, ImageUploadField, Input, Label, Select } from "@/components/ui";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { createEvent } from "@/lib/actions/admin";
+import { EventAudienceField } from "@/components/admin/event-audience-field";
 
 export function CreateEventModal({
   initialOpen = false,
@@ -134,6 +135,7 @@ export function CreateEventModal({
                     งานแบบระดับระยะสะสมต้องเพิ่มระดับอย่างน้อยหนึ่งระดับก่อนเปิดรับสมัคร
                   </p>
                 </div>
+                <EventAudienceField defaultValue="all" />
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <Label>วันที่เริ่ม</Label>
