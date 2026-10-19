@@ -51,6 +51,7 @@ test("admin event tabs open on statistics first, before overview", async () => {
   const tabIds = [...managerTabs.matchAll(/^ {12}id: "([^"]+)",/gm)].map((match) => match[1]);
 
   assert.deepEqual(tabIds.slice(0, 2), ["statistics", "overview"]);
+  assert.match(adminPage, /id: "overview",\s*label: "รายละเอียด",/);
 });
 
 test("free events hide payment, physical medal and shipment tabs", async () => {

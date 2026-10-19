@@ -2,7 +2,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, Button, HeadingIcon, Input, Label, Badge } from "@/components/ui";
 import { CreateLevelModal } from "@/components/admin/create-level-modal";
 import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
-import { deleteLevel, updateLevel } from "@/lib/actions/levels";
+import { bulkUpdateLevels, deleteLevel, updateLevel } from "@/lib/actions/levels";
+import { BulkSaveScope } from "@/components/admin/bulk-save-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -63,8 +64,9 @@ export default async function AdminLevelsPage({
       </Card>
 
       <div className="space-y-3">
+        <BulkSaveScope action={bulkUpdateLevels}>
         {levels.map((level) => (
-          <form key={level.id} action={updateLevel}>
+          <form key={level.id} action={updateLevel} data-bulk-item>
             <input type="hidden" name="id" value={level.id} />
             <Card className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -120,6 +122,7 @@ export default async function AdminLevelsPage({
             </Card>
           </form>
         ))}
+        </BulkSaveScope>
       </div>
 
     </div>

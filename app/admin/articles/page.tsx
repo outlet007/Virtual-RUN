@@ -29,6 +29,7 @@ import {
   createContentArticle,
   updateContentArticle,
   updateContentCategory,
+  bulkUpdateContentCategories,
 } from "@/lib/actions/content";
 import { requireManager } from "@/lib/auth/admin";
 import {
@@ -37,6 +38,7 @@ import {
   type ContentStatus,
 } from "@/lib/content";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { BulkSaveScope } from "@/components/admin/bulk-save-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -529,9 +531,10 @@ export default async function AdminArticlesPage({
           />
         </div>
         <div className="space-y-3">
+          <BulkSaveScope action={bulkUpdateContentCategories}>
           {categories.map((category) => (
             <Card key={category.id}>
-              <form action={updateContentCategory} className="space-y-3">
+              <form action={updateContentCategory} className="space-y-3" data-bulk-item>
                 <input type="hidden" name="id" value={category.id} />
                 <div className="grid gap-3 lg:grid-cols-[1fr_1fr_100px_auto] lg:items-end">
                   <div>
@@ -592,6 +595,7 @@ export default async function AdminArticlesPage({
               </form>
             </Card>
           ))}
+          </BulkSaveScope>
         </div>
       </section>
       )}

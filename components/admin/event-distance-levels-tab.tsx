@@ -4,8 +4,10 @@ import {
   createEventDistanceLevel,
   deleteEventDistanceLevel,
   updateEventDistanceLevel,
+  bulkUpdateEventDistanceLevels,
 } from "@/lib/actions/admin";
 import type { EventDistanceLevel } from "@/lib/event-distance-levels";
+import { BulkSaveScope } from "@/components/admin/bulk-save-scope";
 
 type LevelRow = EventDistanceLevel & {
   digital_medal_id: string | null;
@@ -145,8 +147,9 @@ export function EventDistanceLevelsTab({
         </div>
       )}
 
+      <BulkSaveScope action={bulkUpdateEventDistanceLevels}>
       {levels.map((level, index) => (
-        <form key={level.id} action={updateEventDistanceLevel}>
+        <form key={level.id} action={updateEventDistanceLevel} data-bulk-item>
           <input type="hidden" name="id" value={level.id} />
           <input type="hidden" name="event_id" value={eventId} />
           <Card className="space-y-3">
@@ -170,6 +173,7 @@ export function EventDistanceLevelsTab({
           </Card>
         </form>
       ))}
+      </BulkSaveScope>
 
       <form action={createEventDistanceLevel}>
         <input type="hidden" name="event_id" value={eventId} />

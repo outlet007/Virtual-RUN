@@ -3,42 +3,7 @@ import { HeadingIcon } from "@/components/ui";
 import { ADMIN_ROLE_LABELS, requireAdmin } from "@/lib/auth/admin";
 import { getLocale } from "@/lib/i18n/server";
 import { tx } from "@/lib/i18n/shared";
-
-const operationalTabs = [
-  { href: "/admin/registrations", label: "สมาชิก" },
-];
-
-const staffTabs = [
-  { href: "/admin/events", label: "งาน" },
-];
-
-const managerTabs = [
-  { href: "/admin/events", label: "งาน" },
-  { href: "/admin/articles", label: "บทความ" },
-  { href: "/admin/rewards", label: "รางวัล" },
-  { href: "/admin/levels", label: "Level" },
-];
-
-const superAdminTabs = [
-  { href: "/admin", label: "ภาพรวม" },
-  ...operationalTabs,
-  ...managerTabs,
-  { href: "/admin/admins", label: "ผู้ดูแลระบบ" },
-  { href: "/admin/hero-banners", label: "Banner หน้าแรก" },
-  { href: "/admin/legal", label: "Privacy / Terms" },
-  { href: "/admin/settings", label: "ตั้งค่าระบบ" },
-  { href: "/admin/integrations", label: "การเชื่อมต่อ" },
-  { href: "/admin/storage", label: "พื้นที่หลักฐาน" },
-];
-
-const adminTabs = [
-  { href: "/admin/events", label: "งานและเหรียญ" },
-  { href: "/admin/articles", label: "บทความ" },
-  { href: "/admin/hero-banners", label: "Banner หน้าแรก" },
-  { href: "/admin/rewards", label: "รางวัล" },
-  { href: "/admin/levels", label: "Level" },
-  ...operationalTabs,
-];
+import { getAdminTabs } from "@/lib/admin/navigation";
 
 export default async function AdminLayout({
   children,
@@ -47,12 +12,7 @@ export default async function AdminLayout({
 }) {
   const { role } = await requireAdmin();
   const locale = await getLocale();
-  const tabs =
-    role === "super_admin"
-      ? superAdminTabs
-      : role === "admin"
-        ? adminTabs
-        : staffTabs;
+  const tabs = getAdminTabs(role);
 
   return (
     <div className="space-y-6">
@@ -77,23 +37,7 @@ export default async function AdminLayout({
             href={t.href}
             className="shrink-0 whitespace-nowrap rounded-lg px-3 py-2 font-medium hover:bg-lane/60"
           >
-            {locale === "en"
-              ? ({
-                  "/admin": "Overview",
-                  "/admin/registrations": "Registrations",
-                  "/admin/submissions": "Submissions",
-                  "/admin/events": "Events",
-                  "/admin/articles": "Articles",
-                  "/admin/rewards": "Rewards",
-                  "/admin/levels": "Levels",
-                  "/admin/admins": "Administrators",
-                  "/admin/hero-banners": "Home Banners",
-                  "/admin/legal": "Privacy / Terms",
-                  "/admin/settings": "Settings",
-                  "/admin/integrations": "Integrations",
-                  "/admin/storage": "Evidence Storage",
-                } as Record<string, string>)[t.href] ?? t.label
-              : t.label}
+            {locale === "en" ? t.labelEn : t.label}
           </Link>
         ))}
       </nav>

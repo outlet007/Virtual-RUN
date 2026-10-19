@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireManager } from "@/lib/auth/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { bulkSuccessUrl, splitBulkFormData } from "@/lib/bulk-form";
 import {
   createContentSlug,
   normalizeContentLink,
@@ -114,9 +115,7 @@ export async function createContentCategory(formData: FormData) {
   redirect("/admin/articles?view=categories&category_saved=1");
 }
 
-export async function updateContentCategory(formData: FormData) {
-  await requireManager();
-  const db = createAdminClient();
+async function saveContentCategory(db: ReturnType<typeof createAdminClient>, formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
   const slug = createContentSlug(formData.get("slug"), name);
@@ -137,11 +136,29 @@ export async function updateContentCategory(formData: FormData) {
     })
     .eq("id", id);
   if (error) contentError("/admin/articles?view=categories", error.code === "23505" ? "Slug หมวดหมู่นี้ถูกใช้แล้ว" : error.message);
+}
+
+export async function updateContentCategory(formData: FormData) {
+  await requireManager();
+  const db = createAdminClient();
+  await saveContentCategory(db, formData);
 
   revalidatePath("/admin/articles");
   revalidatePath("/articles");
   revalidatePath("/");
   redirect("/admin/articles?view=categories&category_saved=1");
+}
+
+export async function bulkUpdateContentCategories(formData: FormData) {
+  await requireManager();
+  const db = createAdminClient();
+  const items = splitBulkFormData(formData);
+  if (items.length === 0) contentError("/admin/articles?view=categories", "ไม่มีรายการที่ต้องบันทึก");
+  for (const item of items) await saveContentCategory(db, item);
+  revalidatePath("/admin/articles");
+  revalidatePath("/articles");
+  revalidatePath("/");
+  redirect(bulkSuccessUrl("/admin/articles?view=categories&category_saved=1", formData, items.length));
 }
 
 export async function deleteContentCategory(formData: FormData) {

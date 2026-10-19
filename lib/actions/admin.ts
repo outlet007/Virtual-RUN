@@ -12,6 +12,7 @@ import {
 } from "@/lib/auth/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { parseEventAudience } from "@/lib/event-audience";
+import { bulkSuccessUrl, splitBulkFormData } from "@/lib/bulk-form";
 import { isValidBibPrefix, normalizeBibPrefix } from "@/lib/bib";
 import {
   awardForApprovedSubmission,
@@ -439,10 +440,7 @@ export async function createPackage(formData: FormData) {
   redirect(`/admin/events/${event_id}?tab=packages&package_added=1`);
 }
 
-export async function updatePackage(formData: FormData) {
-  await requireManager();
-  const db = createAdminClient();
-
+async function savePackage(db: ReturnType<typeof createAdminClient>, formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const event_id = String(formData.get("event_id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
@@ -474,10 +472,31 @@ export async function updatePackage(formData: FormData) {
     .eq("id", id);
 
   if (error) err(`/admin/events/${event_id}?tab=packages`, error.message);
+}
 
+export async function updatePackage(formData: FormData) {
+  await requireManager();
+  const db = createAdminClient();
+  await savePackage(db, formData);
+  const event_id = String(formData.get("event_id") ?? "");
   revalidatePath(`/admin/events/${event_id}`);
   revalidatePath("/");
   redirect(`/admin/events/${event_id}?tab=packages&package_saved=1`);
+}
+
+export async function bulkUpdatePackages(formData: FormData) {
+  await requireManager();
+  const db = createAdminClient();
+  const items = splitBulkFormData(formData);
+  const event_id = String(items[0]?.get("event_id") ?? "");
+  if (items.length === 0 || items.some((item) => item.get("event_id") !== event_id)) {
+    err(`/admin/events/${event_id}?tab=packages`, "ข้อมูลที่บันทึกพร้อมกันไม่ถูกต้อง");
+  }
+  for (const item of items) await savePackage(db, item);
+  revalidatePath(`/admin/events/${event_id}`);
+  revalidatePath(`/events/${event_id}`);
+  revalidatePath("/");
+  redirect(bulkSuccessUrl(`/admin/events/${event_id}?tab=packages&package_saved=1`, formData, items.length));
 }
 
 export async function deletePackage(formData: FormData) {
@@ -784,9 +803,10 @@ export async function createEventDistanceLevel(formData: FormData) {
   redirect(`${distanceLevelPath(eventId)}&distance_level_added=1`);
 }
 
-export async function updateEventDistanceLevel(formData: FormData) {
-  await requireManager();
-  const db = createAdminClient();
+async function saveEventDistanceLevel(
+  db: ReturnType<typeof createAdminClient>,
+  formData: FormData,
+) {
   const id = String(formData.get("id") ?? "");
   const eventId = String(formData.get("event_id") ?? "");
   if (!id || !eventId) err("/admin/events", "ไม่พบระดับระยะ");
@@ -830,12 +850,35 @@ export async function updateEventDistanceLevel(formData: FormData) {
       error.code === "23505" ? "มีระดับที่ใช้ระยะเป้าหมายนี้แล้ว" : error.message,
     );
   }
+}
 
+export async function updateEventDistanceLevel(formData: FormData) {
+  await requireManager();
+  const db = createAdminClient();
+  await saveEventDistanceLevel(db, formData);
+  const eventId = String(formData.get("event_id") ?? "");
   await ensureDistanceLevelPackage(db, eventId);
   await syncEventDistanceLevelAchievements(db, eventId);
   revalidatePath(`/admin/events/${eventId}`);
   revalidatePath(`/events/${eventId}`);
   redirect(`${distanceLevelPath(eventId)}&distance_level_saved=1`);
+}
+
+// บันทึกหลายระดับพร้อมกัน แล้ว sync package ภายในและ achievement ครั้งเดียวตอนท้าย
+export async function bulkUpdateEventDistanceLevels(formData: FormData) {
+  await requireManager();
+  const db = createAdminClient();
+  const items = splitBulkFormData(formData);
+  const eventId = String(items[0]?.get("event_id") ?? "");
+  if (items.length === 0 || items.some((item) => item.get("event_id") !== eventId)) {
+    err(distanceLevelPath(eventId), "ข้อมูลที่บันทึกพร้อมกันไม่ถูกต้อง");
+  }
+  for (const item of items) await saveEventDistanceLevel(db, item);
+  await ensureDistanceLevelPackage(db, eventId);
+  await syncEventDistanceLevelAchievements(db, eventId);
+  revalidatePath(`/admin/events/${eventId}`);
+  revalidatePath(`/events/${eventId}`);
+  redirect(bulkSuccessUrl(`${distanceLevelPath(eventId)}&distance_level_saved=1`, formData, items.length));
 }
 
 export async function deleteEventDistanceLevel(formData: FormData) {
@@ -1213,10 +1256,7 @@ export async function createMedal(formData: FormData) {
   redirect(`/admin/events/${eventId}?tab=medals&medal_added=1`);
 }
 
-export async function updateMedal(formData: FormData) {
-  await requireManager();
-  const db = createAdminClient();
-
+async function saveMedal(db: ReturnType<typeof createAdminClient>, formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const eventId = String(formData.get("event_id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
@@ -1249,9 +1289,30 @@ export async function updateMedal(formData: FormData) {
     })
     .eq("id", id);
   if (error) err(`/admin/events/${eventId}?tab=medals`, error.message);
+}
 
+export async function updateMedal(formData: FormData) {
+  await requireManager();
+  const db = createAdminClient();
+  await saveMedal(db, formData);
+  const eventId = String(formData.get("event_id") ?? "");
   revalidatePath(`/admin/events/${eventId}`);
   redirect(`/admin/events/${eventId}?tab=medals&medal_saved=1`);
+}
+
+export async function bulkUpdateMedals(formData: FormData) {
+  await requireManager();
+  const db = createAdminClient();
+  const items = splitBulkFormData(formData);
+  const eventId = String(items[0]?.get("event_id") ?? "");
+  if (items.length === 0 || items.some((item) => item.get("event_id") !== eventId)) {
+    err(`/admin/events/${eventId}?tab=medals`, "ข้อมูลที่บันทึกพร้อมกันไม่ถูกต้อง");
+  }
+  for (const item of items) await saveMedal(db, item);
+  revalidatePath(`/admin/events/${eventId}`);
+  revalidatePath(`/events/${eventId}`);
+  revalidatePath("/");
+  redirect(bulkSuccessUrl(`/admin/events/${eventId}?tab=medals&medal_saved=1`, formData, items.length));
 }
 
 export async function moveMedal(
@@ -1369,10 +1430,7 @@ export async function createPhysicalMedal(formData: FormData) {
   redirect(`/admin/events/${eventId}?tab=physical-medals&physical_medal_added=1`);
 }
 
-export async function updatePhysicalMedal(formData: FormData) {
-  await requireManager();
-  const db = createAdminClient();
-
+async function savePhysicalMedal(db: ReturnType<typeof createAdminClient>, formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const eventId = String(formData.get("event_id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
@@ -1411,10 +1469,31 @@ export async function updatePhysicalMedal(formData: FormData) {
     .eq("id", id)
     .eq("event_id", eventId);
   if (error) err(`/admin/events/${eventId}?tab=physical-medals`, error.message);
+}
 
+export async function updatePhysicalMedal(formData: FormData) {
+  await requireManager();
+  const db = createAdminClient();
+  await savePhysicalMedal(db, formData);
+  const eventId = String(formData.get("event_id") ?? "");
   revalidatePath(`/admin/events/${eventId}`);
   revalidatePath(`/events/${eventId}`);
   redirect(`/admin/events/${eventId}?tab=physical-medals&physical_medal_saved=1`);
+}
+
+export async function bulkUpdatePhysicalMedals(formData: FormData) {
+  await requireManager();
+  const db = createAdminClient();
+  const items = splitBulkFormData(formData);
+  const eventId = String(items[0]?.get("event_id") ?? "");
+  if (items.length === 0 || items.some((item) => item.get("event_id") !== eventId)) {
+    err(`/admin/events/${eventId}?tab=physical-medals`, "ข้อมูลที่บันทึกพร้อมกันไม่ถูกต้อง");
+  }
+  for (const item of items) await savePhysicalMedal(db, item);
+  revalidatePath(`/admin/events/${eventId}`);
+  revalidatePath(`/events/${eventId}`);
+  revalidatePath("/");
+  redirect(bulkSuccessUrl(`/admin/events/${eventId}?tab=physical-medals&physical_medal_saved=1`, formData, items.length));
 }
 
 export async function movePhysicalMedal(
@@ -1761,10 +1840,7 @@ export async function createHeroBanner(formData: FormData) {
   redirect("/admin/hero-banners?created=1");
 }
 
-export async function updateHeroBanner(formData: FormData) {
-  await requireManager();
-  const db = createAdminClient();
-
+async function saveHeroBanner(db: ReturnType<typeof createAdminClient>, formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const content = readHeroBannerContent(formData);
   const link_url = String(formData.get("link_url") ?? "").trim();
@@ -1795,10 +1871,26 @@ export async function updateHeroBanner(formData: FormData) {
     })
     .eq("id", id);
   if (error) err("/admin/hero-banners", error.message);
+}
 
+export async function updateHeroBanner(formData: FormData) {
+  await requireManager();
+  const db = createAdminClient();
+  await saveHeroBanner(db, formData);
   revalidatePath("/admin/hero-banners");
   revalidatePath("/");
   redirect("/admin/hero-banners?saved=1");
+}
+
+export async function bulkUpdateHeroBanners(formData: FormData) {
+  await requireManager();
+  const db = createAdminClient();
+  const items = splitBulkFormData(formData);
+  if (items.length === 0) err("/admin/hero-banners", "ไม่มีรายการที่ต้องบันทึก");
+  for (const item of items) await saveHeroBanner(db, item);
+  revalidatePath("/admin/hero-banners");
+  revalidatePath("/");
+  redirect(bulkSuccessUrl("/admin/hero-banners?saved=1", formData, items.length));
 }
 
 export async function moveHeroBanner(

@@ -1,5 +1,6 @@
 import { Button, Card, HeadingIcon, Input, Label, Select } from "@/components/ui";
 import {
+  bulkUpdateEventEvidenceRetention,
   runEvidenceCleanupAction,
   updateEventEvidenceRetention,
   updateEvidenceRetentionSettings,
@@ -7,6 +8,7 @@ import {
 import { formatEvidenceBytes, getBangkokIsoDate } from "@/lib/evidence-retention";
 import { requireSuperAdmin } from "@/lib/auth/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { BulkSaveScope } from "@/components/admin/bulk-save-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -159,6 +161,7 @@ export default async function AdminStoragePage({
             เว้นว่างเพื่อใช้ค่าระบบ ใส่ 0 เพื่อเก็บถาวร หรือกำหนด 30–3,650 วัน
           </p>
         </div>
+        <BulkSaveScope action={bulkUpdateEventEvidenceRetention}>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead>
@@ -182,7 +185,7 @@ export default async function AdminStoragePage({
                     <span className="text-xs text-muted">{formatEvidenceBytes(numberValue(event.evidence_bytes))}</span>
                   </td>
                   <td className="px-3 py-3">
-                    <form action={updateEventEvidenceRetention} className="flex items-end gap-2">
+                    <form action={updateEventEvidenceRetention} className="flex items-end gap-2" data-bulk-item>
                       <input type="hidden" name="event_id" value={event.event_id} />
                       <Input
                         name="event_retention_days"
@@ -207,6 +210,7 @@ export default async function AdminStoragePage({
             </tbody>
           </table>
         </div>
+        </BulkSaveScope>
       </Card>
 
       <form action={runEvidenceCleanupAction}>

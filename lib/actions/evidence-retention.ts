@@ -6,6 +6,7 @@ import { requireSuperAdmin } from "@/lib/auth/admin";
 import { parseEvidenceRetentionDays } from "@/lib/evidence-retention";
 import { runEvidenceCleanup } from "@/lib/evidence-retention-service";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { bulkSuccessUrl, splitBulkFormData } from "@/lib/bulk-form";
 
 function fail(message: string): never {
   redirect(`/admin/storage?error=${encodeURIComponent(message)}`);
@@ -36,8 +37,7 @@ export async function updateEvidenceRetentionSettings(formData: FormData) {
   redirect("/admin/storage?saved=1");
 }
 
-export async function updateEventEvidenceRetention(formData: FormData) {
-  await requireSuperAdmin();
+async function saveEventEvidenceRetention(formData: FormData) {
   const eventId = String(formData.get("event_id") ?? "").trim();
   if (!/^[0-9a-f-]{36}$/i.test(eventId)) fail("ไม่พบกิจกรรมที่ต้องการแก้ไข");
 
@@ -57,9 +57,22 @@ export async function updateEventEvidenceRetention(formData: FormData) {
     .update({ evidence_retention_days: days })
     .eq("id", eventId);
   if (error) fail(error.message);
+}
 
+export async function updateEventEvidenceRetention(formData: FormData) {
+  await requireSuperAdmin();
+  await saveEventEvidenceRetention(formData);
   revalidatePath("/admin/storage");
   redirect("/admin/storage?event_saved=1");
+}
+
+export async function bulkUpdateEventEvidenceRetention(formData: FormData) {
+  await requireSuperAdmin();
+  const items = splitBulkFormData(formData);
+  if (items.length === 0) fail("ไม่มีรายการที่ต้องบันทึก");
+  for (const item of items) await saveEventEvidenceRetention(item);
+  revalidatePath("/admin/storage");
+  redirect(bulkSuccessUrl("/admin/storage?event_saved=1", formData, items.length));
 }
 
 export async function runEvidenceCleanupAction(formData: FormData) {

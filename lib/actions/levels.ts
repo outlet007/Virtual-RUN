@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireManager } from "@/lib/auth/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { bulkSuccessUrl, splitBulkFormData } from "@/lib/bulk-form";
 
 type LevelCandidate = {
   id?: string;
@@ -38,16 +39,21 @@ function parseCandidate(formData: FormData, errorPath = "/admin/levels"): LevelC
   return { id, level_number, name, name_en, min_xp };
 }
 
-async function validateLevelSequence(candidate: LevelCandidate, errorPath = "/admin/levels") {
+// ตรวจลำดับ Level ทั้งชุดหลังแทนค่าด้วยรายการที่แก้ไข (รองรับแก้หลายรายการพร้อมกัน)
+async function validateLevelSequence(
+  candidates: LevelCandidate[],
+  errorPath = "/admin/levels",
+) {
   const db = createAdminClient();
   const { data, error } = await db
     .from("levels")
     .select("id, level_number, name, min_xp");
   if (error) fail(error.message, errorPath);
 
+  const editedIds = new Set(candidates.map((candidate) => candidate.id).filter(Boolean));
   const levels = [
-    ...(data ?? []).filter((level) => level.id !== candidate.id),
-    { ...candidate, id: candidate.id ?? "new-level" },
+    ...(data ?? []).filter((level) => !editedIds.has(level.id)),
+    ...candidates.map((candidate) => ({ ...candidate, id: candidate.id ?? "new-level" })),
   ].sort((a, b) => a.level_number - b.level_number);
 
   if (levels[0]?.level_number !== 1 || levels[0].min_xp !== 0) {
@@ -75,7 +81,7 @@ export async function createLevel(formData: FormData) {
   await requireManager();
   const errorPath = "/admin/levels?create=1";
   const candidate = parseCandidate(formData, errorPath);
-  await validateLevelSequence(candidate, errorPath);
+  await validateLevelSequence([candidate], errorPath);
   const db = createAdminClient();
   const { error } = await db.from("levels").insert({
     level_number: candidate.level_number,
@@ -93,11 +99,7 @@ export async function createLevel(formData: FormData) {
   redirect("/admin/levels?added=1");
 }
 
-export async function updateLevel(formData: FormData) {
-  await requireManager();
-  const candidate = parseCandidate(formData);
-  if (!candidate.id) fail("ไม่พบ Level ที่ต้องการแก้ไข");
-  await validateLevelSequence(candidate);
+async function updateLevelRow(candidate: LevelCandidate) {
   const db = createAdminClient();
   const { error } = await db
     .from("levels")
@@ -111,9 +113,55 @@ export async function updateLevel(formData: FormData) {
     .eq("id", candidate.id)
     .select("id")
     .single();
+  return error;
+}
+
+async function saveLevel(candidate: LevelCandidate) {
+  const error = await updateLevelRow(candidate);
   if (error) fail(error.code === "23505" ? "หมายเลข Level หรือค่า XP นี้มีอยู่แล้ว" : error.message);
+}
+
+// level_number และ min_xp เป็น unique: เลื่อนค่าหลายแถวพร้อมกันอาจชนค่าที่แถวอื่นยังไม่ขยับ
+// จึงลองซ้ำเป็นรอบจนครบ (ชุดสุดท้ายผ่าน validateLevelSequence แล้ว) ยกเว้นการสลับค่าเป็นวง
+async function saveLevels(candidates: LevelCandidate[]) {
+  let pending = candidates;
+  while (pending.length > 0) {
+    const conflicted: LevelCandidate[] = [];
+    for (const candidate of pending) {
+      const error = await updateLevelRow(candidate);
+      if (error?.code === "23505") conflicted.push(candidate);
+      else if (error) fail(error.message);
+    }
+    if (conflicted.length === pending.length) {
+      fail("สลับหมายเลข Level หรือค่า XP ระหว่างรายการในครั้งเดียวไม่ได้ กรุณาบันทึกทีละขั้น");
+    }
+    pending = conflicted;
+  }
+}
+
+export async function updateLevel(formData: FormData) {
+  await requireManager();
+  const candidate = parseCandidate(formData);
+  if (!candidate.id) fail("ไม่พบ Level ที่ต้องการแก้ไข");
+  await validateLevelSequence([candidate]);
+  await saveLevel(candidate);
   refreshLevels();
   redirect("/admin/levels?saved=1");
+}
+
+export async function bulkUpdateLevels(formData: FormData) {
+  await requireManager();
+  const candidates = splitBulkFormData(formData).map((item) => parseCandidate(item));
+  if (candidates.length === 0 || candidates.some((candidate) => !candidate.id)) {
+    fail("ไม่พบ Level ที่ต้องการแก้ไข");
+  }
+  if (new Set(candidates.map((candidate) => candidate.id)).size !== candidates.length) {
+    fail("ข้อมูลที่บันทึกพร้อมกันไม่ถูกต้อง");
+  }
+  await validateLevelSequence(candidates);
+  await saveLevels(candidates);
+  refreshLevels();
+  redirect(bulkSuccessUrl("/admin/levels?saved=1", formData, candidates.length));
 }
 
 export async function deleteLevel(formData: FormData) {

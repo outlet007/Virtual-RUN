@@ -29,7 +29,6 @@ export default async function AdminOverviewPage({
   searchParams: Promise<{ period?: string }>;
 }) {
   const { role } = await requireAdmin();
-  if (role === "admin") redirect("/admin/events");
   if (role === "staff") redirect("/admin/events");
 
   const { period: rawPeriod } = await searchParams;

@@ -29,14 +29,17 @@ import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
 import {
   createPackage,
   updatePackage,
+  bulkUpdatePackages,
   deletePackage,
   movePackage,
   deleteEvent,
   createMedal,
   updateMedal,
+  bulkUpdateMedals,
   moveMedal,
   createPhysicalMedal,
   updatePhysicalMedal,
+  bulkUpdatePhysicalMedals,
   movePhysicalMedal,
   updateDistanceLevelRegistration,
 } from "@/lib/actions/admin";
@@ -57,6 +60,7 @@ import {
   sortEventDistanceLevels,
   type EventDistanceLevel,
 } from "@/lib/event-distance-levels";
+import { BulkSaveScope } from "@/components/admin/bulk-save-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -603,7 +607,7 @@ export default async function EventDashboardPage({
           },
           {
             id: "overview",
-            label: "ภาพรวม",
+            label: "รายละเอียด",
             content: (
               <div className="space-y-6">
                 <Card className="space-y-3">
@@ -676,8 +680,9 @@ export default async function EventDashboardPage({
         )}
 
         <div className="mt-3 space-y-3">
+          <BulkSaveScope action={bulkUpdatePackages}>
           {packages.map((p, index) => (
-            <form key={p.id} action={updatePackage}>
+            <form key={p.id} action={updatePackage} data-bulk-item>
               <input type="hidden" name="id" value={p.id} />
               <input type="hidden" name="event_id" value={event.id} />
               <Card className="space-y-3">
@@ -778,6 +783,7 @@ export default async function EventDashboardPage({
               </Card>
             </form>
           ))}
+          </BulkSaveScope>
         </div>
 
         <form action={createPackage} className="mt-4">
@@ -921,8 +927,9 @@ export default async function EventDashboardPage({
                 {sp.medal_reordered && <p className="mt-1 text-sm text-primary-dark">ย้ายลำดับเหรียญแล้ว</p>}
 
         <div className="mt-3 space-y-3">
+          <BulkSaveScope action={bulkUpdateMedals}>
           {medals.map((m, index) => (
-            <form key={m.id} action={updateMedal}>
+            <form key={m.id} action={updateMedal} data-bulk-item>
               <input type="hidden" name="id" value={m.id} />
               <input type="hidden" name="event_id" value={event.id} />
               <input type="hidden" name="existing_image_url" value={m.image_url ?? ""} />
@@ -1005,6 +1012,7 @@ export default async function EventDashboardPage({
               </Card>
             </form>
           ))}
+          </BulkSaveScope>
         </div>
 
         <form action={createMedal} className="mt-4">
@@ -1063,8 +1071,9 @@ export default async function EventDashboardPage({
                 )}
 
                 <div className="mt-3 space-y-3">
+                  <BulkSaveScope action={bulkUpdatePhysicalMedals}>
                   {physicalMedals.map((medal, index) => (
-                    <form key={medal.id} action={updatePhysicalMedal}>
+                    <form key={medal.id} action={updatePhysicalMedal} data-bulk-item>
                       <input type="hidden" name="id" value={medal.id} />
                       <input type="hidden" name="event_id" value={event.id} />
                       <input
@@ -1159,6 +1168,7 @@ export default async function EventDashboardPage({
                       </Card>
                     </form>
                   ))}
+                  </BulkSaveScope>
                 </div>
 
                 <form action={createPhysicalMedal} className="mt-4">

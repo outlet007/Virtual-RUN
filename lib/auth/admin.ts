@@ -15,9 +15,8 @@ export function isAdminRole(role: unknown): role is AdminRole {
 }
 
 export function getAdminHome(role: AdminRole) {
-  if (role === "super_admin") return "/admin";
-  if (role === "admin") return "/admin/events";
-  return "/admin/events";
+  if (role === "staff") return "/admin/events";
+  return "/admin";
 }
 
 async function getAdminAccess() {

@@ -1,18 +1,39 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { ADMIN_TABS, getAdminTabs } from "../lib/admin/navigation.ts";
 
 const read = (path) => readFile(path, "utf8");
 
-test("staff navigation does not expose the all-members page", async () => {
-  const layout = await read("app/admin/layout.tsx");
-  const staffStart = layout.indexOf("const staffTabs");
-  const staffEnd = layout.indexOf("const managerTabs", staffStart);
-  const staffTabs = layout.slice(staffStart, staffEnd);
+test("admin menu uses one label set and shows tabs per role", () => {
+  const labels = (role) => getAdminTabs(role).map((tab) => tab.label);
 
-  assert.equal(staffTabs.includes("/admin/events"), true);
-  assert.equal(staffTabs.includes("operationalTabs"), false);
-  assert.equal(staffTabs.includes("/admin/registrations"), false);
+  assert.deepEqual(labels("staff"), ["งาน"]);
+  assert.deepEqual(labels("admin"), [
+    "ภาพรวม",
+    "สมาชิก",
+    "งาน",
+    "บทความ",
+    "รางวัล",
+    "Level",
+    "Banner หน้าแรก",
+  ]);
+  assert.deepEqual(labels("super_admin"), ADMIN_TABS.map((tab) => tab.label));
+  assert.equal(new Set(ADMIN_TABS.map((tab) => tab.href)).size, ADMIN_TABS.length);
+});
+
+test("admin layout renders the shared menu and admins can open the overview", async () => {
+  const [layout, overview, auth] = await Promise.all([
+    read("app/admin/layout.tsx"),
+    read("app/admin/page.tsx"),
+    read("lib/auth/admin.ts"),
+  ]);
+
+  assert.match(layout, /const tabs = getAdminTabs\(role\);/);
+  assert.equal(layout.includes("งานและเหรียญ"), false);
+  assert.equal(overview.includes('role === "admin") redirect'), false);
+  assert.match(overview, /if \(role === "staff"\) redirect\("\/admin\/events"\);/);
+  assert.match(auth, /if \(role === "staff"\) return "\/admin\/events";\s*return "\/admin";/);
 });
 
 test("all-members pages and exports require manager access", async () => {

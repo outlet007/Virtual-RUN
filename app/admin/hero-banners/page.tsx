@@ -4,10 +4,12 @@ import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
 import {
   createHeroBanner,
   updateHeroBanner,
+  bulkUpdateHeroBanners,
   deleteHeroBanner,
   moveHeroBanner,
 } from "@/lib/actions/admin";
 import { DEFAULT_SETTINGS } from "@/lib/system-settings";
+import { BulkSaveScope } from "@/components/admin/bulk-save-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -130,8 +132,9 @@ export default async function AdminHeroBannersPage({
       )}
 
       <div className="space-y-3">
+        <BulkSaveScope action={bulkUpdateHeroBanners}>
         {banners.map((b, index) => (
-          <form key={b.id} action={updateHeroBanner}>
+          <form key={b.id} action={updateHeroBanner} data-bulk-item>
             <input type="hidden" name="id" value={b.id} />
             <input type="hidden" name="existing_image_url" value={b.image_url} />
             <Card className="space-y-3">
@@ -191,6 +194,7 @@ export default async function AdminHeroBannersPage({
             </Card>
           </form>
         ))}
+        </BulkSaveScope>
       </div>
 
       <form action={createHeroBanner} className="mt-4">
