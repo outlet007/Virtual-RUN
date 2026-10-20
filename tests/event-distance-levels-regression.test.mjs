@@ -43,6 +43,20 @@ test("home event cards show level distance range without package count", async (
   assert.match(home, /function getEventDistanceSummary/);
   assert.match(home, /packageCount: isDistanceLevels \? null : ev\.packages\.length/);
   assert.doesNotMatch(home, /Math\.min\(\.\.\.ev\.packages/);
+  // thumbnail งานวิ่ง (เปิดรับสมัครและที่ผ่านมา) ใช้สัดส่วน 16:9 เท่ากับการ์ดบทความ
+  assert.equal(home.match(/className="relative aspect-\[16\/9\] w-full overflow-hidden bg-lane"/g)?.length, 2);
+  assert.doesNotMatch(home, /relative h-44 w-full/);
+  // ขนาดตัวอักษรบนการ์ดหน้าแรก: ชื่อ 16px, บรรทัดวันที่/ระยะ 14px, คำอธิบาย 14px
+  assert.equal(home.match(/<h3 className="[^"]*text-\[16px\][^"]*">/g)?.length, 3);
+  assert.equal(home.match(/font-mono text-\[14px\] leading-5/g)?.length, 3);
+  assert.equal(home.match(/line-clamp-2 text-\[14px\] leading-\[22px\] text-muted/g)?.length, 3);
+
+  // การ์ดในหน้า Admin "งานทั้งหมด" ใช้ขนาดเดียวกับหน้าเว็บ
+  const adminList = await readFile("app/admin/events/page.tsx", "utf8");
+  assert.match(adminList, /relative aspect-\[16\/9\] w-full overflow-hidden bg-lane/);
+  assert.match(adminList, /<h3 className="[^"]*text-\[16px\][^"]*">/);
+  assert.match(adminList, /font-mono text-\[14px\] leading-5/);
+  assert.match(adminList, /line-clamp-2 text-\[14px\] leading-\[22px\] text-muted/);
 });
 
 test("admin event tabs open on statistics first, before overview", async () => {
@@ -62,6 +76,7 @@ test("free events hide payment, physical medal and shipment tabs", async () => {
   ]);
 
   assert.match(adminPage, /const isPaidEvent = event\.pricing === "paid";/);
+  assert.match(adminPage, /\.\.\.\(event\.pricing === "paid"\s*\? \[\{ label: "ยอดชำระเงินสะสม \(บาท\)"/);
   assert.match(adminPage, /\.\.\.\(isPaidEvent \? \[\{\s*id: "physical-medals"/);
   assert.match(adminPage, /\.\.\.\(isPaidEvent \? \[\s*\{\s*id: "payments"[\s\S]*?id: "shipments"/);
   assert.match(adminPage, /const staffEventIsPaid = staffEvent\.pricing === "paid";/);

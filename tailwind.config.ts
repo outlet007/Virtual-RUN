@@ -32,9 +32,23 @@ const config: Config = {
         display: ["var(--font-sans)", "system-ui", "sans-serif"],
         mono: ["var(--font-sans)", "system-ui", "sans-serif"],
       },
+      // ขนาดตัวอักษรเล็กปรับให้อ่านภาษาไทยง่ายขึ้น (เดิม xs 12px, sm 14px)
+      // line-height ขยายตามสัดส่วนเดิม ไม่ให้สระบน/ล่างของภาษาไทยชนกัน
+      fontSize: {
+        xs: ["14px", { lineHeight: "1.25rem" }],
+        sm: ["15px", { lineHeight: "1.375rem" }],
+      },
       borderRadius: {
         xl: "14px",
         "2xl": "20px",
+      },
+      // เนื้อหา rich text แบบ prose-sm (เดิม 14px)
+      typography: {
+        sm: {
+          css: {
+            fontSize: "16px",
+          },
+        },
       },
     },
   },

@@ -17,6 +17,7 @@ import {
   getEventAudienceEligibility,
   parseEventAudience,
 } from "@/lib/event-audience";
+import { eventAudienceBadgeClass } from "@/components/events/event-audience-badge";
 
 export const dynamic = "force-dynamic";
 
@@ -120,8 +121,8 @@ export default async function EventDetailPage({
         )
       : tx(
           locale,
-          `งานนี้เปิดรับเฉพาะ${eventAudienceLabel[audience].th} (${audienceDomains.join(" หรือ ")}) เท่านั้น`,
-          `This event is only for ${eventAudienceLabel[audience].en.toLowerCase()} (${audienceDomains.join(" or ")}).`,
+          `งานนี้เปิดรับเฉพาะ${eventAudienceLabel[audience].th} ที่ลงทะเบียนด้วยอีเมล (${audienceDomains.join(" หรือ ")}) เท่านั้น`,
+          `This event is only for ${eventAudienceLabel[audience].en.toLowerCase()} registered with an email address (${audienceDomains.join(" or ")}).`,
         );
 
   const renderRegisterAction = (
@@ -238,7 +239,7 @@ export default async function EventDetailPage({
               {event.pricing === "free" ? tx(locale, "ฟรี", "Free") : tx(locale, "มีค่าสมัคร", "Paid")}
             </Badge>
             {audience !== "all" && (
-              <Badge className="ml-2 w-fit bg-[#FF4A00] text-sm text-white shadow-sm">
+              <Badge className={`ml-2 w-fit ${eventAudienceBadgeClass[audience]} text-sm text-white shadow-sm`}>
                 {tx(locale, "เฉพาะ", "For ")}
                 {pickLocalized(locale, eventAudienceLabel[audience].th, eventAudienceLabel[audience].en)}
               </Badge>

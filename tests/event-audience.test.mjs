@@ -100,15 +100,45 @@ test("admin forms, event pages and registration guard expose the audience", asyn
   assert.match(editModal, /<EventAudienceField defaultValue=\{event\.audience\} \/>/);
   assert.equal(actions.match(/parseEventAudience\(formData\.get\("audience"\)\)/g)?.length, 2);
   assert.match(eventPage, /getEventAudienceEligibility\(user, audience\)/);
+  assert.match(eventPage, /งานนี้เปิดรับเฉพาะ\$\{eventAudienceLabel\[audience\]\.th\} ที่ลงทะเบียนด้วยอีเมล \(/);
   assert.match(eventPage, /audienceEligibility === "google_required"/);
   assert.match(eventPage, /user && !userMatchesAudience \?/);
   // ข้อความแจ้งกลุ่มผู้สมัครที่สมัครได้ใช้ตัวอักษรสี #FF4A00
   assert.match(eventPage, /bg-medal-soft px-3 py-2 text-sm text-\[#FF4A00\]`\}\s*>\s*\{audienceNotice\}/);
   assert.match(registerPage, /getEventAudienceEligibility\(user, parseEventAudience\(eventData\.audience\)\)/);
-  assert.match(home, /parseEventAudience\(ev\.audience\) !== "all"/);
-  // ป้ายกลุ่มผู้สมัคร: พื้น #FF4A00 ตัวอักษรสีขาว ทั้งการ์ดหน้าแรกและหน้ารายละเอียดงาน
+  assert.match(home, /const audience = parseEventAudience\(ev\.audience\);/);
+  assert.match(home, /\{audience !== "all" && \(/);
+  // ป้ายกลุ่มผู้สมัคร: สีพื้นตามกลุ่มจากตารางกลาง ตัวอักษรสีขาว ทั้งการ์ดหน้าแรกและหน้ารายละเอียดงาน
   for (const source of [home, eventPage]) {
-    assert.match(source, /<Badge className="[^"]*bg-\[#FF4A00\] text-sm text-white[^"]*">\s*\{tx\(locale, "เฉพาะ", "For "\)\}/);
+    assert.match(source, /<Badge className=\{`[^`]*\$\{eventAudienceBadgeClass\[audience\]\} text-sm text-white[^`]*`\}>\s*\{tx\(locale, "เฉพาะ", "For "\)\}/);
   }
   assert.match(errors, /event_audience_not_allowed/);
+});
+
+test("admin event list filters by audience and the field is labelled สำหรับ", async () => {
+  const [list, field] = await Promise.all([
+    readFile("app/admin/events/page.tsx", "utf8"),
+    readFile("components/admin/event-audience-field.tsx", "utf8"),
+  ]);
+
+  assert.match(field, /<Label>สำหรับ<\/Label>/);
+  assert.match(list, /<label[^>]*>สำหรับ<\/label>\s*<Select name="audience" defaultValue=\{audienceFilter\}>/);
+  // รับเฉพาะค่าที่รู้จัก แล้วกรองด้วยคอลัมน์ audience และคงค่าไว้ตอนเปลี่ยนหน้า
+  assert.match(list, /EVENT_AUDIENCES\.includes\(sp\.audience as EventAudience\)/);
+  assert.match(list, /if \(audienceFilter\) query = query\.eq\("audience", audienceFilter\);/);
+  assert.match(list, /if \(audienceFilter\) params\.set\("audience", audienceFilter\);/);
+  // การ์ดงานใน Admin แสดงป้ายกลุ่มผู้สมัครแบบเดียวกับหน้าแรก
+  assert.match(list, /audience, start_date/);
+  assert.match(list, /audience !== "all" && \(\s*<Badge className=\{`absolute left-3 top-3 \$\{eventAudienceBadgeClass\[audience\]\} text-sm text-white shadow-sm`\}>/);
+});
+
+test("audience badge colors differ per group and live where Tailwind scans", async () => {
+  const [colors, tailwind] = await Promise.all([
+    readFile("components/events/event-audience-badge.ts", "utf8"),
+    readFile("tailwind.config.ts", "utf8"),
+  ]);
+  assert.match(colors, /staff: "bg-\[#FF4A00\]"/);
+  assert.match(colors, /student: "bg-\[rgb\(0,112,230\)\]"/);
+  assert.match(colors, /staff_student: "bg-\[rgb\(141,37,255\)\]"/);
+  assert.match(tailwind, /"\.\/components\/\*\*\/\*\.\{ts,tsx\}"/);
 });

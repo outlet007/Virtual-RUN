@@ -10,6 +10,7 @@ import { formatLocalizedDate, pickLocalized, tx } from "@/lib/i18n/shared";
 import { getSystemSettings } from "@/lib/system-settings";
 import { getHeroSignupHref } from "@/lib/hero-banner";
 import { eventAudienceLabel, parseEventAudience } from "@/lib/event-audience";
+import { eventAudienceBadgeClass } from "@/components/events/event-audience-badge";
 
 export const dynamic = "force-dynamic";
 
@@ -262,10 +263,11 @@ export default async function HomePage({
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {list.map((ev) => {
                 const distanceSummary = getEventDistanceSummary(ev);
+                const audience = parseEventAudience(ev.audience);
                 return (
                   <Link key={ev.id} href={`/events/${ev.id}`} className="group">
                     <Card className="flex h-full flex-col overflow-hidden p-0 sm:p-0 hover:border-primary/40">
-                      <div className="relative h-44 w-full overflow-hidden bg-lane">
+                      <div className="relative aspect-[16/9] w-full overflow-hidden bg-lane">
                         {ev.cover_image ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -287,23 +289,23 @@ export default async function HomePage({
                         >
                           {ev.pricing === "free" ? tx(locale, "ฟรี", "Free") : tx(locale, "มีค่าสมัคร", "Paid")}
                         </Badge>
-                        {parseEventAudience(ev.audience) !== "all" && (
-                          <Badge className="absolute left-3 top-3 bg-[#FF4A00] text-sm text-white shadow-sm">
+                        {audience !== "all" && (
+                          <Badge className={`absolute left-3 top-3 ${eventAudienceBadgeClass[audience]} text-sm text-white shadow-sm`}>
                             {tx(locale, "เฉพาะ", "For ")}
                             {pickLocalized(
                               locale,
-                              eventAudienceLabel[parseEventAudience(ev.audience)].th,
-                              eventAudienceLabel[parseEventAudience(ev.audience)].en,
+                              eventAudienceLabel[audience].th,
+                              eventAudienceLabel[audience].en,
                             )}
                           </Badge>
                         )}
                       </div>
                       <div className="flex flex-1 flex-col gap-2 p-5">
-                        <h3 className="flex items-start gap-2 font-display font-bold">
+                        <h3 className="flex items-start gap-2 font-display text-[16px] font-bold leading-6">
                           <HeadingIcon name="calendar" className="mt-0.5 size-4" />
                           <span className="line-clamp-2">{pickLocalized(locale, ev.title, ev.title_en)}</span>
                         </h3>
-                        <p className="flex flex-wrap items-center gap-1.5 font-mono text-xs text-accent tnum">
+                        <p className="flex flex-wrap items-center gap-1.5 font-mono text-[14px] leading-5 text-accent tnum">
                           <span className="inline-flex items-center gap-1">
                             <CalendarDays className="h-3.5 w-3.5" /> {formatDate(ev.start_date)} –{" "}
                             {formatDate(ev.end_date)}
@@ -319,7 +321,7 @@ export default async function HomePage({
                           )}
                         </p>
                         {pickLocalized(locale, ev.description, ev.description_en) && (
-                          <p className="line-clamp-2 text-sm text-muted">{stripHtml(pickLocalized(locale, ev.description, ev.description_en)!)}</p>
+                          <p className="line-clamp-2 text-[14px] leading-[22px] text-muted">{stripHtml(pickLocalized(locale, ev.description, ev.description_en)!)}</p>
                         )}
                         <span className="mt-auto inline-flex w-fit items-center gap-1 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-ink transition group-hover:bg-primary-hover">
                           <ChevronRight className="h-4 w-4" aria-hidden="true" /> {tx(locale, "ดูรายละเอียด", "View details")}
@@ -394,7 +396,7 @@ export default async function HomePage({
               return (
                 <Link key={ev.id} href={`/events/${ev.id}`} className="group">
                   <Card className="flex h-full flex-col overflow-hidden p-0 sm:p-0 hover:border-ink/25">
-                    <div className="relative h-44 w-full overflow-hidden bg-lane">
+                    <div className="relative aspect-[16/9] w-full overflow-hidden bg-lane">
                       {ev.cover_image ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -412,11 +414,11 @@ export default async function HomePage({
                       </Badge>
                     </div>
                     <div className="flex flex-1 flex-col gap-2 p-5">
-                      <h3 className="flex items-start gap-2 font-display font-bold">
+                      <h3 className="flex items-start gap-2 font-display text-[16px] font-bold leading-6">
                         <HeadingIcon name="history" className="mt-0.5 size-4" />
                         <span className="line-clamp-2">{pickLocalized(locale, ev.title, ev.title_en)}</span>
                       </h3>
-                      <p className="flex flex-wrap items-center gap-1.5 font-mono text-xs text-ink/50 tnum">
+                      <p className="flex flex-wrap items-center gap-1.5 font-mono text-[14px] leading-5 text-ink/50 tnum">
                         <span className="inline-flex items-center gap-1">
                           <CalendarDays className="h-3.5 w-3.5" /> {formatDate(ev.start_date)} –{" "}
                           {formatDate(ev.end_date)}
@@ -432,7 +434,7 @@ export default async function HomePage({
                         )}
                       </p>
                       {pickLocalized(locale, ev.description, ev.description_en) && (
-                        <p className="line-clamp-2 text-sm text-muted">{stripHtml(pickLocalized(locale, ev.description, ev.description_en)!)}</p>
+                        <p className="line-clamp-2 text-[14px] leading-[22px] text-muted">{stripHtml(pickLocalized(locale, ev.description, ev.description_en)!)}</p>
                       )}
                       <span className="mt-auto inline-flex w-fit items-center gap-1 rounded-full bg-lane px-4 py-1.5 text-sm font-semibold text-ink/70 transition group-hover:bg-lane/80">
                         <ChevronRight className="h-4 w-4" aria-hidden="true" /> {tx(locale, "ดูรายละเอียด", "View details")}
@@ -502,16 +504,16 @@ export default async function HomePage({
                       )}
                     </div>
                     <div className="flex flex-1 flex-col gap-2 p-5">
-                      <h3 className="flex items-start gap-2 font-display font-bold">
+                      <h3 className="flex items-start gap-2 font-display text-[16px] font-bold leading-6">
                         <HeadingIcon name="article" className="mt-0.5 size-4" />
                         <span className="line-clamp-2">{pickLocalized(locale, article.title, article.title_en)}</span>
                       </h3>
-                      <p className="inline-flex items-center gap-1.5 font-mono text-xs text-ink/45 tnum">
+                      <p className="inline-flex items-center gap-1.5 font-mono text-[14px] leading-5 text-ink/45 tnum">
                         <CalendarDays className="size-3.5 shrink-0" aria-hidden="true" />
                         {formatLocalizedDate(locale, article.published_at)}
                       </p>
                       {pickLocalized(locale, article.excerpt, article.excerpt_en) && (
-                        <p className="line-clamp-2 text-sm text-muted">{pickLocalized(locale, article.excerpt, article.excerpt_en)}</p>
+                        <p className="line-clamp-2 text-[14px] leading-[22px] text-muted">{pickLocalized(locale, article.excerpt, article.excerpt_en)}</p>
                       )}
                       <span className="mt-auto inline-flex w-fit items-center gap-1 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-ink transition group-hover:bg-primary-hover">
                         <ChevronRight className="size-4" aria-hidden="true" />

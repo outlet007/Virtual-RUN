@@ -5,7 +5,7 @@ import { EVENT_AUDIENCES, eventAudienceLabel, getEventAudienceDomains } from "@/
 export function EventAudienceField({ defaultValue = "all" }: { defaultValue?: string }) {
   return (
     <div>
-      <Label>กลุ่มผู้สมัคร</Label>
+      <Label>สำหรับ</Label>
       <Select name="audience" defaultValue={defaultValue}>
         {EVENT_AUDIENCES.map((audience) => (
           <option key={audience} value={audience}>

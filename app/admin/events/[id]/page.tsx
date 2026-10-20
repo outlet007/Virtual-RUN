@@ -426,7 +426,10 @@ export default async function EventDashboardPage({
       label: "ระยะสะสมที่อนุมัติ (กม.)",
       value: approvedDistanceKm.toLocaleString("th-TH", { maximumFractionDigits: 1 }),
     },
-    { label: "ยอดชำระเงินสะสม (บาท)", value: revenue.toLocaleString(undefined, { maximumFractionDigits: 2 }) },
+    // งานฟรีไม่มีการชำระเงิน จึงไม่แสดงยอดชำระเงินสะสม
+    ...(event.pricing === "paid"
+      ? [{ label: "ยอดชำระเงินสะสม (บาท)", value: revenue.toLocaleString(undefined, { maximumFractionDigits: 2 }) }]
+      : []),
     { label: "เหรียญที่ปลดล็อกแล้ว", value: medalsUnlocked ?? 0 },
   ];
 

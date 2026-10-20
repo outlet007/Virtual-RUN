@@ -7,6 +7,13 @@ import { getBangkokDate } from "@/lib/event-registration";
 import { getAdminEventStatusFilter, getEffectiveEventStatus } from "@/lib/event-status";
 import { CreateEventModal } from "@/components/admin/create-event-modal";
 import { requireAdmin } from "@/lib/auth/admin";
+import {
+  EVENT_AUDIENCES,
+  eventAudienceLabel,
+  parseEventAudience,
+  type EventAudience,
+} from "@/lib/event-audience";
+import { eventAudienceBadgeClass } from "@/components/events/event-audience-badge";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +37,7 @@ export default async function AdminEventsPage({
     page?: string;
     q?: string;
     status?: string;
+    audience?: string;
     event_deleted?: string;
     create?: string;
     error?: string;
@@ -42,6 +50,10 @@ export default async function AdminEventsPage({
   const page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
   const q = (sp.q ?? "").trim();
   const statusFilter = sp.status ?? "";
+  // ว่าง = ทุกกลุ่ม; รับเฉพาะค่าที่รู้จัก
+  const audienceFilter = EVENT_AUDIENCES.includes(sp.audience as EventAudience)
+    ? (sp.audience as EventAudience)
+    : "";
   const offset = (page - 1) * PAGE_SIZE;
 
   const [{ count: totalEventsCount }, { count: totalRegistrationsCount }, { count: totalConfirmedCount }] =
@@ -57,13 +69,14 @@ export default async function AdminEventsPage({
   let query = db
     .from("events")
     .select(
-      "id, title, description, cover_image, status, start_date, end_date, registrations(id, status)",
+      "id, title, description, cover_image, status, audience, start_date, end_date, registrations(id, status)",
       { count: "exact" },
     )
     .order("start_date", { ascending: false })
     .range(offset, offset + PAGE_SIZE - 1);
 
   if (q) query = query.ilike("title", `%${q}%`);
+  if (audienceFilter) query = query.eq("audience", audienceFilter);
   const effectiveStatusFilter = getAdminEventStatusFilter(statusFilter, today);
   if (effectiveStatusFilter.kind === "stored") {
     query = query.eq("status", effectiveStatusFilter.status);
@@ -83,6 +96,7 @@ export default async function AdminEventsPage({
     const params = new URLSearchParams();
     if (q) params.set("q", q);
     if (statusFilter) params.set("status", statusFilter);
+    if (audienceFilter) params.set("audience", audienceFilter);
     params.set("page", String(p));
     return `/admin/events?${params.toString()}`;
   };
@@ -145,6 +159,17 @@ export default async function AdminEventsPage({
               <option value="closed">ปิดรับสมัคร</option>
             </Select>
           </div>
+          <div className="w-full lg:w-56">
+            <label className="mb-1.5 block text-sm font-medium text-ink/70">สำหรับ</label>
+            <Select name="audience" defaultValue={audienceFilter}>
+              <option value="">ทั้งหมด</option>
+              {EVENT_AUDIENCES.map((audience) => (
+                <option key={audience} value={audience}>
+                  {eventAudienceLabel[audience].th}
+                </option>
+              ))}
+            </Select>
+          </div>
           <div className="flex items-center gap-3">
             <button
               type="submit"
@@ -153,7 +178,7 @@ export default async function AdminEventsPage({
               <Search className="size-4" aria-hidden="true" />
               ค้นหา
             </button>
-            {(q || statusFilter) && (
+            {(q || statusFilter || audienceFilter) && (
               <Link href="/admin/events" className="inline-flex items-center gap-1.5 text-sm font-medium text-ink/50 hover:text-ink">
                 ล้าง
               </Link>
@@ -171,10 +196,11 @@ export default async function AdminEventsPage({
               const confirmedCount = ev.registrations.filter((r) => r.status === "confirmed").length;
               const isPast = ev.end_date < today;
               const effectiveStatus = getEffectiveEventStatus(ev.status, ev.end_date, today);
+              const audience = parseEventAudience(ev.audience);
               return (
                 <Link key={ev.id} href={`/admin/events/${ev.id}`} className="group">
                   <Card className="flex h-full flex-col overflow-hidden p-0 sm:p-0 hover:border-primary/40">
-                    <div className="relative h-44 w-full overflow-hidden bg-lane">
+                    <div className="relative aspect-[16/9] w-full overflow-hidden bg-lane">
                       {ev.cover_image ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -190,13 +216,19 @@ export default async function AdminEventsPage({
                       <Badge className={`absolute right-3 top-3 ${statusClass[effectiveStatus]}`}>
                         {statusLabel[effectiveStatus]}
                       </Badge>
+                      {/* ป้ายกลุ่มผู้สมัครแบบเดียวกับการ์ดหน้าแรก */}
+                      {audience !== "all" && (
+                        <Badge className={`absolute left-3 top-3 ${eventAudienceBadgeClass[audience]} text-sm text-white shadow-sm`}>
+                          เฉพาะ{eventAudienceLabel[audience].th}
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex flex-1 flex-col gap-2 p-5">
-                      <h3 className="flex items-start gap-2 font-display font-bold">
+                      <h3 className="flex items-start gap-2 font-display text-[16px] font-bold leading-6">
                         <HeadingIcon name="calendar" className="mt-0.5 size-4" />
                         <span className="line-clamp-2">{ev.title}</span>
                       </h3>
-                      <p className="flex flex-wrap items-center gap-1.5 font-mono text-xs text-accent tnum">
+                      <p className="flex flex-wrap items-center gap-1.5 font-mono text-[14px] leading-5 text-accent tnum">
                         <span className="inline-flex items-center gap-1">
                           <CalendarDays className="h-3.5 w-3.5" /> {formatDate(ev.start_date)}
                         </span>
@@ -205,7 +237,7 @@ export default async function AdminEventsPage({
                         </span>
                       </p>
                       {ev.description && (
-                        <p className="line-clamp-2 text-sm text-muted">{stripHtml(ev.description)}</p>
+                        <p className="line-clamp-2 text-[14px] leading-[22px] text-muted">{stripHtml(ev.description)}</p>
                       )}
                       <span className="mt-auto inline-flex w-fit items-center gap-1 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-ink transition group-hover:bg-primary-hover">
                         <ChevronRight className="h-4 w-4" aria-hidden="true" /> ดูรายละเอียด
