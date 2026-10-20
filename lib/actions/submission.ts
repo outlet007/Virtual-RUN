@@ -267,6 +267,12 @@ export async function createSubmission(formData: FormData) {
           encodeURIComponent("รูปหลักฐานนี้เคยใช้บันทึกผลแล้ว"),
       );
     }
+    if (error.message === "event_not_available") {
+      redirect(
+        submitErrorPath(registrationId) + "?error=" +
+          encodeURIComponent("งานนี้ปิดชั่วคราว ยังส่งผลวิ่งไม่ได้"),
+      );
+    }
     redirect(submitErrorPath(registrationId) + "?error=" + encodeURIComponent(error.message));
   }
 

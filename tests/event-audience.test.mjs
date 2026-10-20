@@ -128,7 +128,7 @@ test("admin event list filters by audience and the field is labelled สำห�
   assert.match(list, /if \(audienceFilter\) query = query\.eq\("audience", audienceFilter\);/);
   assert.match(list, /if \(audienceFilter\) params\.set\("audience", audienceFilter\);/);
   // การ์ดงานใน Admin แสดงป้ายกลุ่มผู้สมัครแบบเดียวกับหน้าแรก
-  assert.match(list, /audience, start_date/);
+  assert.match(list, /"id, title, description, cover_image, status, audience,/);
   assert.match(list, /audience !== "all" && \(\s*<Badge className=\{`absolute left-3 top-3 \$\{eventAudienceBadgeClass\[audience\]\} text-sm text-white shadow-sm`\}>/);
 });
 

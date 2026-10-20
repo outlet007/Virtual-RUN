@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 const REDEEM_ERROR_MESSAGES: Record<string, string> = {
   not_authenticated: "กรุณาเข้าสู่ระบบ",
   reward_not_found: "ไม่พบรางวัล",
+  reward_not_available: "รางวัลนี้ปิดการแลกชั่วคราว",
   out_of_stock: "รางวัลนี้หมดแล้ว",
   insufficient_points: "แต้มไม่พอสำหรับแลกรางวัลนี้",
   invalid_fulfillment_method: 'กรุณาเลือกวิธีรับรางวัล',

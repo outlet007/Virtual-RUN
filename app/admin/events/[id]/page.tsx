@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarDays, Medal, Road, RotateCcw, Search } from "lucide-react";
+import { CalendarDays, Eye, EyeOff, Medal, Road, RotateCcw, Search } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   Card,
@@ -42,6 +42,7 @@ import {
   bulkUpdatePhysicalMedals,
   movePhysicalMedal,
   updateDistanceLevelRegistration,
+  setEventVisibility,
 } from "@/lib/actions/admin";
 import { manuallyApproveRegistration } from "@/lib/actions/admin-registrations";
 import { requireAdmin } from "@/lib/auth/admin";
@@ -206,6 +207,7 @@ export default async function EventDashboardPage({
     shipment_q?: string;
     shipment_status?: string;
     tab?: string;
+    visibility?: string;
     period?: string;
   }>;
 }) {
@@ -275,7 +277,7 @@ export default async function EventDashboardPage({
   const { data: event } = await db
     .from("events")
     .select(
-      "id, title, title_en, bib_prefix, description, description_en, cover_image, cover_position_x, cover_position_y, poster_image, pricing, event_mode, audience, start_date, end_date, status, packages(id, name, name_en, target_distance_km, price, activity_types, has_physical_medal, digital_medal_id, digital_medal:medals!packages_digital_medal_id_fkey(id, name, name_en), physical_medal_id, physical_medal:physical_medals!packages_physical_medal_id_fkey(id, name, name_en), sort_order), medals(id, name, name_en, tier, bonus_points, image_url, unlock_rule, sort_order), physical_medals(id, name, name_en, description_en, tier, bonus_points, image_url, unlock_rule, sort_order), event_distance_levels(id, name, name_en, target_distance_km, sort_order, digital_medal_id, reward_description, reward_description_en, bonus_points)",
+      "id, title, title_en, bib_prefix, description, description_en, cover_image, cover_position_x, cover_position_y, poster_image, pricing, event_mode, audience, is_visible, start_date, end_date, status, packages(id, name, name_en, target_distance_km, price, activity_types, has_physical_medal, digital_medal_id, digital_medal:medals!packages_digital_medal_id_fkey(id, name, name_en), physical_medal_id, physical_medal:physical_medals!packages_physical_medal_id_fkey(id, name, name_en), sort_order), medals(id, name, name_en, tier, bonus_points, image_url, unlock_rule, sort_order), physical_medals(id, name, name_en, description_en, tier, bonus_points, image_url, unlock_rule, sort_order), event_distance_levels(id, name, name_en, target_distance_km, sort_order, digital_medal_id, reward_description, reward_description_en, bonus_points)",
     )
     .eq("id", id)
     .single();
@@ -459,6 +461,13 @@ export default async function EventDashboardPage({
           บันทึกแล้ว
         </div>
       )}
+      {sp.visibility && (
+        <div className="rounded-xl bg-primary-soft px-4 py-3 text-sm text-primary-dark">
+          {sp.visibility === "hidden"
+            ? "ซ่อนงานแล้ว ผู้ใช้ทุกคนมองไม่เห็นงานนี้ สมัครและส่งผลวิ่งไม่ได้จนกว่าจะเปิดแสดง"
+            : "แสดงงานแล้ว"}
+        </div>
+      )}
       {isDistanceLevels && (distanceLevels.length === 0 || !registrationPackage) && (
         <div role="status" className="rounded-xl bg-medal-soft px-4 py-3 text-sm text-medal">
           ผู้ใช้ยังสมัครงานนี้ไม่ได้ —{" "}
@@ -476,6 +485,11 @@ export default async function EventDashboardPage({
               {event.title}
             </h2>
             <Badge className={statusClass[effectiveStatus]}>{statusLabel[effectiveStatus]}</Badge>
+            {!event.is_visible && (
+              <Badge className="gap-1 bg-ink/10 text-ink/60">
+                <EyeOff className="size-3" aria-hidden="true" /> ซ่อนอยู่
+              </Badge>
+            )}
           </div>
           <p className="mt-1 flex flex-wrap items-center gap-1.5 font-mono text-xs text-accent tnum">
             <span className="inline-flex items-center gap-1">
@@ -498,6 +512,22 @@ export default async function EventDashboardPage({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <form action={setEventVisibility}>
+            <input type="hidden" name="id" value={event.id} />
+            <input type="hidden" name="visible" value={event.is_visible ? "0" : "1"} />
+            <Button
+              type="submit"
+              variant="ghost"
+              aria-label={event.is_visible ? "ซ่อนงานนี้" : "แสดงงานนี้"}
+              title={event.is_visible ? "แสดงอยู่ — กดเพื่อซ่อน" : "ซ่อนอยู่ — กดเพื่อแสดง"}
+            >
+              {event.is_visible ? (
+                <Eye className="size-4" aria-hidden="true" />
+              ) : (
+                <EyeOff className="size-4 text-ink/45" aria-hidden="true" />
+              )}
+            </Button>
+          </form>
           <EditEventModal
             event={{
               id: event.id,

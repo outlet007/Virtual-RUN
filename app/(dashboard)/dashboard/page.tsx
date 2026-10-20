@@ -56,7 +56,7 @@ export default async function DashboardPage({
 
   const { data: regsRaw } = await supabase
     .from("registrations")
-    .select("id, status, packages(name, name_en), events(title, title_en)")
+    .select("id, status, packages(name, name_en), events!inner(title, title_en)")
     .eq("user_id", user.id)
     .order("registered_at", { ascending: false });
 

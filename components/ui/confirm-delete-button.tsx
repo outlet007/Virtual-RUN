@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { TriangleAlert } from "lucide-react";
-import { Button } from "./index";
+import { CheckCircle2, TriangleAlert } from "lucide-react";
+import { Button, type ButtonIconName } from "./index";
 
 export function ConfirmDeleteButton({
   title = "ยืนยันการลบ",
@@ -11,6 +11,8 @@ export function ConfirmDeleteButton({
   confirmLabel = "ยืนยันการลบ",
   formAction,
   className,
+  icon = "delete",
+  tone = "danger",
 }: {
   title?: string;
   description: string;
@@ -18,7 +20,11 @@ export function ConfirmDeleteButton({
   confirmLabel?: string;
   formAction?: React.ButtonHTMLAttributes<HTMLButtonElement>["formAction"];
   className?: string;
+  icon?: ButtonIconName;
+  // danger = ลบ/ย้อน (แดง), confirm = ยืนยันการทำรายการ (เขียว)
+  tone?: "danger" | "confirm";
 }) {
+  const isConfirm = tone === "confirm";
   const [open, setOpen] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -46,9 +52,12 @@ export function ConfirmDeleteButton({
     <>
       <Button
         type="button"
-        variant="ghost"
-        icon="delete"
-        className={className ?? "border-red-200 text-red-700 hover:bg-red-50"}
+        variant={isConfirm ? "primary" : "ghost"}
+        icon={icon}
+        className={
+          className ??
+          (isConfirm ? undefined : "border-red-200 text-red-700 hover:bg-red-50")
+        }
         onClick={() => setOpen(true)}
       >
         {triggerLabel}
@@ -67,10 +76,22 @@ export function ConfirmDeleteButton({
             if (event.target === event.currentTarget) setOpen(false);
           }}
         >
-          <div className="w-full max-w-md rounded-2xl border border-red-100 bg-white p-5 shadow-2xl sm:p-6">
+          <div
+            className={`w-full max-w-md rounded-2xl border bg-white p-5 shadow-2xl sm:p-6 ${
+              isConfirm ? "border-emerald-100" : "border-red-100"
+            }`}
+          >
             <div className="flex items-start gap-3">
-              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-red-100 text-red-700">
-                <TriangleAlert className="size-5" aria-hidden="true" />
+              <span
+                className={`grid size-10 shrink-0 place-items-center rounded-full ${
+                  isConfirm ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                }`}
+              >
+                {isConfirm ? (
+                  <CheckCircle2 className="size-5" aria-hidden="true" />
+                ) : (
+                  <TriangleAlert className="size-5" aria-hidden="true" />
+                )}
               </span>
               <div className="min-w-0">
                 <h3 id={titleId} className="font-display text-lg font-bold text-ink">
@@ -87,9 +108,13 @@ export function ConfirmDeleteButton({
               </Button>
               <Button
                 type="submit"
-                icon="delete"
+                icon={icon}
                 formAction={formAction}
-                className="bg-red-600 text-white hover:bg-red-700"
+                className={
+                  isConfirm
+                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                    : "bg-red-600 text-white hover:bg-red-700"
+                }
               >
                 {confirmLabel}
               </Button>

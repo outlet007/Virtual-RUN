@@ -68,7 +68,7 @@ export default async function HistoryPage({
   const { data: subsRaw } = await supabase
     .from("submissions")
     .select(
-      "id, distance_km, status, activity_type, activity_date, source, registrations(events(title, title_en))",
+      "id, distance_km, status, activity_type, activity_date, source, registrations!inner(events!inner(title, title_en))",
     )
     .eq("user_id", user.id)
     .order("activity_date", { ascending: false });

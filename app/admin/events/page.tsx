@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Search, Footprints, CalendarDays, ChevronRight, ChevronLeft, RotateCcw } from "lucide-react";
+import { Search, Footprints, CalendarDays, ChevronRight, ChevronLeft, EyeOff, RotateCcw } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, Badge, HeadingIcon, Input, Select } from "@/components/ui";
 import { formatDate, stripHtml } from "@/lib/utils";
@@ -69,7 +69,7 @@ export default async function AdminEventsPage({
   let query = db
     .from("events")
     .select(
-      "id, title, description, cover_image, status, audience, start_date, end_date, registrations(id, status)",
+      "id, title, description, cover_image, status, audience, is_visible, start_date, end_date, registrations(id, status)",
       { count: "exact" },
     )
     .order("start_date", { ascending: false })
@@ -213,9 +213,14 @@ export default async function AdminEventsPage({
                           <Footprints className="h-10 w-10" />
                         </div>
                       )}
-                      <Badge className={`absolute right-3 top-3 ${statusClass[effectiveStatus]}`}>
-                        {statusLabel[effectiveStatus]}
-                      </Badge>
+                      <div className="absolute right-3 top-3 flex flex-col items-end gap-1">
+                        <Badge className={statusClass[effectiveStatus]}>{statusLabel[effectiveStatus]}</Badge>
+                        {!ev.is_visible && (
+                          <Badge className="gap-1 bg-ink/75 text-white">
+                            <EyeOff className="size-3" aria-hidden="true" /> ซ่อนอยู่
+                          </Badge>
+                        )}
+                      </div>
                       {/* ป้ายกลุ่มผู้สมัครแบบเดียวกับการ์ดหน้าแรก */}
                       {audience !== "all" && (
                         <Badge className={`absolute left-3 top-3 ${eventAudienceBadgeClass[audience]} text-sm text-white shadow-sm`}>

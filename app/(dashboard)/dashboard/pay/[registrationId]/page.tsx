@@ -36,7 +36,7 @@ export default async function PayPage({
 
   const { data: regRaw } = await supabase
     .from("registrations")
-    .select("id, bib_number, packages(name, name_en), events(title, title_en)")
+    .select("id, bib_number, packages(name, name_en), events!inner(title, title_en)")
     .eq("id", registrationId)
     .single();
 

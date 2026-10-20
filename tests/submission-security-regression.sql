@@ -75,8 +75,8 @@ begin
     '00000000-0000-4000-8000-000000009501',
     'QA submission security',
     'free',
-    '2026-08-01',
-    '2026-08-31',
+    current_date - 1,
+    current_date + 30,
     'open'
   );
 

@@ -57,6 +57,7 @@ export default async function DashboardRewardsPage({
     supabase
       .from("rewards")
       .select('id, name, name_en, description, description_en, image_url, cost_points, stock, allows_pickup, allows_shipping, reward_pickup_locations(name, name_en, address, address_en, contact_phone, contact_phone_en, maps_url, instructions, instructions_en)')
+      .eq("is_active", true)
       .order("cost_points", { ascending: true }),
     supabase.from("points_ledger").select("delta").eq("user_id", user.id),
     supabase

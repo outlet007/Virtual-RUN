@@ -36,6 +36,7 @@ export default async function RewardsPage({
   const { data: rewardsRaw } = await supabase
     .from("rewards")
     .select("id, name, name_en, description, description_en, image_url, cost_points, stock")
+    .eq("is_active", true)
     .order("cost_points", { ascending: true });
   const rewards = (rewardsRaw ?? []) as RewardRow[];
 

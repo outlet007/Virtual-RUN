@@ -265,6 +265,25 @@ export async function updateEvent(formData: FormData) {
   redirect(`/admin/events/${id}?saved=1`);
 }
 
+// ซ่อน/แสดงงานจากทุกคนที่ไม่ใช่ผู้ดูแล (RLS ซ่อนงาน, trigger ปฏิเสธการสมัครและการส่งผลวิ่ง)
+export async function setEventVisibility(formData: FormData) {
+  await requireManager();
+  const db = createAdminClient();
+  const id = String(formData.get("id") ?? "");
+  const visible = formData.get("visible") === "1";
+  if (!id) err("/admin/events", "ไม่พบงาน");
+
+  const { error } = await db.from("events").update({ is_visible: visible }).eq("id", id);
+  if (error) err(`/admin/events/${id}`, error.message);
+
+  revalidatePath("/admin/events");
+  revalidatePath(`/admin/events/${id}`);
+  revalidatePath(`/events/${id}`);
+  revalidatePath("/");
+  revalidatePath("/dashboard", "layout");
+  redirect(`/admin/events/${id}?visibility=${visible ? "shown" : "hidden"}`);
+}
+
 export async function deleteEvent(formData: FormData) {
   await requireManager();
   const db = createAdminClient();
@@ -1698,6 +1717,24 @@ export async function updateReward(formData: FormData) {
   redirect("/admin/rewards?reward_saved=1");
 }
 
+// ซ่อน/แสดงรางวัลในแคตตาล็อก (ใช้แทนการลบเมื่อรางวัลมีประวัติการแลกแล้ว)
+// redeem_reward ปฏิเสธรางวัลที่ซ่อนด้วย ไม่ใช่แค่ซ่อนจากหน้าเว็บ
+export async function setRewardVisibility(formData: FormData) {
+  await requireManager();
+  const db = createAdminClient();
+  const id = String(formData.get("id") ?? "");
+  const visible = formData.get("visible") === "1";
+  if (!id) err("/admin/rewards?tab=catalog", "ไม่พบรางวัล");
+
+  const { error } = await db.from("rewards").update({ is_active: visible }).eq("id", id);
+  if (error) err("/admin/rewards?tab=catalog", error.message);
+
+  revalidatePath("/admin/rewards");
+  revalidatePath("/rewards");
+  revalidatePath("/dashboard/rewards");
+  redirect(`/admin/rewards?tab=catalog&reward_visibility=${visible ? "shown" : "hidden"}`);
+}
+
 export async function deleteReward(formData: FormData) {
   await requireManager();
   const db = createAdminClient();
@@ -1713,7 +1750,7 @@ export async function deleteReward(formData: FormData) {
   if ((redemptionCount ?? 0) > 0) {
     err(
       "/admin/rewards",
-      "ไม่สามารถลบรางวัลที่มีประวัติการแลกแล้วได้ กรุณาปรับ stock เป็น 0 เพื่อปิดการแลกแทน",
+      "ไม่สามารถลบรางวัลที่มีประวัติการแลกแล้วได้ กรุณากดปุ่มรูปตาเพื่อซ่อนรางวัลแทน",
     );
   }
 
@@ -1733,9 +1770,10 @@ export async function fulfillRedemption(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) err("/admin/rewards", "ไม่พบรายการแลกรางวัล");
 
+  const fulfilledAt = new Date().toISOString();
   const { data: redemption, error } = await db
     .from("redemptions")
-    .update({ status: 'fulfilled', fulfilled_at: new Date().toISOString() })
+    .update({ status: 'fulfilled', fulfilled_at: fulfilledAt })
     .eq("id", id)
     .eq("status", "pending")
     .select('user_id, fulfillment_method, rewards(name)')
@@ -1747,7 +1785,8 @@ export async function fulfillRedemption(formData: FormData) {
     const rewardName = Array.isArray(reward) ? reward[0]?.name : reward?.name;
     const isPickup = redemption.fulfillment_method === 'pickup';
     await notifyUser(redemption.user_id, "redemption_fulfilled", {
-      dedupeKey: `redemption:${id}:fulfilled`,
+      // ผูกกับเวลายืนยัน: ถ้าย้อนสถานะแล้วยืนยันใหม่ ผู้ใช้ยังได้รับแจ้งเตือนรอบใหม่
+      dedupeKey: `redemption:${id}:fulfilled:${fulfilledAt}`,
       subject: isPickup ? 'ยืนยันการรับรางวัลแล้ว' : 'รางวัลของคุณถูกจัดส่งแล้ว',
       text: isPickup
         ? `ยืนยันการรับรางวัล '${rewardName ?? ''}' เรียบร้อยแล้ว`
@@ -1757,6 +1796,58 @@ export async function fulfillRedemption(formData: FormData) {
 
   revalidatePath("/admin/rewards");
   redirect("/admin/rewards?fulfilled=1");
+}
+
+// ย้อนรายการที่ยืนยันส่งมอบผิดกลับเป็น "รอดำเนินการ" (กรณีกดผิดคน)
+// เปลี่ยนเฉพาะสถานะ: แต้มที่ใช้แลกและ stock ไม่เปลี่ยน
+// ถ้าผู้ใช้ได้รับแจ้งเตือน "ส่งมอบแล้ว" ไปจริง จะส่งข้อความแจ้งว่าแจ้งผิดตามไปด้วย
+export async function revertRedemptionFulfillment(formData: FormData) {
+  await requireManager();
+  const db = createAdminClient();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) err("/admin/rewards", "ไม่พบรายการแลกรางวัล");
+
+  const revertedAt = new Date().toISOString();
+  const { data: redemption, error } = await db
+    .from("redemptions")
+    .update({ status: "pending", fulfilled_at: null })
+    .eq("id", id)
+    .eq("status", "fulfilled")
+    .select("user_id, fulfillment_method, rewards(name)")
+    .maybeSingle();
+  if (error) err("/admin/rewards", error.message);
+
+  if (redemption) {
+    const { count: deliveredNotices } = await db
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", redemption.user_id)
+      .eq("type", "redemption_fulfilled")
+      .like("dedupe_key", `redemption:${id}:fulfilled%`)
+      .eq("status", "sent");
+
+    if ((deliveredNotices ?? 0) > 0) {
+      const reward = redemption.rewards as unknown as { name: string } | { name: string }[] | null;
+      const rewardName = (Array.isArray(reward) ? reward[0]?.name : reward?.name) ?? "";
+      const previousNotice =
+        redemption.fulfillment_method === "pickup"
+          ? `ยืนยันการรับรางวัล '${rewardName}' เรียบร้อยแล้ว`
+          : `รางวัล '${rewardName}' ที่คุณแลกไว้ถูกจัดส่งแล้ว`;
+      await notifyUser(redemption.user_id, "redemption_fulfillment_reverted", {
+        dedupeKey: `redemption:${id}:reverted:${revertedAt}`,
+        subject: "แก้ไขข้อความแจ้งเตือน: รางวัลของคุณยังไม่ได้ส่งมอบ",
+        text:
+          `ขออภัย ข้อความก่อนหน้าที่แจ้งว่า "${previousNotice}" ส่งถึงคุณโดยผิดพลาด\n` +
+          `รายการแลกรางวัล '${rewardName}' ของคุณยังอยู่ในสถานะรอดำเนินการ ` +
+          "แต้มของคุณไม่มีการเปลี่ยนแปลง เจ้าหน้าที่จะแจ้งอีกครั้งเมื่อส่งมอบจริง",
+      });
+    }
+  }
+
+  revalidatePath("/admin/rewards");
+  revalidatePath("/dashboard/rewards");
+  redirect("/admin/rewards?tab=redemptions&reverted=1");
 }
 
 // ---------- Hero Banners ----------
