@@ -229,11 +229,11 @@ export default async function AdminEventsPage({
                       )}
                     </div>
                     <div className="flex flex-1 flex-col gap-2 p-5">
-                      <h3 className="flex items-start gap-2 font-display text-[16px] font-bold leading-6">
+                      <h3 className="flex items-start gap-2 font-display font-bold">
                         <HeadingIcon name="calendar" className="mt-0.5 size-4" />
                         <span className="line-clamp-2">{ev.title}</span>
                       </h3>
-                      <p className="flex flex-wrap items-center gap-1.5 font-mono text-[14px] leading-5 text-accent tnum">
+                      <p className="flex flex-wrap items-center gap-1.5 font-mono text-xs text-accent tnum">
                         <span className="inline-flex items-center gap-1">
                           <CalendarDays className="h-3.5 w-3.5" /> {formatDate(ev.start_date)}
                         </span>
@@ -242,7 +242,7 @@ export default async function AdminEventsPage({
                         </span>
                       </p>
                       {ev.description && (
-                        <p className="line-clamp-2 text-[14px] leading-[22px] text-muted">{stripHtml(ev.description)}</p>
+                        <p className="line-clamp-2 text-sm text-muted">{stripHtml(ev.description)}</p>
                       )}
                       <span className="mt-auto inline-flex w-fit items-center gap-1 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-ink transition group-hover:bg-primary-hover">
                         <ChevronRight className="h-4 w-4" aria-hidden="true" /> ดูรายละเอียด

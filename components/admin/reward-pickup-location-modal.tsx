@@ -103,7 +103,7 @@ function LocationModal({
 
   return createPortal(
     <div
-      className='fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-2 backdrop-blur-sm sm:p-4'
+      className='admin-type-scale fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-2 backdrop-blur-sm sm:p-4'
       onClick={onClose}
       role='presentation'
     >

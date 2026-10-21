@@ -63,3 +63,18 @@
     transition: none !important;
   }
 }
+
+/* แผงควบคุม (Admin) ใช้ขนาดตัวอักษรเดิมก่อนปรับฝั่งหน้าเว็บ (tailwind.config.ts: xs 14px, sm 15px, prose-sm 16px)
+   ครอบด้วย .admin-type-scale ที่ app/admin/layout.tsx และ modal ของ Admin ที่ render ผ่าน portal
+   ใช้ได้เพราะฝั่ง Admin ไม่มี class ขนาดตัวอักษรแบบ responsive (เช่น sm:text-base) ที่ต้องชนะกฎนี้ */
+.admin-type-scale .text-xs {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+.admin-type-scale .text-sm {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+.admin-type-scale .prose-sm {
+  font-size: 0.875rem;
+}

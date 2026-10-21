@@ -15,7 +15,7 @@ export default async function AdminLayout({
   const tabs = getAdminTabs(role);
 
   return (
-    <div className="space-y-6">
+    <div className="admin-type-scale space-y-6">
       <div>
         <p className="font-mono text-xs uppercase tracking-[0.2em] text-primary-dark">
           Admin

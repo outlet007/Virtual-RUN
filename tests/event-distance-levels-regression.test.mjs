@@ -51,12 +51,12 @@ test("home event cards show level distance range without package count", async (
   assert.equal(home.match(/font-mono text-\[14px\] leading-5/g)?.length, 3);
   assert.equal(home.match(/line-clamp-2 text-\[14px\] leading-\[22px\] text-muted/g)?.length, 3);
 
-  // การ์ดในหน้า Admin "งานทั้งหมด" ใช้ขนาดเดียวกับหน้าเว็บ
+  // การ์ดในหน้า Admin "งานทั้งหมด": รูป 16:9 เหมือนหน้าเว็บ แต่ตัวอักษรใช้ขนาดเดิมของ Admin
   const adminList = await readFile("app/admin/events/page.tsx", "utf8");
   assert.match(adminList, /relative aspect-\[16\/9\] w-full overflow-hidden bg-lane/);
-  assert.match(adminList, /<h3 className="[^"]*text-\[16px\][^"]*">/);
-  assert.match(adminList, /font-mono text-\[14px\] leading-5/);
-  assert.match(adminList, /line-clamp-2 text-\[14px\] leading-\[22px\] text-muted/);
+  assert.match(adminList, /<h3 className="flex items-start gap-2 font-display font-bold">/);
+  assert.match(adminList, /font-mono text-xs text-accent tnum/);
+  assert.match(adminList, /line-clamp-2 text-sm text-muted/);
 });
 
 test("admin event tabs open on statistics first, before overview", async () => {
